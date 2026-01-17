@@ -34,6 +34,12 @@ export default async function DashboardPage() {
     `)
         .order('created_at', { ascending: false })
 
+    // Fetch all customers for Add Order form
+    const { data: customers } = await supabase
+        .from('customers')
+        .select('*')
+        .order('name', { ascending: true })
+
     return (
         <DashboardLayout user={profile}>
             <KanbanBoard
@@ -44,6 +50,7 @@ export default async function DashboardPage() {
                     total_receivables: 0,
                     bottleneck_count: 0
                 }}
+                customers={customers || []}
             />
         </DashboardLayout>
     )
