@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { Order, Customer, OrderStage } from '@/types/database'
@@ -47,57 +48,130 @@ export default function DraggableOrderCard({ order, isBottleneck, onClick }: Dra
         return Math.floor((now.getTime() - stageEnteredAt.getTime()) / (1000 * 60 * 60 * 24))
     }
 
-    const getPaymentStatus = () => {
-        if (order.pelunasan_verified) return { label: 'Lunas', color: 'bg-emerald-500' }
-        if (order.dp_produksi_verified) return { label: 'DP 50%', color: 'bg-amber-500' }
-        if (order.dp_desain_verified) return { label: 'DP Desain', color: 'bg-blue-500' }
-        return { label: 'Belum Bayar', color: 'bg-red-500' }
+    // Format order age from created_at
+    const formatOrderAge = (createdAt: string): string => {
+        const created = new Date(createdAt)
+        const now = new Date()
+        const diffMs = now.getTime() - created.getTime()
+
+        const minutes = Math.floor(diffMs / (1000 * 60))
+        const hours = Math.floor(diffMs / (1000 * 60 * 60))
+        const days = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+        const weeks = Math.floor(days / 7)
+
+        if (weeks >= 1) {
+            const remainingDays = days % 7
+            return remainingDays > 0 ? `${weeks} minggu ${remainingDays} hari` : `${weeks} minggu`
+        }
+        if (days >= 1) {
+            const remainingHours = hours % 24
+            return remainingHours > 0 ? `${days} hari ${remainingHours} jam` : `${days} hari`
+        }
+        if (hours >= 1) {
+            const remainingMinutes = minutes % 60
+            return remainingMinutes > 0 ? `${hours} jam ${remainingMinutes} menit` : `${hours} jam`
+        }
+        return `${minutes} menit`
     }
 
-    // Determine if order is ready to move to next stage
-    const getStageReadiness = (): { isReady: boolean; reason?: string } => {
+    // State for order age timer
+    const [orderAge, setOrderAge] = useState(() => formatOrderAge(order.created_at))
+    const [isOverOneDay, setIsOverOneDay] = useState(() => {
+        const created = new Date(order.created_at)
+        const now = new Date()
+        const diffMs = now.getTime() - created.getTime()
+        return diffMs >= 24 * 60 * 60 * 1000
+    })
+
+    // Update timer every hour
+    useEffect(() => {
+        const updateAge = () => {
+            setOrderAge(formatOrderAge(order.created_at))
+            const created = new Date(order.created_at)
+            const now = new Date()
+            const diffMs = now.getTime() - created.getTime()
+            setIsOverOneDay(diffMs >= 24 * 60 * 60 * 1000)
+        }
+
+        // Initial update
+        updateAge()
+
+        // Update every minute (60000ms)
+        const interval = setInterval(updateAge, 60000)
+
+        return () => clearInterval(interval)
+    }, [order.created_at])
+
+    // Get stage-specific status badge (green = ready, red = not ready)
+    const getStageStatus = (): { label: string; isReady: boolean } => {
         const stage = order.stage as OrderStage
 
         switch (stage) {
             case 'customer_dp_desain':
                 return {
-                    isReady: order.dp_desain_verified,
-                    reason: order.dp_desain_verified ? undefined : 'Menunggu DP Desain'
+                    label: order.dp_desain_verified ? 'Sudah DP' : 'Belum Bayar',
+                    isReady: order.dp_desain_verified
                 }
             case 'proses_desain':
                 return {
-                    isReady: order.mockup_url !== null,
-                    reason: order.mockup_url ? undefined : 'Belum upload mockup ACC'
+                    label: order.mockup_url ? 'Sudah ACC' : 'Belum ACC',
+                    isReady: order.mockup_url !== null
+                }
+            case 'proses_layout':
+                return {
+                    label: order.layout_completed ? 'Selesai' : 'Belum Selesai',
+                    isReady: order.layout_completed
                 }
             case 'dp_produksi':
                 return {
-                    isReady: order.dp_produksi_verified,
-                    reason: order.dp_produksi_verified ? undefined : 'Menunggu DP Produksi'
+                    label: order.dp_produksi_verified ? 'Sudah DP' : 'Belum DP',
+                    isReady: order.dp_produksi_verified
+                }
+            case 'antrean_produksi':
+                return {
+                    label: order.production_ready ? 'Selesai' : 'Belum Selesai',
+                    isReady: order.production_ready
+                }
+            case 'print_press':
+                return {
+                    label: order.print_completed ? 'Selesai' : 'Belum Selesai',
+                    isReady: order.print_completed
+                }
+            case 'cutting_jahit':
+                return {
+                    label: order.sewing_completed ? 'Selesai' : 'Belum Selesai',
+                    isReady: order.sewing_completed
+                }
+            case 'packing':
+                return {
+                    label: order.packing_completed ? 'Selesai' : 'Belum Selesai',
+                    isReady: order.packing_completed
                 }
             case 'pelunasan':
                 return {
-                    isReady: order.pelunasan_verified,
-                    reason: order.pelunasan_verified ? undefined : 'Menunggu Pelunasan'
+                    label: order.pelunasan_verified ? 'Sudah Lunas' : 'Belum Lunas',
+                    isReady: order.pelunasan_verified
                 }
             case 'pengiriman':
                 return {
-                    isReady: order.tracking_number !== null && order.shipped_at !== null,
-                    reason: (order.tracking_number && order.shipped_at) ? undefined : 'Belum dikirim'
+                    label: (order.tracking_number && order.shipped_at) ? 'Sudah Kirim' : 'Belum Kirim',
+                    isReady: order.tracking_number !== null && order.shipped_at !== null
                 }
-            // Production stages - always need manual verification
-            case 'antrean_produksi':
-            case 'print_press':
-            case 'cutting_jahit':
-            case 'packing':
             default:
-                return {
-                    isReady: false,
-                    reason: 'Perlu verifikasi admin'
-                }
+                return { label: 'Unknown', isReady: false }
         }
     }
 
-    const paymentStatus = getPaymentStatus()
+    // Determine if order is ready to move to next stage (uses same logic as getStageStatus)
+    const getStageReadiness = (): { isReady: boolean; reason?: string } => {
+        const stageStatus = getStageStatus()
+        return {
+            isReady: stageStatus.isReady,
+            reason: stageStatus.isReady ? undefined : stageStatus.label
+        }
+    }
+
+    const stageStatus = getStageStatus()
     const daysInStage = getDaysInStage()
     const stageReadiness = getStageReadiness()
 
@@ -116,17 +190,17 @@ export default function DraggableOrderCard({ order, isBottleneck, onClick }: Dra
         >
             {/* Outer Container - Pastel Background */}
             <div className={`pt-3 px-2 pb-2 rounded-3xl transition-all ${stageReadiness.isReady
-                ? 'bg-emerald-50 dark:bg-emerald-950/30'
-                : 'bg-red-50 dark:bg-red-950/30'
+                ? 'bg-emerald-100 dark:bg-emerald-900/50'
+                : 'bg-red-100 dark:bg-red-900/50'
                 } ${isDragging ? 'ring-2 ring-offset-2 ring-emerald-500' : ''} ${isBottleneck ? 'ring-2 ring-red-400 animate-pulse' : ''
                 }`}>
 
                 {/* Header Status - In outer container padding area */}
-                <div className={`flex items-center gap-1.5 px-2 mb-1.5 text-[10px] font-bold uppercase tracking-wider ${stageReadiness.isReady
-                    ? 'text-emerald-600 dark:text-emerald-400'
-                    : 'text-red-600 dark:text-red-400'
+                <div className={`flex items-center gap-1.5 px-2 mb-1.5 text-[11px] font-extrabold uppercase tracking-wider ${stageReadiness.isReady
+                    ? 'text-emerald-700 dark:text-emerald-300'
+                    : 'text-red-700 dark:text-red-300'
                     }`}>
-                    <span className={`w-1.5 h-1.5 rounded-full ${stageReadiness.isReady ? 'bg-emerald-500' : 'bg-red-500'
+                    <span className={`w-2 h-2 rounded-full ${stageReadiness.isReady ? 'bg-emerald-500 ring-2 ring-emerald-300' : 'bg-red-500 ring-2 ring-red-300'
                         }`}></span>
                     {stageReadiness.isReady ? 'SIAP PINDAH' : 'PERLU ACTION'}
 
@@ -187,20 +261,29 @@ export default function DraggableOrderCard({ order, isBottleneck, onClick }: Dra
                                 )}
                             </div>
 
-                            {/* Payment Badge - Bottom Right */}
-                            <span className={`px-2.5 py-1 text-[10px] font-semibold rounded-full text-white ${paymentStatus.color}`}>
-                                {paymentStatus.label}
+                            {/* Stage Status Badge - Bottom Right */}
+                            <span className={`px-2.5 py-1 text-[10px] font-semibold rounded-full text-white ${stageStatus.isReady ? 'bg-emerald-500' : 'bg-red-500'}`}>
+                                {stageStatus.label}
                             </span>
                         </div>
 
-                        {/* Admin Badge - Highlighted */}
+                        {/* Admin Badge with Order Age Timer */}
                         {order.creator?.full_name && (
-                            <div className="mt-2 pt-2 border-t border-slate-100">
+                            <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between">
                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 text-[10px] font-medium">
                                     <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                                     </svg>
                                     {order.creator.full_name}
+                                </span>
+                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${isOverOneDay
+                                    ? 'bg-red-200 text-red-700'
+                                    : 'bg-slate-200 text-slate-600'
+                                    }`}>
+                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    {orderAge}
                                 </span>
                             </div>
                         )}

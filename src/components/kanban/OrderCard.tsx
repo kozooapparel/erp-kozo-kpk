@@ -108,17 +108,17 @@ export default function OrderCard({ order, isBottleneck, onClick }: OrderCardPro
                     }`}
             >
                 {/* Left Border Color Indicator */}
-                <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${stageReadiness.isReady
+                <div className={`absolute left-0 top-0 bottom-0 w-2 ${stageReadiness.isReady
                     ? 'bg-emerald-500'
                     : 'bg-red-500'
                     }`} />
 
                 {/* Readiness Badge */}
-                <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide mb-2 ${stageReadiness.isReady
-                    ? 'bg-emerald-100 text-emerald-700'
-                    : 'bg-red-100 text-red-700'
+                <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-extrabold uppercase tracking-wide mb-2 ${stageReadiness.isReady
+                    ? 'bg-emerald-500 text-white shadow-sm shadow-emerald-200'
+                    : 'bg-red-500 text-white shadow-sm shadow-red-200'
                     }`}>
-                    <span className={`w-1.5 h-1.5 rounded-full ${stageReadiness.isReady ? 'bg-emerald-500' : 'bg-red-500'
+                    <span className={`w-2 h-2 rounded-full ${stageReadiness.isReady ? 'bg-white/80 ring-1 ring-white/50' : 'bg-white/80 ring-1 ring-white/50'
                         }`}></span>
                     {stageReadiness.isReady ? 'SIAP PINDAH' : 'PERLU ACTION'}
                 </div>

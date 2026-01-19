@@ -134,34 +134,65 @@ export default function KanbanBoard({ orders, metrics, customers, admins }: Kanb
     // Check if stage is a gatekeeper
     const isGatekeeperStage = (stage: OrderStage) => GATEKEEPER_STAGES.includes(stage)
 
-    // Check if order can move to target stage (gatekeeper logic)
+    // Check if order can move to target stage (gatekeeper logic - must complete current stage first)
     const canMoveToStage = (order: OrderWithCustomer, targetStage: OrderStage): { allowed: boolean; reason?: string } => {
         const currentIndex = STAGES_ORDER.indexOf(order.stage)
         const targetIndex = STAGES_ORDER.indexOf(targetStage)
 
+        // Only check when moving forward
         if (targetIndex > currentIndex) {
-            // Design Gatekeeper: Must have mockup before moving past proses_desain
-            const prosesDesainIndex = STAGES_ORDER.indexOf('proses_desain')
-            if (currentIndex <= prosesDesainIndex && targetIndex > prosesDesainIndex) {
-                if (!order.mockup_url) {
-                    return { allowed: false, reason: 'Upload desain yang sudah di-ACC customer terlebih dahulu' }
-                }
-            }
-
-            // Payment Gatekeeper: DP Produksi
-            const dpProduksiIndex = STAGES_ORDER.indexOf('dp_produksi')
-            if (currentIndex <= dpProduksiIndex && targetIndex > dpProduksiIndex) {
-                if (!order.dp_produksi_verified) {
-                    return { allowed: false, reason: 'Verifikasi DP Produksi terlebih dahulu' }
-                }
-            }
-
-            // Payment Gatekeeper: Pelunasan
-            const pelunasanIndex = STAGES_ORDER.indexOf('pelunasan')
-            if (currentIndex <= pelunasanIndex && targetIndex > pelunasanIndex) {
-                if (!order.pelunasan_verified) {
-                    return { allowed: false, reason: 'Verifikasi Pelunasan terlebih dahulu' }
-                }
+            // Check if current stage is completed before allowing move
+            switch (order.stage) {
+                case 'customer_dp_desain':
+                    if (!order.dp_desain_verified) {
+                        return { allowed: false, reason: 'Selesaikan DP Desain terlebih dahulu' }
+                    }
+                    break
+                case 'proses_desain':
+                    if (!order.mockup_url) {
+                        return { allowed: false, reason: 'Upload desain yang sudah di-ACC terlebih dahulu' }
+                    }
+                    break
+                case 'proses_layout':
+                    if (!order.layout_completed) {
+                        return { allowed: false, reason: 'Selesaikan Layout terlebih dahulu' }
+                    }
+                    break
+                case 'dp_produksi':
+                    if (!order.dp_produksi_verified) {
+                        return { allowed: false, reason: 'Verifikasi DP Produksi terlebih dahulu' }
+                    }
+                    break
+                case 'antrean_produksi':
+                    if (!order.production_ready) {
+                        return { allowed: false, reason: 'Selesaikan Antrean Produksi terlebih dahulu' }
+                    }
+                    break
+                case 'print_press':
+                    if (!order.print_completed) {
+                        return { allowed: false, reason: 'Selesaikan Print & Press terlebih dahulu' }
+                    }
+                    break
+                case 'cutting_jahit':
+                    if (!order.sewing_completed) {
+                        return { allowed: false, reason: 'Selesaikan Cutting & Jahit terlebih dahulu' }
+                    }
+                    break
+                case 'packing':
+                    if (!order.packing_completed) {
+                        return { allowed: false, reason: 'Selesaikan Packing terlebih dahulu' }
+                    }
+                    break
+                case 'pelunasan':
+                    if (!order.pelunasan_verified) {
+                        return { allowed: false, reason: 'Verifikasi Pelunasan terlebih dahulu' }
+                    }
+                    break
+                case 'pengiriman':
+                    if (!order.tracking_number || !order.shipped_at) {
+                        return { allowed: false, reason: 'Isi nomor resi dan tanggal kirim terlebih dahulu' }
+                    }
+                    break
             }
         }
         return { allowed: true }
@@ -247,19 +278,40 @@ export default function KanbanBoard({ orders, metrics, customers, admins }: Kanb
                     <span className="text-sm font-medium text-slate-600 whitespace-nowrap">Filter:</span>
                     <PaymentStatusFilter onFilterChange={setPaymentFilter} />
 
-                    {/* Admin Filter Dropdown */}
-                    <select
-                        value={adminFilter}
-                        onChange={(e) => setAdminFilter(e.target.value)}
-                        className="px-3 py-1.5 text-sm rounded-lg border border-slate-200 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-400"
-                    >
-                        <option value="all">👤 Semua Admin</option>
-                        {admins.map(admin => (
-                            <option key={admin.id} value={admin.id}>
-                                👤 {admin.full_name}
-                            </option>
-                        ))}
-                    </select>
+                    {/* Admin Filter Dropdown with Icon */}
+                    <div className="relative flex items-center">
+                        <svg
+                            className={`absolute left-2.5 w-4 h-4 pointer-events-none transition-colors ${adminFilter !== 'all' ? 'text-white' : 'text-slate-500'}`}
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                        >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                        <select
+                            value={adminFilter}
+                            onChange={(e) => setAdminFilter(e.target.value)}
+                            className={`pl-8 pr-8 py-1.5 text-sm rounded-lg border focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-400 transition-all appearance-none cursor-pointer ${adminFilter !== 'all'
+                                ? 'bg-slate-700 text-white border-slate-700 font-semibold'
+                                : 'bg-white text-slate-700 border-slate-200'
+                                }`}
+                        >
+                            <option value="all" className="bg-white text-slate-700">Semua Admin</option>
+                            {admins.map(admin => (
+                                <option key={admin.id} value={admin.id} className="bg-white text-slate-700">
+                                    {admin.full_name}
+                                </option>
+                            ))}
+                        </select>
+                        <svg
+                            className={`absolute right-2 w-4 h-4 pointer-events-none transition-colors ${adminFilter !== 'all' ? 'text-white' : 'text-slate-400'}`}
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                        >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </div>
                 </div>
             </div>
 

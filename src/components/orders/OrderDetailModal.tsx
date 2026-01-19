@@ -25,7 +25,6 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
     const [uploadingProof, setUploadingProof] = useState(false)
     const [dpProduksiAmount, setDpProduksiAmount] = useState('')
     const [pelunasanAmount, setPelunasanAmount] = useState('')
-    const [adminConfirmed, setAdminConfirmed] = useState(false)
     const router = useRouter()
     const supabase = createClient()
 
@@ -44,17 +43,22 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                 return order.dp_desain_verified
             case 'proses_desain':
                 return order.mockup_url !== null
+            case 'proses_layout':
+                return order.layout_completed
             case 'dp_produksi':
                 return order.dp_produksi_verified
+            case 'antrean_produksi':
+                return order.production_ready
+            case 'print_press':
+                return order.print_completed
+            case 'cutting_jahit':
+                return order.sewing_completed
+            case 'packing':
+                return order.packing_completed
             case 'pelunasan':
                 return order.pelunasan_verified
             case 'pengiriman':
                 return order.tracking_number !== null && order.shipped_at !== null
-            // Production stages - always need manual verification
-            case 'antrean_produksi':
-            case 'print_press':
-            case 'cutting_jahit':
-            case 'packing':
             default:
                 return false
         }
@@ -113,19 +117,37 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
         return null
     }
 
-    // Production stages that require admin checkbox confirmation
-    const PRODUCTION_STAGES: OrderStage[] = ['antrean_produksi', 'print_press', 'cutting_jahit', 'packing']
-    const isProductionStage = PRODUCTION_STAGES.includes(order.stage as OrderStage)
+    // Manual completion stages that require admin checkbox confirmation
+    const MANUAL_STAGES: OrderStage[] = ['proses_layout', 'antrean_produksi', 'print_press', 'cutting_jahit', 'packing']
+    const isManualStage = MANUAL_STAGES.includes(order.stage as OrderStage)
 
-    // Check if can move to next stage
+    // Check if can move to next stage - must complete current stage first
     const canMoveToNextStage = () => {
-        // Can't move if at dp_produksi and not verified
-        if (order.stage === 'dp_produksi' && !order.dp_produksi_verified) return false
-        // Can't move if at pelunasan and not verified
-        if (order.stage === 'pelunasan' && !order.pelunasan_verified) return false
-        // Can't move if at production stage and admin not confirmed
-        if (isProductionStage && !adminConfirmed) return false
-        return getNextStage() !== null
+        const stage = order.stage as OrderStage
+        switch (stage) {
+            case 'customer_dp_desain':
+                return order.dp_desain_verified && getNextStage() !== null
+            case 'proses_desain':
+                return order.mockup_url !== null && getNextStage() !== null
+            case 'proses_layout':
+                return order.layout_completed && getNextStage() !== null
+            case 'dp_produksi':
+                return order.dp_produksi_verified && getNextStage() !== null
+            case 'antrean_produksi':
+                return order.production_ready && getNextStage() !== null
+            case 'print_press':
+                return order.print_completed && getNextStage() !== null
+            case 'cutting_jahit':
+                return order.sewing_completed && getNextStage() !== null
+            case 'packing':
+                return order.packing_completed && getNextStage() !== null
+            case 'pelunasan':
+                return order.pelunasan_verified && getNextStage() !== null
+            case 'pengiriman':
+                return order.tracking_number !== null && order.shipped_at !== null
+            default:
+                return getNextStage() !== null
+        }
     }
 
     // Handle payment verification
@@ -672,32 +694,97 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                                 </div>
                             )}
 
-                            {/* Admin Confirmation Checkbox for Production Stages */}
-                            {isProductionStage && nextStage && (
-                                <label className={`flex items-center gap-3 p-4 rounded-xl cursor-pointer transition-all ${adminConfirmed
-                                    ? 'bg-emerald-50 border border-emerald-200'
-                                    : 'bg-slate-50 border border-slate-200 hover:bg-slate-100'
-                                    }`}>
-                                    <input
-                                        type="checkbox"
-                                        checked={adminConfirmed}
-                                        onChange={(e) => setAdminConfirmed(e.target.checked)}
-                                        className="w-5 h-5 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500 cursor-pointer"
-                                    />
-                                    <div className="flex-1">
-                                        <p className={`font-medium ${adminConfirmed ? 'text-emerald-700' : 'text-slate-900'}`}>
-                                            Konfirmasi proses selesai
-                                        </p>
-                                        <p className="text-sm text-slate-500">
-                                            Centang jika proses {STAGE_LABELS[order.stage]} sudah selesai dan siap pindah ke tahap berikutnya
-                                        </p>
-                                    </div>
-                                    {adminConfirmed && (
-                                        <svg className="w-6 h-6 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                        </svg>
-                                    )}
-                                </label>
+                            {/* Manual Stage Completion Toggle */}
+                            {isManualStage && nextStage && (
+                                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
+                                    <p className="text-sm font-medium text-slate-900 mb-3">
+                                        Status Proses {STAGE_LABELS[order.stage]}
+                                    </p>
+                                    <button
+                                        onClick={async () => {
+                                            setLoading(true)
+                                            try {
+                                                const stage = order.stage as OrderStage
+                                                let updateField = ''
+                                                let timestampField = ''
+                                                let currentValue = false
+
+                                                switch (stage) {
+                                                    case 'proses_layout':
+                                                        updateField = 'layout_completed'
+                                                        timestampField = 'layout_completed_at'
+                                                        currentValue = order.layout_completed
+                                                        break
+                                                    case 'antrean_produksi':
+                                                        updateField = 'production_ready'
+                                                        timestampField = 'production_ready_at'
+                                                        currentValue = order.production_ready
+                                                        break
+                                                    case 'print_press':
+                                                        updateField = 'print_completed'
+                                                        timestampField = 'print_completed_at'
+                                                        currentValue = order.print_completed
+                                                        break
+                                                    case 'cutting_jahit':
+                                                        updateField = 'sewing_completed'
+                                                        timestampField = 'sewing_completed_at'
+                                                        currentValue = order.sewing_completed
+                                                        break
+                                                    case 'packing':
+                                                        updateField = 'packing_completed'
+                                                        timestampField = 'packing_completed_at'
+                                                        currentValue = order.packing_completed
+                                                        break
+                                                }
+
+                                                const newValue = !currentValue
+                                                const updateData: Record<string, boolean | string | null> = {
+                                                    [updateField]: newValue,
+                                                    [timestampField]: newValue ? new Date().toISOString() : null
+                                                }
+
+                                                const { error } = await supabase
+                                                    .from('orders')
+                                                    .update(updateData)
+                                                    .eq('id', order.id)
+
+                                                if (error) throw error
+                                                router.refresh()
+                                            } catch (err) {
+                                                console.error('Toggle stage error:', err)
+                                                alert('Gagal mengupdate status')
+                                            } finally {
+                                                setLoading(false)
+                                            }
+                                        }}
+                                        disabled={loading}
+                                        className={`w-full py-3 px-4 rounded-xl font-medium transition-all flex items-center justify-center gap-2 ${isReady
+                                            ? 'bg-emerald-500 text-white hover:bg-emerald-600'
+                                            : 'bg-red-500 text-white hover:bg-red-600'
+                                            } disabled:opacity-50`}
+                                    >
+                                        {loading ? (
+                                            <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                            </svg>
+                                        ) : isReady ? (
+                                            <>
+                                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                </svg>
+                                                Selesai - Klik untuk batalkan
+                                            </>
+                                        ) : (
+                                            <>
+                                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                </svg>
+                                                Belum Selesai - Klik untuk tandai selesai
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
                             )}
 
                             {/* Move Button */}

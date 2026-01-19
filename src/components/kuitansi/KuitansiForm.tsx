@@ -1,0 +1,269 @@
+'use client'
+
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { InvoiceWithCustomer } from '@/types/database'
+import { createKuitansi } from '@/lib/actions/kuitansi'
+import { formatCurrency, formatDateInput, formatDate } from '@/lib/utils/format'
+import { terbilang } from '@/lib/utils/terbilang'
+
+interface KuitansiFormProps {
+    unpaidInvoices: InvoiceWithCustomer[]
+    prefilledInvoiceId?: string
+}
+
+export default function KuitansiForm({ unpaidInvoices, prefilledInvoiceId }: KuitansiFormProps) {
+    const router = useRouter()
+
+    const [loading, setLoading] = useState(false)
+    const [invoiceId, setInvoiceId] = useState(prefilledInvoiceId || '')
+    const [tanggal, setTanggal] = useState(formatDateInput(new Date()))
+    const [jumlah, setJumlah] = useState('')
+    const [lokasi, setLokasi] = useState('Bandung')
+
+    // Get selected invoice details
+    const selectedInvoice = unpaidInvoices.find(inv => inv.id === invoiceId)
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+
+        if (!invoiceId) {
+            alert('Pilih invoice terlebih dahulu')
+            return
+        }
+
+        const jumlahNum = parseFloat(jumlah)
+        if (!jumlahNum || jumlahNum <= 0) {
+            alert('Masukkan jumlah pembayaran yang valid')
+            return
+        }
+
+        if (selectedInvoice && jumlahNum > selectedInvoice.sisa_tagihan) {
+            alert(`Jumlah pembayaran melebihi sisa tagihan (${formatCurrency(selectedInvoice.sisa_tagihan)})`)
+            return
+        }
+
+        setLoading(true)
+
+        try {
+            await createKuitansi({
+                invoice_id: invoiceId,
+                tanggal,
+                jumlah: jumlahNum,
+                lokasi
+            })
+
+            router.push('/kuitansi')
+            router.refresh()
+        } catch (error) {
+            console.error('Error creating kuitansi:', error)
+            alert(error instanceof Error ? error.message : 'Gagal membuat kuitansi')
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    // Quick fill full amount
+    const fillFullAmount = () => {
+        if (selectedInvoice) {
+            setJumlah(selectedInvoice.sisa_tagihan.toString())
+        }
+    }
+
+    return (
+        <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Header Actions */}
+            <div className="flex items-center justify-between bg-gradient-to-r from-blue-500 to-cyan-500 text-white p-4 rounded-xl">
+                <div className="flex items-center gap-3">
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 rounded-lg font-medium disabled:opacity-50 transition-colors"
+                    >
+                        {loading ? 'Menyimpan...' : 'Simpan'}
+                    </button>
+                </div>
+                <button
+                    type="button"
+                    onClick={() => {
+                        setInvoiceId('')
+                        setJumlah('')
+                        setTanggal(formatDateInput(new Date()))
+                    }}
+                    className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg font-medium transition-colors"
+                >
+                    Buat Baru
+                </button>
+            </div>
+
+            {/* Kuitansi Card */}
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                {/* Header */}
+                <div className="bg-gradient-to-r from-slate-800 to-slate-700 text-white p-6">
+                    <div className="flex items-start justify-between">
+                        <div>
+                            <h1 className="text-3xl font-bold tracking-wide">KUITANSI</h1>
+                            <div className="mt-3 space-y-1">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-slate-300">No. Kuitansi:</span>
+                                    <span className="font-medium">(Auto-generate)</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-slate-300">Tanggal:</span>
+                                    <input
+                                        type="date"
+                                        value={tanggal}
+                                        onChange={(e) => setTanggal(e.target.value)}
+                                        className="px-2 py-1 bg-white/10 border border-white/20 rounded text-white focus:outline-none focus:ring-2 focus:ring-white/50"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                        <div className="text-right">
+                            <div className="flex flex-col items-end gap-1">
+                                <span className="text-sm text-slate-300">No Invoice:</span>
+                                <select
+                                    value={invoiceId}
+                                    onChange={(e) => setInvoiceId(e.target.value)}
+                                    className="px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-white/50 min-w-[200px]"
+                                    required
+                                >
+                                    <option value="" className="text-slate-900">Pilih Invoice</option>
+                                    {unpaidInvoices.map(inv => (
+                                        <option key={inv.id} value={inv.id} className="text-slate-900">
+                                            {inv.no_invoice} - {inv.customer?.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Content */}
+                <div className="p-6 space-y-6">
+                    {/* Sudah diterima dari */}
+                    <div className="flex items-start gap-4">
+                        <div className="w-48 text-sm text-slate-500">
+                            <p className="font-medium text-slate-700">Sudah diterima dari</p>
+                            <p className="text-xs italic">Received from</p>
+                        </div>
+                        <div className="flex-1">
+                            <p className="text-lg font-medium text-slate-900">
+                                : {selectedInvoice?.customer?.name || '...'}
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Jumlah Kuitansi */}
+                    <div className="flex items-start gap-4">
+                        <div className="w-48 text-sm text-slate-500">
+                            <p className="font-medium text-slate-700">Jumlah Kuitansi</p>
+                            <p className="text-xs italic">Receipt Amount</p>
+                        </div>
+                        <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                                <span className="text-lg font-medium">: Rp.</span>
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="number"
+                                        value={jumlah}
+                                        onChange={(e) => setJumlah(e.target.value)}
+                                        className="w-48 px-4 py-2 border-2 border-slate-300 rounded-lg text-xl font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                                        placeholder="0"
+                                        required
+                                        min="0"
+                                        max={selectedInvoice?.sisa_tagihan}
+                                    />
+                                    {selectedInvoice && (
+                                        <button
+                                            type="button"
+                                            onClick={fillFullAmount}
+                                            className="px-3 py-2 bg-emerald-50 text-emerald-600 text-sm font-medium rounded-lg hover:bg-emerald-100 transition-colors"
+                                        >
+                                            Penuh ({formatCurrency(selectedInvoice.sisa_tagihan)})
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Terbilang */}
+                    <div className="flex items-start gap-4">
+                        <div className="w-48 text-sm text-slate-500">
+                            <p className="font-medium text-orange-600">Terbilang</p>
+                            <p className="text-xs italic">Amount in words</p>
+                        </div>
+                        <div className="flex-1">
+                            <p className="text-orange-600 font-medium">
+                                : {jumlah && parseFloat(jumlah) > 0 ? terbilang(parseFloat(jumlah)) : '...'}
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Untuk Pembayaran */}
+                    <div className="flex items-start gap-4">
+                        <div className="w-48 text-sm text-slate-500">
+                            <p className="font-medium text-blue-600">Untuk Pembayaran</p>
+                            <p className="text-xs italic">In Payment of</p>
+                        </div>
+                        <div className="flex-1">
+                            <p className="text-blue-600 font-medium">
+                                : Pembayaran invoice no: {selectedInvoice?.no_invoice || '...'}
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Invoice Details (if selected) */}
+                    {selectedInvoice && (
+                        <div className="mt-6 p-4 bg-slate-50 rounded-lg">
+                            <h4 className="text-sm font-medium text-slate-700 mb-2">Detail Invoice</h4>
+                            <div className="grid grid-cols-2 gap-4 text-sm">
+                                <div>
+                                    <span className="text-slate-500">Total Invoice:</span>
+                                    <span className="ml-2 font-medium">{formatCurrency(selectedInvoice.total)}</span>
+                                </div>
+                                <div>
+                                    <span className="text-slate-500">Sudah Dibayar:</span>
+                                    <span className="ml-2 font-medium text-emerald-600">{formatCurrency(selectedInvoice.total_dibayar)}</span>
+                                </div>
+                                <div>
+                                    <span className="text-slate-500">Sisa Tagihan:</span>
+                                    <span className="ml-2 font-bold text-orange-500">{formatCurrency(selectedInvoice.sisa_tagihan)}</span>
+                                </div>
+                                <div>
+                                    <span className="text-slate-500">Tanggal Invoice:</span>
+                                    <span className="ml-2 font-medium">{formatDate(selectedInvoice.tanggal)}</span>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Signature Area */}
+                    <div className="flex justify-end pt-6">
+                        <div className="text-center">
+                            <div className="flex items-center gap-2 mb-2">
+                                <input
+                                    type="text"
+                                    value={lokasi}
+                                    onChange={(e) => setLokasi(e.target.value)}
+                                    className="px-2 py-1 border-b border-slate-300 bg-transparent focus:outline-none focus:border-blue-500"
+                                />
+                                <span>, {formatDate(tanggal ? new Date(tanggal) : new Date())}</span>
+                            </div>
+                            <div className="w-48 h-24 border-b border-slate-300 mb-2"></div>
+                            <p className="text-sm text-slate-500">(Penerima)</p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Footer */}
+                <div className="bg-slate-800 text-white p-4 text-sm">
+                    <p>Kuitansi ini berlaku sah, setelah uang diterima.</p>
+                    <p className="text-slate-400 text-xs italic">This payment will be legal, if the cheque has been accepted by the bank</p>
+                </div>
+            </div>
+        </form>
+    )
+}

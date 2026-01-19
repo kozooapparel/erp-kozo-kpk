@@ -13,6 +13,7 @@ export default function AddCustomerModal({ isOpen, onClose }: AddCustomerModalPr
     const [loading, setLoading] = useState(false)
     const [name, setName] = useState('')
     const [phone, setPhone] = useState('')
+    const [alamat, setAlamat] = useState('')
 
     const router = useRouter()
     const supabase = createClient()
@@ -45,6 +46,7 @@ export default function AddCustomerModal({ isOpen, onClose }: AddCustomerModalPr
                 .insert({
                     name: name.trim(),
                     phone: phone.trim(),
+                    alamat: alamat.trim() || null,
                 })
 
             if (error) {
@@ -56,6 +58,7 @@ export default function AddCustomerModal({ isOpen, onClose }: AddCustomerModalPr
             // Reset form
             setName('')
             setPhone('')
+            setAlamat('')
             router.refresh()
             onClose()
             alert('Customer berhasil ditambahkan!')
@@ -121,6 +124,20 @@ export default function AddCustomerModal({ isOpen, onClose }: AddCustomerModalPr
                             required
                         />
                         <p className="text-xs text-slate-500 mt-1">Gunakan format tanpa spasi atau tanda hubung</p>
+                    </div>
+
+                    {/* Alamat */}
+                    <div>
+                        <label className="block text-sm font-medium text-slate-300 mb-2">
+                            Alamat Lengkap
+                        </label>
+                        <textarea
+                            value={alamat}
+                            onChange={(e) => setAlamat(e.target.value)}
+                            placeholder="Contoh: Jl. Raya No. 123, Kec. Sukasari, Kota Bandung"
+                            rows={3}
+                            className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-colors resize-none"
+                        />
                     </div>
 
                     {/* Submit */}
