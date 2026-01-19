@@ -157,19 +157,17 @@ export type Database = {
     }
 }
 
-// 11-Stage Kanban Types (sesuai spesifikasi)
+// 9-Stage Kanban Types (updated)
 export type OrderStage =
     | 'customer_dp_desain'   // 1. Customer DP Desain
     | 'proses_desain'        // 2. Proses Desain
     | 'dp_produksi'          // 3. DP Produksi (Gatekeeper - 50%)
     | 'antrean_produksi'     // 4. Antrean Produksi
     | 'print_press'          // 5. Print & Press
-    | 'cutting_bahan'        // 6. Cutting Bahan
-    | 'jahit'                // 7. Jahit (Bottleneck monitoring)
-    | 'quality_control'      // 8. Quality Control
-    | 'packing'              // 9. Packing
-    | 'pelunasan'            // 10. Pelunasan (Gatekeeper - Full payment)
-    | 'pengiriman'           // 11. Pengiriman
+    | 'cutting_jahit'        // 6. Cutting & Jahit
+    | 'packing'              // 7. Packing
+    | 'pelunasan'            // 8. Pelunasan (Gatekeeper - Full payment)
+    | 'pengiriman'           // 9. Pengiriman
 
 export const STAGE_LABELS: Record<OrderStage, string> = {
     customer_dp_desain: 'Customer DP Desain',
@@ -177,9 +175,7 @@ export const STAGE_LABELS: Record<OrderStage, string> = {
     dp_produksi: 'DP Produksi',
     antrean_produksi: 'Antrean Produksi',
     print_press: 'Print & Press',
-    cutting_bahan: 'Cutting Bahan',
-    jahit: 'Jahit',
-    quality_control: 'Quality Control',
+    cutting_jahit: 'Cutting & Jahit',
     packing: 'Packing',
     pelunasan: 'Pelunasan',
     pengiriman: 'Pengiriman',
@@ -191,9 +187,7 @@ export const STAGES_ORDER: OrderStage[] = [
     'dp_produksi',
     'antrean_produksi',
     'print_press',
-    'cutting_bahan',
-    'jahit',
-    'quality_control',
+    'cutting_jahit',
     'packing',
     'pelunasan',
     'pengiriman',
@@ -202,9 +196,20 @@ export const STAGES_ORDER: OrderStage[] = [
 // Gatekeeper stages - require payment verification
 export const GATEKEEPER_STAGES: OrderStage[] = ['dp_produksi', 'pelunasan']
 
-// Bottleneck monitoring stage
-export const BOTTLENECK_STAGE: OrderStage = 'jahit'
-export const BOTTLENECK_DAYS = 3
+// Per-stage bottleneck threshold (in days)
+// Proses Desain: 1 hari (critical - impacts entire timeline)
+// Other stages: 2 hari
+export const STAGE_BOTTLENECK_DAYS: Record<OrderStage, number> = {
+    customer_dp_desain: 2,
+    proses_desain: 1,      // ⚡ Critical - 1 hari
+    dp_produksi: 2,
+    antrean_produksi: 2,
+    print_press: 2,
+    cutting_jahit: 2,
+    packing: 2,
+    pelunasan: 2,
+    pengiriman: 2,
+}
 
 // Type aliases for convenience
 export type Customer = Database['public']['Tables']['customers']['Row']

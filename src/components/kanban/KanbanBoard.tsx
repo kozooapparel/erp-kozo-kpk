@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { DndContext, DragEndEvent, DragStartEvent, DragOverlay, closestCorners, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
-import { Order, Customer, DashboardMetrics, STAGES_ORDER, STAGE_LABELS, OrderStage, GATEKEEPER_STAGES, BOTTLENECK_DAYS } from '@/types/database'
+import { Order, Customer, DashboardMetrics, STAGES_ORDER, STAGE_LABELS, OrderStage, GATEKEEPER_STAGES, STAGE_BOTTLENECK_DAYS } from '@/types/database'
 import DroppableColumn from './DroppableColumn'
 import MetricsBar from './MetricsBar'
 import SearchBar from '../ui/SearchBar'
@@ -103,31 +103,19 @@ export default function KanbanBoard({ orders, metrics, customers }: KanbanBoardP
         return acc
     }, {} as Record<OrderStage, OrderWithCustomer[]>)
 
-    // Dynamic bottleneck detection - find stage with most orders (min 3 orders)
-    const BOTTLENECK_THRESHOLD = 3 // Minimum orders to be considered bottleneck
-    const dynamicBottleneckStage = (() => {
-        let maxStage: OrderStage | null = null
-        let maxCount = 0
-
-        STAGES_ORDER.forEach(stage => {
-            const count = ordersByStage[stage]?.length || 0
-            if (count >= BOTTLENECK_THRESHOLD && count > maxCount) {
-                maxCount = count
-                maxStage = stage
-            }
-        })
-
-        return maxStage
-    })()
-
-    // Check if order is bottleneck (in bottleneck stage + stayed too long)
+    // Check if order is bottleneck (exceeded stage-specific threshold)
+    // Proses Desain: 1 day, Other stages: 2 days
     const isBottleneck = (order: Order) => {
-        if (!dynamicBottleneckStage) return false
-        if (order.stage !== dynamicBottleneckStage) return false
         const stageEnteredAt = new Date(order.stage_entered_at)
         const now = new Date()
         const daysDiff = Math.floor((now.getTime() - stageEnteredAt.getTime()) / (1000 * 60 * 60 * 24))
-        return daysDiff >= BOTTLENECK_DAYS
+        const threshold = STAGE_BOTTLENECK_DAYS[order.stage]
+        return daysDiff >= threshold
+    }
+
+    // Check if stage has any bottleneck orders
+    const hasBottleneckOrders = (stage: OrderStage) => {
+        return ordersByStage[stage]?.some(order => isBottleneck(order)) || false
     }
 
     // Check if stage is a gatekeeper
@@ -352,16 +340,19 @@ export default function KanbanBoard({ orders, metrics, customers }: KanbanBoardP
                                 label={STAGE_LABELS[STAGES_ORDER[currentStageIndex]]}
                                 orders={ordersByStage[STAGES_ORDER[currentStageIndex]]}
                                 isGatekeeper={isGatekeeperStage(STAGES_ORDER[currentStageIndex])}
-                                isBottleneckStage={STAGES_ORDER[currentStageIndex] === dynamicBottleneckStage}
+                                isBottleneckStage={hasBottleneckOrders(STAGES_ORDER[currentStageIndex])}
                                 checkBottleneck={isBottleneck}
                                 onOrderClick={(order) => setSelectedOrder(order)}
                                 fullWidth
                             />
                         </div>
                     ) : (
-                        // Desktop: Scrollable Container
-                        <div ref={scrollContainerRef} className="overflow-x-auto overflow-y-hidden h-full">
-                            <div className="flex gap-4 min-w-max h-full pb-4 px-2">
+                        // Desktop: Scrollable Container with ALWAYS visible bottom scrollbar
+                        <div
+                            ref={scrollContainerRef}
+                            className="h-full overflow-x-auto overflow-y-hidden scrollbar-thin"
+                        >
+                            <div className="flex gap-4 min-w-max h-full pb-2 px-2">
                                 {STAGES_ORDER.map((stage) => (
                                     <DroppableColumn
                                         key={stage}
@@ -369,7 +360,7 @@ export default function KanbanBoard({ orders, metrics, customers }: KanbanBoardP
                                         label={STAGE_LABELS[stage]}
                                         orders={ordersByStage[stage]}
                                         isGatekeeper={isGatekeeperStage(stage)}
-                                        isBottleneckStage={stage === dynamicBottleneckStage}
+                                        isBottleneckStage={hasBottleneckOrders(stage)}
                                         checkBottleneck={isBottleneck}
                                         onOrderClick={(order) => setSelectedOrder(order)}
                                     />

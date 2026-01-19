@@ -86,9 +86,7 @@ export default function DraggableOrderCard({ order, isBottleneck, onClick }: Dra
             // Production stages - always need manual verification
             case 'antrean_produksi':
             case 'print_press':
-            case 'cutting_bahan':
-            case 'jahit':
-            case 'quality_control':
+            case 'cutting_jahit':
             case 'packing':
             default:
                 return {

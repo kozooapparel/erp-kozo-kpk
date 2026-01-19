@@ -71,9 +71,7 @@ export default function OrderCard({ order, isBottleneck, onClick }: OrderCardPro
             // Production stages - always need manual verification
             case 'antrean_produksi':
             case 'print_press':
-            case 'cutting_bahan':
-            case 'jahit':
-            case 'quality_control':
+            case 'cutting_jahit':
             case 'packing':
             default:
                 return {
@@ -111,14 +109,14 @@ export default function OrderCard({ order, isBottleneck, onClick }: OrderCardPro
             >
                 {/* Left Border Color Indicator */}
                 <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${stageReadiness.isReady
-                        ? 'bg-emerald-500'
-                        : 'bg-red-500'
+                    ? 'bg-emerald-500'
+                    : 'bg-red-500'
                     }`} />
 
                 {/* Readiness Badge */}
                 <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide mb-2 ${stageReadiness.isReady
-                        ? 'bg-emerald-100 text-emerald-700'
-                        : 'bg-red-100 text-red-700'
+                    ? 'bg-emerald-100 text-emerald-700'
+                    : 'bg-red-100 text-red-700'
                     }`}>
                     <span className={`w-1.5 h-1.5 rounded-full ${stageReadiness.isReady ? 'bg-emerald-500' : 'bg-red-500'
                         }`}></span>
@@ -136,7 +134,7 @@ export default function OrderCard({ order, isBottleneck, onClick }: OrderCardPro
                 {/* Category Tag */}
                 <div className="flex items-center gap-2 mb-2">
                     <span className="text-[11px] font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
-                        {order.stage === 'jahit' ? 'Produksi' :
+                        {order.stage === 'cutting_jahit' ? 'Produksi' :
                             order.stage === 'print_press' ? 'Finishing' :
                                 order.stage === 'proses_desain' ? 'Design' :
                                     'Order'}

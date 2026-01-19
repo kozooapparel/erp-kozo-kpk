@@ -53,9 +53,7 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
             // Production stages - always need manual verification
             case 'antrean_produksi':
             case 'print_press':
-            case 'cutting_bahan':
-            case 'jahit':
-            case 'quality_control':
+            case 'cutting_jahit':
             case 'packing':
             default:
                 return false
@@ -116,7 +114,7 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
     }
 
     // Production stages that require admin checkbox confirmation
-    const PRODUCTION_STAGES: OrderStage[] = ['antrean_produksi', 'print_press', 'cutting_bahan', 'jahit', 'quality_control', 'packing']
+    const PRODUCTION_STAGES: OrderStage[] = ['antrean_produksi', 'print_press', 'cutting_jahit', 'packing']
     const isProductionStage = PRODUCTION_STAGES.includes(order.stage as OrderStage)
 
     // Check if can move to next stage
@@ -677,8 +675,8 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                             {/* Admin Confirmation Checkbox for Production Stages */}
                             {isProductionStage && nextStage && (
                                 <label className={`flex items-center gap-3 p-4 rounded-xl cursor-pointer transition-all ${adminConfirmed
-                                        ? 'bg-emerald-50 border border-emerald-200'
-                                        : 'bg-slate-50 border border-slate-200 hover:bg-slate-100'
+                                    ? 'bg-emerald-50 border border-emerald-200'
+                                    : 'bg-slate-50 border border-slate-200 hover:bg-slate-100'
                                     }`}>
                                     <input
                                         type="checkbox"
