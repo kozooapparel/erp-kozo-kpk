@@ -7,6 +7,7 @@ import DraggableOrderCard from './DraggableOrderCard'
 
 interface OrderWithCustomer extends Order {
     customer: Customer
+    creator: { id: string; full_name: string } | null
 }
 
 interface DroppableColumnProps {

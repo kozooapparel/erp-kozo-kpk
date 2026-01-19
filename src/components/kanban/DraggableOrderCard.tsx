@@ -7,6 +7,7 @@ import Image from 'next/image'
 
 interface OrderWithCustomer extends Order {
     customer: Customer
+    creator: { id: string; full_name: string } | null
 }
 
 interface DraggableOrderCardProps {
@@ -191,6 +192,18 @@ export default function DraggableOrderCard({ order, isBottleneck, onClick }: Dra
                                 {paymentStatus.label}
                             </span>
                         </div>
+
+                        {/* Admin Badge - Highlighted */}
+                        {order.creator?.full_name && (
+                            <div className="mt-2 pt-2 border-t border-slate-100">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 text-[10px] font-medium">
+                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                    </svg>
+                                    {order.creator.full_name}
+                                </span>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

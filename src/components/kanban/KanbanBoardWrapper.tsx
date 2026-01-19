@@ -1,7 +1,10 @@
 'use client'
 
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { Order, Customer, DashboardMetrics } from '@/types/database'
+import { createClient } from '@/lib/supabase/client'
 
 // Dynamic import to prevent hydration mismatch from dnd-kit
 const KanbanBoard = dynamic(() => import('./KanbanBoard'), {
@@ -13,22 +16,54 @@ const KanbanBoard = dynamic(() => import('./KanbanBoard'), {
     ),
 })
 
-interface OrderWithCustomer extends Order {
+// Extended order type with creator profile
+interface OrderWithCustomerAndCreator extends Order {
     customer: Customer
+    creator: { id: string; full_name: string } | null
+}
+
+interface AdminProfile {
+    id: string
+    full_name: string
 }
 
 interface KanbanBoardWrapperProps {
-    orders: OrderWithCustomer[]
+    orders: OrderWithCustomerAndCreator[]
     metrics: DashboardMetrics
     customers: Customer[]
+    admins: AdminProfile[]
 }
 
-export default function KanbanBoardWrapper({ orders, metrics, customers }: KanbanBoardWrapperProps) {
+export default function KanbanBoardWrapper({ orders, metrics, customers, admins }: KanbanBoardWrapperProps) {
+    const router = useRouter()
+    const supabase = createClient()
+
+    // Supabase Realtime subscription for live updates
+    useEffect(() => {
+        const channel = supabase
+            .channel('orders-realtime')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'orders' },
+                (payload) => {
+                    console.log('Realtime update:', payload.eventType)
+                    // Refresh the page data when any order changes
+                    router.refresh()
+                }
+            )
+            .subscribe()
+
+        return () => {
+            supabase.removeChannel(channel)
+        }
+    }, [supabase, router])
+
     return (
         <KanbanBoard
             orders={orders}
             metrics={metrics}
             customers={customers}
+            admins={admins}
         />
     )
 }

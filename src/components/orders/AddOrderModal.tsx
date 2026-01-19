@@ -71,6 +71,9 @@ export default function AddOrderModal({ isOpen, onClose, customers }: AddOrderMo
         setError(null)
 
         try {
+            // Get current user
+            const { data: { user } } = await supabase.auth.getUser()
+
             let finalCustomerId = customerId
 
             // Create new customer if needed
@@ -85,7 +88,7 @@ export default function AddOrderModal({ isOpen, onClose, customers }: AddOrderMo
                 finalCustomerId = newCustomer.id
             }
 
-            // Create order
+            // Create order with created_by
             const orderData: OrderInsert = {
                 customer_id: finalCustomerId,
                 total_quantity: parseInt(totalQuantity),
@@ -94,6 +97,7 @@ export default function AddOrderModal({ isOpen, onClose, customers }: AddOrderMo
                 dp_desain_amount: dpDesainAmount ? parseFloat(dpDesainAmount) : 0,
                 dp_desain_verified: dpDesainAmount ? true : false,
                 stage: 'customer_dp_desain',
+                created_by: user?.id || null, // Track who created this order
             }
 
             const { data: order, error: orderError } = await supabase

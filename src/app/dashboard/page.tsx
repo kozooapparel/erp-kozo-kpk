@@ -25,13 +25,14 @@ export default async function DashboardPage() {
         .select('*')
         .single()
 
-    // Fetch all orders with customer info
+    // Fetch all orders with customer info AND creator (admin) profile
     const { data: orders } = await supabase
         .from('orders')
         .select(`
-      *,
-      customer:customers(*)
-    `)
+            *,
+            customer:customers(*),
+            creator:profiles!created_by(id, full_name)
+        `)
         .order('created_at', { ascending: false })
 
     // Fetch all customers for Add Order form
@@ -39,6 +40,12 @@ export default async function DashboardPage() {
         .from('customers')
         .select('*')
         .order('name', { ascending: true })
+
+    // Fetch all admins for filter dropdown
+    const { data: admins } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .order('full_name', { ascending: true })
 
     return (
         <DashboardLayout user={profile}>
@@ -51,6 +58,7 @@ export default async function DashboardPage() {
                     bottleneck_count: 0
                 }}
                 customers={customers || []}
+                admins={admins || []}
             />
         </DashboardLayout>
     )

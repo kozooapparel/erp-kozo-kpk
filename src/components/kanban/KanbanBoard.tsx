@@ -14,20 +14,28 @@ import { useRouter } from 'next/navigation'
 
 interface OrderWithCustomer extends Order {
     customer: Customer
+    creator: { id: string; full_name: string } | null
+}
+
+interface AdminProfile {
+    id: string
+    full_name: string
 }
 
 interface KanbanBoardProps {
     orders: OrderWithCustomer[]
     metrics: DashboardMetrics
     customers: Customer[]
+    admins: AdminProfile[]
 }
 
-export default function KanbanBoard({ orders, metrics, customers }: KanbanBoardProps) {
+export default function KanbanBoard({ orders, metrics, customers, admins }: KanbanBoardProps) {
     const [isAddModalOpen, setIsAddModalOpen] = useState(false)
     const [selectedOrder, setSelectedOrder] = useState<OrderWithCustomer | null>(null)
     const [searchQuery, setSearchQuery] = useState('')
     const [activeId, setActiveId] = useState<string | null>(null)
     const [paymentFilter, setPaymentFilter] = useState<PaymentFilter>('all')
+    const [adminFilter, setAdminFilter] = useState<string>('all') // Admin filter state
 
     // Mobile responsive states
     const [isMobile, setIsMobile] = useState(false)
@@ -76,7 +84,7 @@ export default function KanbanBoard({ orders, metrics, customers }: KanbanBoardP
         return 'belum_bayar'
     }
 
-    // Filter orders based on search query and payment status
+    // Filter orders based on search query, payment status, and admin
     const filteredOrders = orders.filter(order => {
         // Search filter
         if (searchQuery) {
@@ -92,6 +100,11 @@ export default function KanbanBoard({ orders, metrics, customers }: KanbanBoardP
         // Payment status filter
         if (paymentFilter !== 'all') {
             if (getPaymentStatus(order) !== paymentFilter) return false
+        }
+
+        // Admin filter
+        if (adminFilter !== 'all') {
+            if (order.created_by !== adminFilter) return false
         }
 
         return true
@@ -233,6 +246,20 @@ export default function KanbanBoard({ orders, metrics, customers }: KanbanBoardP
                 <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1">
                     <span className="text-sm font-medium text-slate-600 whitespace-nowrap">Filter:</span>
                     <PaymentStatusFilter onFilterChange={setPaymentFilter} />
+
+                    {/* Admin Filter Dropdown */}
+                    <select
+                        value={adminFilter}
+                        onChange={(e) => setAdminFilter(e.target.value)}
+                        className="px-3 py-1.5 text-sm rounded-lg border border-slate-200 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-400"
+                    >
+                        <option value="all">👤 Semua Admin</option>
+                        {admins.map(admin => (
+                            <option key={admin.id} value={admin.id}>
+                                👤 {admin.full_name}
+                            </option>
+                        ))}
+                    </select>
                 </div>
             </div>
 

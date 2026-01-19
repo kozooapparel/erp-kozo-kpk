@@ -157,21 +157,23 @@ export type Database = {
     }
 }
 
-// 9-Stage Kanban Types (updated)
+// 10-Stage Kanban Types (updated)
 export type OrderStage =
     | 'customer_dp_desain'   // 1. Customer DP Desain
     | 'proses_desain'        // 2. Proses Desain
-    | 'dp_produksi'          // 3. DP Produksi (Gatekeeper - 50%)
-    | 'antrean_produksi'     // 4. Antrean Produksi
-    | 'print_press'          // 5. Print & Press
-    | 'cutting_jahit'        // 6. Cutting & Jahit
-    | 'packing'              // 7. Packing
-    | 'pelunasan'            // 8. Pelunasan (Gatekeeper - Full payment)
-    | 'pengiriman'           // 9. Pengiriman
+    | 'proses_layout'        // 3. Proses Layout (NEW)
+    | 'dp_produksi'          // 4. DP Produksi (Gatekeeper - 50%)
+    | 'antrean_produksi'     // 5. Antrean Produksi
+    | 'print_press'          // 6. Print & Press
+    | 'cutting_jahit'        // 7. Cutting & Jahit
+    | 'packing'              // 8. Packing
+    | 'pelunasan'            // 9. Pelunasan (Gatekeeper - Full payment)
+    | 'pengiriman'           // 10. Pengiriman
 
 export const STAGE_LABELS: Record<OrderStage, string> = {
     customer_dp_desain: 'Customer DP Desain',
     proses_desain: 'Proses Desain',
+    proses_layout: 'Proses Layout',
     dp_produksi: 'DP Produksi',
     antrean_produksi: 'Antrean Produksi',
     print_press: 'Print & Press',
@@ -184,6 +186,7 @@ export const STAGE_LABELS: Record<OrderStage, string> = {
 export const STAGES_ORDER: OrderStage[] = [
     'customer_dp_desain',
     'proses_desain',
+    'proses_layout',
     'dp_produksi',
     'antrean_produksi',
     'print_press',
@@ -197,11 +200,12 @@ export const STAGES_ORDER: OrderStage[] = [
 export const GATEKEEPER_STAGES: OrderStage[] = ['dp_produksi', 'pelunasan']
 
 // Per-stage bottleneck threshold (in days)
-// Proses Desain: 1 hari (critical - impacts entire timeline)
+// Proses Desain & Layout: 1 hari (critical - impacts entire timeline)
 // Other stages: 2 hari
 export const STAGE_BOTTLENECK_DAYS: Record<OrderStage, number> = {
     customer_dp_desain: 2,
     proses_desain: 1,      // ⚡ Critical - 1 hari
+    proses_layout: 1,      // ⚡ Critical - 1 hari
     dp_produksi: 2,
     antrean_produksi: 2,
     print_press: 2,
