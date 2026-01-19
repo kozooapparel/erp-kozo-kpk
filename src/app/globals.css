@@ -1,26 +1,81 @@
 @import "tailwindcss";
 
+/* ============================================
+   KOZO KPK - Light Mode Only Theme
+   ============================================ */
+
+/* Brand Colors */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --brand-primary: #dc2626;
+  --brand-primary-light: #ef4444;
+  --brand-primary-dark: #b91c1c;
+  --brand-gradient: linear-gradient(135deg, #dc2626, #f87171);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* ============================================
+   BASE STYLES
+   ============================================ */
+
+body {
+  background-color: #f8fafc;
+  /* slate-50 */
+  color: #0f172a;
+  /* slate-900 */
+  font-family: 'Inter', 'Geist', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* ============================================
+   UTILITY CLASSES
+   ============================================ */
+
+/* Brand utilities */
+.bg-brand {
+  background-color: var(--brand-primary);
+}
+
+.bg-brand-gradient {
+  background: var(--brand-gradient);
+}
+
+.text-brand {
+  color: var(--brand-primary);
+}
+
+.text-brand-light {
+  color: var(--brand-primary-light);
+}
+
+.border-brand {
+  border-color: var(--brand-primary);
+}
+
+/* Glow effects */
+.glow-brand {
+  box-shadow: 0 0 20px rgba(220, 38, 38, 0.3), 0 0 40px rgba(220, 38, 38, 0.1);
+}
+
+.glow-brand-sm {
+  box-shadow: 0 0 10px rgba(220, 38, 38, 0.2);
+}
+
+/* ============================================
+   ANIMATIONS
+   ============================================ */
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+.shimmer {
+  background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.05), transparent);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
 }

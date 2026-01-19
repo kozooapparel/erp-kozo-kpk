@@ -59,6 +59,7 @@ export type Database = {
                     tracking_number: string | null
                     shipped_at: string | null
                     stage_entered_at: string
+                    payment_proof_url: string | null
                     created_by: string | null
                     created_at: string
                     updated_at: string
@@ -104,6 +105,7 @@ export type Database = {
                     tracking_number?: string | null
                     shipped_at?: string | null
                     stage_entered_at?: string
+                    payment_proof_url?: string | null
                 }
             }
             profiles: {

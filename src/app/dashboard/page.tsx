@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import DashboardLayout from '@/components/layout/DashboardLayout'
-import KanbanBoard from '@/components/kanban/KanbanBoard'
+import KanbanBoardWrapper from '@/components/kanban/KanbanBoardWrapper'
 
 export default async function DashboardPage() {
     const supabase = await createClient()
@@ -42,7 +42,7 @@ export default async function DashboardPage() {
 
     return (
         <DashboardLayout user={profile}>
-            <KanbanBoard
+            <KanbanBoardWrapper
                 orders={orders || []}
                 metrics={metrics || {
                     total_active_orders: 0,
