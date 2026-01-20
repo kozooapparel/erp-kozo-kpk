@@ -6,6 +6,7 @@ import { InvoicePDFDocument } from './InvoicePDF'
 import { InvoiceWithItems } from '@/types/database'
 import { getBankInfo, getCompanyInfo } from '@/lib/actions/settings'
 import { getInvoiceById } from '@/lib/actions/invoices'
+import { toast } from 'sonner'
 
 interface InvoiceDownloadButtonProps {
     invoiceId: string
@@ -23,7 +24,7 @@ export default function InvoiceDownloadButton({ invoiceId, invoice: propInvoice,
             // Fetch full invoice data if not provided
             const invoice = propInvoice || await getInvoiceById(invoiceId)
             if (!invoice) {
-                alert('Invoice tidak ditemukan')
+                toast.error('Invoice tidak ditemukan')
                 return
             }
 
@@ -53,7 +54,7 @@ export default function InvoiceDownloadButton({ invoiceId, invoice: propInvoice,
             URL.revokeObjectURL(url)
         } catch (error) {
             console.error('Error generating PDF:', error)
-            alert('Gagal generate PDF')
+            toast.error('Gagal generate PDF')
         } finally {
             setLoading(false)
         }

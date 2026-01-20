@@ -7,6 +7,7 @@ import { deleteInvoice } from '@/lib/actions/invoices'
 import { formatCurrency, formatDateShort } from '@/lib/utils/format'
 import { useRouter } from 'next/navigation'
 import InvoiceDownloadButton from './InvoiceDownloadButton'
+import { toast } from 'sonner'
 
 interface InvoiceListProps {
     invoices: InvoiceWithCustomer[]
@@ -34,7 +35,7 @@ export default function InvoiceList({ invoices }: InvoiceListProps) {
             await deleteInvoice(id)
             router.refresh()
         } catch (error) {
-            alert(error instanceof Error ? error.message : 'Gagal menghapus invoice')
+            toast.error(error instanceof Error ? error.message : 'Gagal menghapus invoice')
         } finally {
             setLoading(null)
         }

@@ -5,6 +5,7 @@ import { pdf } from '@react-pdf/renderer'
 import { KuitansiPDFDocument } from './KuitansiPDF'
 import { KuitansiWithInvoice } from '@/types/database'
 import { getKuitansiById } from '@/lib/actions/kuitansi'
+import { toast } from 'sonner'
 
 interface KuitansiDownloadButtonProps {
     kuitansiId: string
@@ -22,7 +23,7 @@ export default function KuitansiDownloadButton({ kuitansiId, kuitansi: propKuita
             // Fetch full kuitansi data if not provided
             const kuitansi = propKuitansi || await getKuitansiById(kuitansiId)
             if (!kuitansi) {
-                alert('Kuitansi tidak ditemukan')
+                toast.error('Kuitansi tidak ditemukan')
                 return
             }
 
@@ -42,7 +43,7 @@ export default function KuitansiDownloadButton({ kuitansiId, kuitansi: propKuita
             URL.revokeObjectURL(url)
         } catch (error) {
             console.error('Error generating PDF:', error)
-            alert('Gagal generate PDF')
+            toast.error('Gagal generate PDF')
         } finally {
             setLoading(false)
         }

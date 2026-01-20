@@ -6,6 +6,7 @@ import { KuitansiWithInvoice } from '@/types/database'
 import { deleteKuitansi } from '@/lib/actions/kuitansi'
 import { formatCurrency, formatDateShort } from '@/lib/utils/format'
 import KuitansiDownloadButton from './KuitansiDownloadButton'
+import { toast } from 'sonner'
 
 interface KuitansiListProps {
     kuitansiList: KuitansiWithInvoice[]
@@ -31,7 +32,7 @@ export default function KuitansiList({ kuitansiList }: KuitansiListProps) {
             await deleteKuitansi(id)
             router.refresh()
         } catch (error) {
-            alert(error instanceof Error ? error.message : 'Gagal menghapus kuitansi')
+            toast.error(error instanceof Error ? error.message : 'Gagal menghapus kuitansi')
         } finally {
             setLoading(null)
         }

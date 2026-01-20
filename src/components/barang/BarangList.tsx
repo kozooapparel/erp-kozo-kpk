@@ -5,6 +5,7 @@ import { Barang, BarangHargaTier, BarangWithTiers } from '@/types/database'
 import { getBarangList, createBarang, updateBarang, deleteBarang, getBarangById } from '@/lib/actions/barang'
 import { formatCurrency } from '@/lib/utils/format'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 
 interface HargaTierInput {
     id: string
@@ -105,7 +106,7 @@ export default function BarangList() {
     // Save barang
     const handleSave = async () => {
         if (!namaBarang) {
-            alert('Nama barang harus diisi')
+            toast.warning('Nama barang harus diisi')
             return
         }
 
@@ -136,7 +137,7 @@ export default function BarangList() {
             loadBarang()
         } catch (error) {
             console.error('Error saving barang:', error)
-            alert('Gagal menyimpan barang')
+            toast.error('Gagal menyimpan barang')
         }
     }
 
@@ -149,7 +150,7 @@ export default function BarangList() {
             loadBarang()
         } catch (error) {
             console.error('Error deleting barang:', error)
-            alert('Gagal menghapus barang')
+            toast.error('Gagal menghapus barang')
         }
     }
 

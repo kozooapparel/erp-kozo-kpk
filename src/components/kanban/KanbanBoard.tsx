@@ -6,11 +6,12 @@ import { Order, Customer, DashboardMetrics, STAGES_ORDER, STAGE_LABELS, OrderSta
 import DroppableColumn from './DroppableColumn'
 import MetricsBar from './MetricsBar'
 import SearchBar from '../ui/SearchBar'
-import PaymentStatusFilter, { PaymentFilter } from '../ui/PaymentStatusFilter'
+import OrderStatusFilter, { OrderFilter } from '../ui/OrderStatusFilter'
 import AddOrderModal from '../orders/AddOrderModal'
 import OrderDetailModal from '../orders/OrderDetailModal'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 
 interface OrderWithCustomer extends Order {
     customer: Customer
@@ -34,7 +35,7 @@ export default function KanbanBoard({ orders, metrics, customers, admins }: Kanb
     const [selectedOrder, setSelectedOrder] = useState<OrderWithCustomer | null>(null)
     const [searchQuery, setSearchQuery] = useState('')
     const [activeId, setActiveId] = useState<string | null>(null)
-    const [paymentFilter, setPaymentFilter] = useState<PaymentFilter>('all')
+    const [orderFilter, setOrderFilter] = useState<OrderFilter>('all')
     const [adminFilter, setAdminFilter] = useState<string>('all') // Admin filter state
 
     // Mobile responsive states
@@ -76,15 +77,53 @@ export default function KanbanBoard({ orders, metrics, customers, admins }: Kanb
         })
     )
 
-    // Get payment status of an order
-    const getPaymentStatus = (order: Order): PaymentFilter => {
-        if (order.pelunasan_verified) return 'lunas'
-        if (order.dp_produksi_verified) return 'dp_50'
-        if (order.dp_desain_verified) return 'dp_desain'
-        return 'belum_bayar'
+    // Check if order is ready to move to next stage
+    const isOrderReady = (order: Order): boolean => {
+        switch (order.stage) {
+            case 'customer_dp_desain':
+                return order.dp_desain_verified
+            case 'proses_desain':
+                return order.mockup_url !== null
+            case 'proses_layout':
+                return order.layout_completed
+            case 'dp_produksi':
+                return order.dp_produksi_verified
+            case 'antrean_produksi':
+                return order.production_ready
+            case 'print_press':
+                return order.print_completed
+            case 'cutting_jahit':
+                return order.sewing_completed
+            case 'packing':
+                return order.packing_completed
+            case 'pelunasan':
+                return order.pelunasan_verified
+            case 'pengiriman':
+                return order.tracking_number !== null && order.shipped_at !== null
+            default:
+                return false
+        }
     }
 
-    // Filter orders based on search query, payment status, and admin
+    // Check if order is bottleneck
+    const isOrderBottleneck = (order: Order): boolean => {
+        const stageEnteredAt = new Date(order.stage_entered_at)
+        const now = new Date()
+        const daysDiff = Math.floor((now.getTime() - stageEnteredAt.getTime()) / (1000 * 60 * 60 * 24))
+        const threshold = STAGE_BOTTLENECK_DAYS[order.stage]
+        return daysDiff >= threshold
+    }
+
+    // Check if order deadline is within 3 days
+    const isDeadlineSoon = (order: Order): boolean => {
+        if (!order.deadline) return false
+        const deadline = new Date(order.deadline)
+        const now = new Date()
+        const daysUntilDeadline = Math.ceil((deadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+        return daysUntilDeadline <= 3 && daysUntilDeadline >= 0
+    }
+
+    // Filter orders based on search query, order status, and admin
     const filteredOrders = orders.filter(order => {
         // Search filter
         if (searchQuery) {
@@ -97,9 +136,22 @@ export default function KanbanBoard({ orders, metrics, customers, admins }: Kanb
             if (!matchesSearch) return false
         }
 
-        // Payment status filter
-        if (paymentFilter !== 'all') {
-            if (getPaymentStatus(order) !== paymentFilter) return false
+        // Order status filter
+        if (orderFilter !== 'all') {
+            switch (orderFilter) {
+                case 'needs_action':
+                    if (isOrderReady(order)) return false
+                    break
+                case 'ready_move':
+                    if (!isOrderReady(order)) return false
+                    break
+                case 'bottleneck':
+                    if (!isOrderBottleneck(order)) return false
+                    break
+                case 'deadline_soon':
+                    if (!isDeadlineSoon(order)) return false
+                    break
+            }
         }
 
         // Admin filter
@@ -220,7 +272,7 @@ export default function KanbanBoard({ orders, metrics, customers, admins }: Kanb
 
         const moveCheck = canMoveToStage(order, targetStage)
         if (!moveCheck.allowed) {
-            alert(`⚠️ ${moveCheck.reason}`)
+            toast.warning(moveCheck.reason)
             return
         }
 
@@ -236,7 +288,7 @@ export default function KanbanBoard({ orders, metrics, customers, admins }: Kanb
 
             if (error) {
                 console.error('Supabase error:', error.message, error.code)
-                alert(`Gagal pindah stage: ${error.message}`)
+                toast.error(`Gagal pindah stage: ${error.message}`)
                 return
             }
 
@@ -244,7 +296,7 @@ export default function KanbanBoard({ orders, metrics, customers, admins }: Kanb
             router.refresh()
         } catch (err) {
             console.error('Failed to update stage:', err)
-            alert('Terjadi kesalahan saat update stage')
+            toast.error('Terjadi kesalahan saat update stage')
         }
     }
 
@@ -276,7 +328,7 @@ export default function KanbanBoard({ orders, metrics, customers, admins }: Kanb
                 {/* Filter Row - Horizontal scroll on mobile */}
                 <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1">
                     <span className="text-sm font-medium text-slate-600 whitespace-nowrap">Filter:</span>
-                    <PaymentStatusFilter onFilterChange={setPaymentFilter} />
+                    <OrderStatusFilter onFilterChange={setOrderFilter} />
 
                     {/* Admin Filter Dropdown with Icon */}
                     <div className="relative flex items-center">
@@ -431,7 +483,7 @@ export default function KanbanBoard({ orders, metrics, customers, admins }: Kanb
                             ref={scrollContainerRef}
                             className="h-full overflow-x-auto overflow-y-hidden scrollbar-thin"
                         >
-                            <div className="flex gap-4 min-w-max h-full pb-2 px-2">
+                            <div className="flex gap-3 min-w-max h-full pb-2 px-2">
                                 {STAGES_ORDER.map((stage) => (
                                     <DroppableColumn
                                         key={stage}

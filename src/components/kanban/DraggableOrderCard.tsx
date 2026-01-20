@@ -189,7 +189,7 @@ export default function DraggableOrderCard({ order, isBottleneck, onClick }: Dra
             className={`group transition-all ${isDragging ? 'z-50' : ''}`}
         >
             {/* Outer Container - Pastel Background */}
-            <div className={`pt-3 px-2 pb-2 rounded-3xl transition-all ${stageReadiness.isReady
+            <div className={`pt-2 px-1.5 pb-1.5 rounded-2xl transition-all ${stageReadiness.isReady
                 ? 'bg-emerald-100 dark:bg-emerald-900/50'
                 : 'bg-red-100 dark:bg-red-900/50'
                 } ${isDragging ? 'ring-2 ring-offset-2 ring-emerald-500' : ''} ${isBottleneck ? 'ring-2 ring-red-400 animate-pulse' : ''
@@ -213,47 +213,49 @@ export default function DraggableOrderCard({ order, isBottleneck, onClick }: Dra
                 </div>
 
                 {/* Inner Card - White Card */}
-                <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm overflow-hidden transition-all hover:shadow-md">
+                <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm overflow-hidden transition-all hover:shadow-md">
 
                     {/* Card Content */}
-                    <div className="p-4">
-                        {/* Mockup Thumbnail */}
-                        <div className="relative mb-3">
-                            {order.mockup_url ? (
-                                <div className="relative w-full h-28 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800">
-                                    <Image
-                                        src={order.mockup_url}
-                                        alt="Mockup"
-                                        fill
-                                        className="object-cover pointer-events-none"
-                                    />
-                                </div>
-                            ) : (
-                                <div className="w-full h-28 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center border border-dashed border-slate-200 dark:border-slate-700">
-                                    <svg className="w-10 h-10 text-slate-300 dark:text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                    </svg>
-                                </div>
-                            )}
-                        </div>
+                    <div className="p-2.5">
+                        {/* Mockup Thumbnail - Hidden on customer_dp_desain stage */}
+                        {order.stage !== 'customer_dp_desain' && (
+                            <div className="relative mb-2">
+                                {order.mockup_url ? (
+                                    <div className="relative w-full h-16 rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-800">
+                                        <Image
+                                            src={order.mockup_url}
+                                            alt="Mockup"
+                                            fill
+                                            className="object-cover pointer-events-none"
+                                        />
+                                    </div>
+                                ) : (
+                                    <div className="w-full h-16 rounded-lg bg-slate-50 dark:bg-slate-800 flex items-center justify-center border border-dashed border-slate-200 dark:border-slate-700">
+                                        <svg className="w-6 h-6 text-slate-300 dark:text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                        </svg>
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         {/* Customer Name */}
-                        <h4 className="font-semibold text-slate-900 dark:text-slate-100 text-sm truncate mb-2">
+                        <h4 className="font-semibold text-slate-900 dark:text-slate-100 text-xs truncate mb-1">
                             {order.customer?.name || 'Unknown'}
                         </h4>
 
                         {/* Order Details Row */}
                         <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3 text-slate-500 dark:text-slate-400 text-xs">
+                            <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-[10px]">
                                 <span className="flex items-center gap-1">
-                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
                                     </svg>
-                                    {order.total_quantity} pcs
+                                    {order.total_quantity}pcs
                                 </span>
                                 {order.deadline && (
                                     <span className="flex items-center gap-1">
-                                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                         </svg>
                                         {formatDate(order.deadline)}
@@ -262,15 +264,15 @@ export default function DraggableOrderCard({ order, isBottleneck, onClick }: Dra
                             </div>
 
                             {/* Stage Status Badge - Bottom Right */}
-                            <span className={`px-2.5 py-1 text-[10px] font-semibold rounded-full text-white ${stageStatus.isReady ? 'bg-emerald-500' : 'bg-red-500'}`}>
+                            <span className={`px-1.5 py-0.5 text-[9px] font-semibold rounded-full text-white ${stageStatus.isReady ? 'bg-emerald-500' : 'bg-red-500'}`}>
                                 {stageStatus.label}
                             </span>
                         </div>
 
                         {/* Admin Badge with Order Age Timer */}
                         {order.creator?.full_name && (
-                            <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between">
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 text-[10px] font-medium">
+                            <div className="mt-1.5 pt-1.5 border-t border-slate-100 flex items-center justify-between">
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-600 text-[9px] font-medium">
                                     <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                                     </svg>

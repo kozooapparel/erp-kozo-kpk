@@ -38,7 +38,7 @@ export default function DroppableColumn({
     })
 
     return (
-        <div className={`${fullWidth ? 'w-full' : 'w-80'} flex-shrink-0 flex flex-col h-full`}>
+        <div className={`${fullWidth ? 'w-full' : 'w-64'} flex-shrink-0 flex flex-col h-full`}>
             {/* Column Header */}
             <div
                 className={`mb-3 p-3 rounded-xl flex items-center justify-between bg-white border ${isGatekeeper
@@ -78,10 +78,9 @@ export default function DroppableColumn({
                 </button>
             </div>
 
-            {/* Column Content - Droppable Area */}
             <div
                 ref={setNodeRef}
-                className={`flex-1 overflow-y-auto space-y-3 p-3 rounded-xl transition-all duration-200 ${isOver
+                className={`flex-1 overflow-y-auto space-y-2 p-2 rounded-xl transition-all duration-200 ${isOver
                     ? 'bg-blue-50 border-2 border-dashed border-blue-400'
                     : 'bg-slate-100/80 border border-slate-200'
                     }`}

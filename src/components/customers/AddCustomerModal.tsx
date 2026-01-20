@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 
 interface AddCustomerModalProps {
     isOpen: boolean
@@ -23,7 +24,7 @@ export default function AddCustomerModal({ isOpen, onClose }: AddCustomerModalPr
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         if (!name.trim() || !phone.trim()) {
-            alert('Nama dan No. HP wajib diisi')
+            toast.warning('Nama dan No. HP wajib diisi')
             return
         }
 
@@ -37,7 +38,7 @@ export default function AddCustomerModal({ isOpen, onClose }: AddCustomerModalPr
                 .single()
 
             if (existing) {
-                alert(`Customer dengan No. HP ini sudah terdaftar: ${existing.name}`)
+                toast.warning(`Customer dengan No. HP ini sudah terdaftar: ${existing.name}`)
                 return
             }
 
@@ -51,7 +52,7 @@ export default function AddCustomerModal({ isOpen, onClose }: AddCustomerModalPr
 
             if (error) {
                 console.error('Error:', error)
-                alert(`Gagal menyimpan: ${error.message}`)
+                toast.error(`Gagal menyimpan: ${error.message}`)
                 return
             }
 
@@ -61,10 +62,10 @@ export default function AddCustomerModal({ isOpen, onClose }: AddCustomerModalPr
             setAlamat('')
             router.refresh()
             onClose()
-            alert('Customer berhasil ditambahkan!')
+            toast.success('Customer berhasil ditambahkan!')
         } catch (err) {
             console.error('Error:', err)
-            alert('Terjadi kesalahan')
+            toast.error('Terjadi kesalahan')
         } finally {
             setLoading(false)
         }

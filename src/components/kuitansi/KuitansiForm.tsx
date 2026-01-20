@@ -6,6 +6,7 @@ import { InvoiceWithCustomer } from '@/types/database'
 import { createKuitansi } from '@/lib/actions/kuitansi'
 import { formatCurrency, formatDateInput, formatDate } from '@/lib/utils/format'
 import { terbilang } from '@/lib/utils/terbilang'
+import { toast } from 'sonner'
 
 interface KuitansiFormProps {
     unpaidInvoices: InvoiceWithCustomer[]
@@ -28,18 +29,18 @@ export default function KuitansiForm({ unpaidInvoices, prefilledInvoiceId }: Kui
         e.preventDefault()
 
         if (!invoiceId) {
-            alert('Pilih invoice terlebih dahulu')
+            toast.warning('Pilih invoice terlebih dahulu')
             return
         }
 
         const jumlahNum = parseFloat(jumlah)
         if (!jumlahNum || jumlahNum <= 0) {
-            alert('Masukkan jumlah pembayaran yang valid')
+            toast.warning('Masukkan jumlah pembayaran yang valid')
             return
         }
 
         if (selectedInvoice && jumlahNum > selectedInvoice.sisa_tagihan) {
-            alert(`Jumlah pembayaran melebihi sisa tagihan (${formatCurrency(selectedInvoice.sisa_tagihan)})`)
+            toast.warning(`Jumlah pembayaran melebihi sisa tagihan (${formatCurrency(selectedInvoice.sisa_tagihan)})`)
             return
         }
 
@@ -57,7 +58,7 @@ export default function KuitansiForm({ unpaidInvoices, prefilledInvoiceId }: Kui
             router.refresh()
         } catch (error) {
             console.error('Error creating kuitansi:', error)
-            alert(error instanceof Error ? error.message : 'Gagal membuat kuitansi')
+            toast.error(error instanceof Error ? error.message : 'Gagal membuat kuitansi')
         } finally {
             setLoading(false)
         }

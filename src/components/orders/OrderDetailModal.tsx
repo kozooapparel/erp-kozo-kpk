@@ -5,6 +5,7 @@ import { Order, Customer, STAGE_LABELS, STAGES_ORDER, OrderStage, GATEKEEPER_STA
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
+import { toast } from 'sonner'
 
 interface OrderWithCustomer extends Order {
     customer: Customer
@@ -180,19 +181,35 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
 
         setLoading(true)
         try {
-            const { error } = await supabase
+            const { data, error } = await supabase
                 .from('orders')
                 .update({
                     stage: nextStage,
                     stage_entered_at: new Date().toISOString()
                 })
                 .eq('id', order.id)
+                .select()
+                .single()
 
-            if (error) throw error
+            if (error) {
+                console.error('Move stage error:', error)
+                toast.error(`Gagal pindah stage: ${error.message || JSON.stringify(error)}`)
+                return
+            }
+
+            if (!data) {
+                console.error('No data returned after update')
+                toast.error('Gagal pindah stage: Update tidak berhasil')
+                return
+            }
+
+            console.log('Stage updated successfully:', data)
             router.refresh()
             onClose()
         } catch (err) {
             console.error('Move stage error:', err)
+            const message = err instanceof Error ? err.message : JSON.stringify(err)
+            toast.error(`Gagal pindah stage: ${message}`)
         } finally {
             setLoading(false)
         }
@@ -288,34 +305,6 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                                     <p className="text-slate-900 whitespace-pre-wrap">{order.order_description}</p>
                                 </div>
                             )}
-
-                            {/* Tracking Number - Editable in Pengiriman stage */}
-                            {order.stage === 'pengiriman' && (
-                                <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/30">
-                                    <p className="text-xs text-slate-500 mb-2">No. Resi / Tracking Number</p>
-                                    <div className="flex gap-2">
-                                        <input
-                                            type="text"
-                                            value={trackingNumber}
-                                            onChange={(e) => setTrackingNumber(e.target.value)}
-                                            placeholder="JNE123456789"
-                                            className="flex-1 px-4 py-2 rounded-lg bg-white border border-slate-300 text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                                        />
-                                        <button
-                                            onClick={handleSaveTrackingNumber}
-                                            disabled={loading || !trackingNumber.trim()}
-                                            className="px-4 py-2 rounded-lg bg-blue-500 text-slate-900 font-medium hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                        >
-                                            {loading ? 'Saving...' : 'Simpan'}
-                                        </button>
-                                    </div>
-                                    {order.shipped_at && (
-                                        <p className="mt-2 text-xs text-slate-500">
-                                            Dikirim: {new Date(order.shipped_at).toLocaleDateString('id-ID')}
-                                        </p>
-                                    )}
-                                </div>
-                            )}
                         </div>
                     )}
 
@@ -355,7 +344,7 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                                     }`}>
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-2">
-                                            <p className="text-sm font-medium text-slate-900">DP Produksi (50%)</p>
+                                            <p className="text-sm font-medium text-slate-900">DP Produksi</p>
                                             <svg className="w-4 h-4 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                                             </svg>
@@ -381,7 +370,7 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                                                 onClick={async () => {
                                                     const amount = parseInt(dpProduksiAmount) || 0
                                                     if (amount <= 0) {
-                                                        alert('Masukkan nominal DP Produksi')
+                                                        toast.warning('Masukkan nominal DP Produksi')
                                                         return
                                                     }
                                                     setLoading(true)
@@ -394,7 +383,7 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                                                         })
                                                         .eq('id', order.id)
                                                     if (error) {
-                                                        alert(`Gagal: ${error.message}`)
+                                                        toast.error(`Gagal: ${error.message}`)
                                                     } else {
                                                         onClose()
                                                         router.refresh()
@@ -443,7 +432,7 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                                                 onClick={async () => {
                                                     const amount = parseInt(pelunasanAmount) || 0
                                                     if (amount <= 0) {
-                                                        alert('Masukkan nominal Pelunasan')
+                                                        toast.warning('Masukkan nominal Pelunasan')
                                                         return
                                                     }
                                                     setLoading(true)
@@ -456,7 +445,7 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                                                         })
                                                         .eq('id', order.id)
                                                     if (error) {
-                                                        alert(`Gagal: ${error.message}`)
+                                                        toast.error(`Gagal: ${error.message}`)
                                                     } else {
                                                         onClose()
                                                         router.refresh()
@@ -528,7 +517,7 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
 
                                                     if (uploadError) {
                                                         console.error('Storage error:', uploadError)
-                                                        alert(`Gagal upload: ${uploadError.message}`)
+                                                        toast.error(`Gagal upload: ${uploadError.message}`)
                                                         return
                                                     }
 
@@ -544,18 +533,18 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
 
                                                     if (updateError) {
                                                         console.error('Update error:', updateError)
-                                                        alert(`Gagal update: ${updateError.message}`)
+                                                        toast.error(`Gagal update: ${updateError.message}`)
                                                         return
                                                     }
 
                                                     setPaymentProofFile(null)
                                                     setPaymentProofPreview(null)
                                                     router.refresh()
-                                                    alert('Bukti pembayaran berhasil diupload!')
+                                                    toast.success('Bukti pembayaran berhasil diupload!')
                                                 } catch (err: unknown) {
                                                     console.error('Upload error:', err)
                                                     const message = err instanceof Error ? err.message : 'Unknown error'
-                                                    alert(`Gagal upload bukti pembayaran: ${message}`)
+                                                    toast.error(`Gagal upload bukti pembayaran: ${message}`)
                                                 } finally {
                                                     setUploadingProof(false)
                                                 }
@@ -637,7 +626,7 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                                                     .upload(filePath, file)
 
                                                 if (uploadError) {
-                                                    alert(`Gagal upload: ${uploadError.message}`)
+                                                    toast.error(`Gagal upload: ${uploadError.message}`)
                                                     return
                                                 }
 
@@ -651,16 +640,17 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                                                     .eq('id', order.id)
 
                                                 if (updateError) {
-                                                    alert(`Gagal update: ${updateError.message}`)
+                                                    toast.error(`Gagal update: ${updateError.message}`)
                                                     return
                                                 }
 
-                                                // Don't close modal - let user click the move stage button
+                                                // Close modal and refresh to show changes in Kanban
+                                                toast.success('Desain berhasil diupload!')
+                                                onClose()
                                                 router.refresh()
-                                                alert('Desain berhasil diupload! Sekarang Anda bisa klik tombol "Pindah ke Proses Layout"')
                                             } catch (err) {
                                                 console.error('Upload error:', err)
-                                                alert('Gagal upload desain')
+                                                toast.error('Gagal upload desain')
                                             } finally {
                                                 setLoading(false)
                                             }
@@ -692,6 +682,39 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                                         <p className="text-amber-400 font-medium">Pelunasan belum diverifikasi</p>
                                         <p className="text-sm text-slate-500">Verifikasi pembayaran penuh terlebih dahulu</p>
                                     </div>
+                                </div>
+                            )}
+
+                            {/* Tracking Number Input for Pengiriman Stage */}
+                            {order.stage === 'pengiriman' && (
+                                <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/30">
+                                    <p className="text-sm font-medium text-slate-900 mb-2">No. Resi / Tracking Number</p>
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            value={trackingNumber}
+                                            onChange={(e) => setTrackingNumber(e.target.value)}
+                                            placeholder="JNE123456789"
+                                            className="flex-1 px-4 py-2 rounded-lg bg-white border border-slate-300 text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                                        />
+                                        <button
+                                            onClick={handleSaveTrackingNumber}
+                                            disabled={loading || !trackingNumber.trim()}
+                                            className="px-4 py-2 rounded-lg bg-blue-500 text-white font-medium hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                        >
+                                            {loading ? 'Saving...' : 'Simpan'}
+                                        </button>
+                                    </div>
+                                    {order.shipped_at && (
+                                        <p className="mt-2 text-xs text-emerald-600 font-medium">
+                                            ✓ Dikirim: {new Date(order.shipped_at).toLocaleDateString('id-ID')}
+                                        </p>
+                                    )}
+                                    {!order.tracking_number && (
+                                        <p className="mt-2 text-xs text-amber-500">
+                                            Isi no resi dan klik Simpan untuk menandai pesanan sudah dikirim
+                                        </p>
+                                    )}
                                 </div>
                             )}
 
@@ -751,9 +774,10 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
 
                                                 if (error) throw error
                                                 router.refresh()
+                                                onClose()
                                             } catch (err) {
                                                 console.error('Toggle stage error:', err)
-                                                alert('Gagal mengupdate status')
+                                                toast.error('Gagal mengupdate status')
                                             } finally {
                                                 setLoading(false)
                                             }

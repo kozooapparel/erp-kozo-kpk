@@ -8,6 +8,7 @@ import { getBarangList, getHargaByQty } from '@/lib/actions/barang'
 import { getBankInfo, getCompanyInfo, BankInfo, CompanyInfo } from '@/lib/actions/settings'
 import { formatCurrency, formatDateInput } from '@/lib/utils/format'
 import { terbilang } from '@/lib/utils/terbilang'
+import { toast } from 'sonner'
 
 interface InvoiceFormProps {
     customers: Customer[]
@@ -165,12 +166,12 @@ export default function InvoiceForm({
         e.preventDefault()
 
         if (!customerId) {
-            alert('Pilih customer terlebih dahulu')
+            toast.warning('Pilih customer terlebih dahulu')
             return
         }
 
         if (items.every(item => !item.deskripsi)) {
-            alert('Tambahkan minimal satu item')
+            toast.warning('Tambahkan minimal satu item')
             return
         }
 
@@ -219,7 +220,7 @@ export default function InvoiceForm({
             router.refresh()
         } catch (error) {
             console.error('Error saving invoice:', error)
-            alert('Gagal menyimpan invoice')
+            toast.error('Gagal menyimpan invoice')
         } finally {
             setLoading(false)
         }

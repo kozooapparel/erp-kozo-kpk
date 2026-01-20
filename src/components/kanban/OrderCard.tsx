@@ -194,8 +194,8 @@ export default function OrderCard({ order, isBottleneck, onClick }: OrderCardPro
                     </span>
                 </div>
 
-                {/* Mockup Image - Clickable for preview */}
-                {order.mockup_url && (
+                {/* Mockup Image - Clickable for preview (hidden on customer_dp_desain stage) */}
+                {order.mockup_url && order.stage !== 'customer_dp_desain' && (
                     <div className="mt-3 pt-3 border-t border-slate-100">
                         <div
                             onClick={handleImageClick}
