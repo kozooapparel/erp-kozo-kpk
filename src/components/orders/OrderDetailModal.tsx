@@ -655,8 +655,9 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                                                     return
                                                 }
 
-                                                onClose()
+                                                // Don't close modal - let user click the move stage button
                                                 router.refresh()
+                                                alert('Desain berhasil diupload! Sekarang Anda bisa klik tombol "Pindah ke Proses Layout"')
                                             } catch (err) {
                                                 console.error('Upload error:', err)
                                                 alert('Gagal upload desain')
