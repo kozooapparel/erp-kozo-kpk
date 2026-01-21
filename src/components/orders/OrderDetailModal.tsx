@@ -680,91 +680,106 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                             {/* Layout Section for proses_layout */}
                             {order.stage === 'proses_layout' && (
                                 <div className="space-y-4">
-                                    {/* Warning - Only show if no layout uploaded yet */}
+                                    {/* Info - Only show if no layout link yet */}
                                     {!order.layout_url && (
-                                        <div className="p-4 rounded-xl bg-orange-500/10 border border-orange-500/30 flex items-center gap-3">
-                                            <svg className="w-6 h-6 text-orange-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                        <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center gap-3">
+                                            <svg className="w-6 h-6 text-blue-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                                             </svg>
                                             <div>
-                                                <p className="text-orange-500 font-medium">Upload Layout Desain</p>
-                                                <p className="text-sm text-slate-500">Upload file layout final untuk menyelesaikan stage ini.</p>
+                                                <p className="text-blue-400 font-medium">Masukkan Link Google Drive</p>
+                                                <p className="text-sm text-slate-500">Upload layout ke Google Drive lalu paste link sharing di sini.</p>
                                             </div>
                                         </div>
                                     )}
 
-                                    {/* Upload Area or Preview */}
+                                    {/* Link Input Area */}
                                     <div className="border border-slate-200 rounded-xl p-4 bg-white">
                                         <p className="text-sm font-medium text-slate-900 mb-3">
-                                            {order.layout_url ? 'Layout Final' : 'Upload Layout Final'}
+                                            Link Layout Final (Google Drive)
                                         </p>
 
-                                        {!order.layout_url ? (
-                                            <div className="space-y-3">
-                                                <div className="relative">
-                                                    <input
-                                                        type="file"
-                                                        accept="image/*"
-                                                        onChange={async (e) => {
-                                                            const file = e.target.files?.[0]
-                                                            if (!file) return
-
-                                                            try {
-                                                                setUploadingProof(true)
-                                                                const fileExt = file.name.split('.').pop()
-                                                                const fileName = `layout-${order.id}-${Date.now()}.${fileExt}`
-                                                                const { error: uploadError } = await supabase.storage
-                                                                    .from('order-assets')
-                                                                    .upload(fileName, file)
-
-                                                                if (uploadError) throw uploadError
-
-                                                                const { data: { publicUrl } } = supabase.storage
-                                                                    .from('order-assets')
-                                                                    .getPublicUrl(fileName)
-
-                                                                const { error: updateError } = await supabase
-                                                                    .from('orders')
-                                                                    .update({
-                                                                        layout_url: publicUrl,
-                                                                        layout_completed: true,
-                                                                        layout_completed_at: new Date().toISOString()
-                                                                    } as any)
-                                                                    .eq('id', order.id)
-
-                                                                if (updateError) throw updateError
-
-                                                                toast.success('Layout berhasil diupload!')
-                                                                onClose() // Close modal
-                                                                router.refresh() // Refresh page
-                                                            } catch (err: unknown) {
-                                                                console.error('Error uploading layout:', err)
-                                                                toast.error('Gagal upload layout')
-                                                            } finally {
-                                                                setUploadingProof(false)
-                                                            }
-                                                        }}
-                                                        disabled={uploadingProof}
-                                                        className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 disabled:opacity-50 cursor-pointer"
-                                                    />
+                                        <div className="space-y-3">
+                                            <div className="relative">
+                                                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                                                    </svg>
                                                 </div>
-                                                {uploadingProof && <p className="text-xs text-blue-500 animate-pulse">Mengupload layout...</p>}
+                                                <input
+                                                    type="url"
+                                                    id="layout-drive-link"
+                                                    defaultValue={order.layout_url || ''}
+                                                    placeholder="https://drive.google.com/..."
+                                                    className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                                                />
                                             </div>
-                                        ) : (
-                                            <div className="space-y-2">
-                                                <div
-                                                    className="relative w-full h-48 rounded-lg overflow-hidden bg-slate-100 cursor-zoom-in group"
-                                                    onClick={() => setPreviewImage(order.layout_url)}
-                                                >
-                                                    <Image src={order.layout_url} alt="Layout" fill className="object-contain" />
-                                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
-                                                    <div className="absolute top-2 left-2 px-2 py-1 rounded-md bg-emerald-500 text-white text-[10px] font-medium">
-                                                        ✓ Uploaded
-                                                    </div>
-                                                </div>
+
+                                            <div className="flex gap-2">
+                                                {order.layout_url && (
+                                                    <a
+                                                        href={order.layout_url}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-blue-50 text-blue-600 font-medium hover:bg-blue-100 transition-colors"
+                                                    >
+                                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                                        </svg>
+                                                        Buka di Drive
+                                                    </a>
+                                                )}
                                                 <button
                                                     onClick={async () => {
-                                                        if (!confirm('Hapus layout ini?')) return
+                                                        const input = document.getElementById('layout-drive-link') as HTMLInputElement
+                                                        const link = input?.value?.trim()
+
+                                                        if (!link) {
+                                                            toast.warning('Masukkan link Google Drive')
+                                                            return
+                                                        }
+
+                                                        // Simple validation for Google Drive links
+                                                        if (!link.includes('drive.google.com') && !link.includes('docs.google.com')) {
+                                                            toast.warning('Link harus dari Google Drive')
+                                                            return
+                                                        }
+
+                                                        try {
+                                                            setLoading(true)
+                                                            const { error } = await supabase
+                                                                .from('orders')
+                                                                .update({
+                                                                    layout_url: link,
+                                                                    layout_completed: true,
+                                                                    layout_completed_at: new Date().toISOString()
+                                                                } as any)
+                                                                .eq('id', order.id)
+
+                                                            if (error) throw error
+                                                            toast.success('Link layout berhasil disimpan!')
+                                                            router.refresh()
+                                                        } catch (err) {
+                                                            console.error('Error saving layout link:', err)
+                                                            toast.error('Gagal menyimpan link')
+                                                        } finally {
+                                                            setLoading(false)
+                                                        }
+                                                    }}
+                                                    disabled={loading}
+                                                    className={`${order.layout_url ? '' : 'flex-1'} flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-emerald-500 text-white font-medium hover:bg-emerald-600 transition-colors disabled:opacity-50`}
+                                                >
+                                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                    </svg>
+                                                    Simpan Link
+                                                </button>
+                                            </div>
+
+                                            {order.layout_url && (
+                                                <button
+                                                    onClick={async () => {
+                                                        if (!confirm('Hapus link layout ini?')) return
 
                                                         try {
                                                             const { error } = await supabase
@@ -777,19 +792,18 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                                                                 .eq('id', order.id)
 
                                                             if (error) throw error
-                                                            toast.success('Layout dihapus')
-                                                            onClose()
+                                                            toast.success('Link dihapus')
                                                             router.refresh()
                                                         } catch (err) {
-                                                            toast.error('Gagal menghapus layout')
+                                                            toast.error('Gagal menghapus link')
                                                         }
                                                     }}
-                                                    className="text-xs text-red-500 hover:text-red-600 font-medium"
+                                                    className="text-xs text-red-500 hover:text-red-600 font-medium text-center"
                                                 >
-                                                    Hapus & Upload Ulang
+                                                    Hapus Link
                                                 </button>
-                                            </div>
-                                        )}
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             )}

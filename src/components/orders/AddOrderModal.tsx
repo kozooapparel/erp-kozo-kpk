@@ -4,6 +4,8 @@ import { useState } from 'react'
 import { Customer, OrderInsert } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import NumberInput from '@/components/ui/NumberInput'
+import CurrencyInput from '@/components/ui/CurrencyInput'
 
 interface AddOrderModalProps {
     isOpen: boolean
@@ -17,8 +19,8 @@ export default function AddOrderModal({ isOpen, onClose, customers }: AddOrderMo
 
     // Form state - minimal fields only
     const [customerId, setCustomerId] = useState('')
-    const [totalQuantity, setTotalQuantity] = useState('')
-    const [dpDesainAmount, setDpDesainAmount] = useState('')
+    const [totalQuantity, setTotalQuantity] = useState(0)
+    const [dpDesainAmount, setDpDesainAmount] = useState(0)
 
     const router = useRouter()
     const supabase = createClient()
@@ -35,9 +37,9 @@ export default function AddOrderModal({ isOpen, onClose, customers }: AddOrderMo
             // Create order with minimal data
             const orderData: OrderInsert = {
                 customer_id: customerId,
-                total_quantity: parseInt(totalQuantity),
-                dp_desain_amount: dpDesainAmount ? parseFloat(dpDesainAmount) : 0,
-                dp_desain_verified: dpDesainAmount ? true : false,
+                total_quantity: totalQuantity,
+                dp_desain_amount: dpDesainAmount,
+                dp_desain_verified: dpDesainAmount > 0,
                 stage: 'customer_dp_desain',
                 created_by: user?.id || null,
             }
@@ -63,8 +65,8 @@ export default function AddOrderModal({ isOpen, onClose, customers }: AddOrderMo
 
     const resetForm = () => {
         setCustomerId('')
-        setTotalQuantity('')
-        setDpDesainAmount('')
+        setTotalQuantity(0)
+        setDpDesainAmount(0)
         setError(null)
     }
 
@@ -129,14 +131,11 @@ export default function AddOrderModal({ isOpen, onClose, customers }: AddOrderMo
                         <label className="block text-sm font-medium text-slate-700 mb-2">
                             Jumlah Total (pcs) *
                         </label>
-                        <input
-                            type="number"
-                            min="1"
+                        <NumberInput
                             value={totalQuantity}
-                            onChange={(e) => setTotalQuantity(e.target.value)}
-                            required
+                            onChange={setTotalQuantity}
                             placeholder="100"
-                            className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                            min={1}
                         />
                     </div>
 
@@ -145,13 +144,10 @@ export default function AddOrderModal({ isOpen, onClose, customers }: AddOrderMo
                         <label className="block text-sm font-medium text-slate-700 mb-2">
                             DP Desain (Rp)
                         </label>
-                        <input
-                            type="number"
-                            min="0"
+                        <CurrencyInput
                             value={dpDesainAmount}
-                            onChange={(e) => setDpDesainAmount(e.target.value)}
+                            onChange={setDpDesainAmount}
                             placeholder="500000"
-                            className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
                         />
                     </div>
 

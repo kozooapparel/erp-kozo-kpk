@@ -1,11 +1,13 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Barang, BarangHargaTier, BarangWithTiers } from '@/types/database'
+import { Barang, BarangWithTiers } from '@/types/database'
 import { getBarangList, createBarang, updateBarang, deleteBarang, getBarangById } from '@/lib/actions/barang'
 import { formatCurrency } from '@/lib/utils/format'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
+import CurrencyInput from '@/components/ui/CurrencyInput'
+import NumberInput from '@/components/ui/NumberInput'
 
 interface HargaTierInput {
     id: string
@@ -24,7 +26,7 @@ export default function BarangList() {
     // Form state
     const [namaBarang, setNamaBarang] = useState('')
     const [satuan, setSatuan] = useState('PCS')
-    const [hargaSatuan, setHargaSatuan] = useState('')
+    const [hargaSatuan, setHargaSatuan] = useState(0)
     const [kategori, setKategori] = useState('')
     const [hargaTiers, setHargaTiers] = useState<HargaTierInput[]>([])
 
@@ -50,7 +52,8 @@ export default function BarangList() {
         setEditingBarang(null)
         setNamaBarang('')
         setSatuan('PCS')
-        setHargaSatuan('')
+        setHargaSatuan(0)
+
         setKategori('')
         setHargaTiers([])
         setShowModal(true)
@@ -63,7 +66,7 @@ export default function BarangList() {
             setEditingBarang(barang)
             setNamaBarang(barang.nama_barang)
             setSatuan(barang.satuan)
-            setHargaSatuan(barang.harga_satuan.toString())
+            setHargaSatuan(barang.harga_satuan)
             setKategori(barang.kategori || '')
             setHargaTiers(barang.harga_tiers.map((t, i) => ({
                 id: `tier-${i}`,
@@ -121,14 +124,14 @@ export default function BarangList() {
                 await updateBarang(editingBarang.id, {
                     nama_barang: namaBarang,
                     satuan,
-                    harga_satuan: parseFloat(hargaSatuan) || 0,
+                    harga_satuan: hargaSatuan,
                     kategori: kategori || null
                 }, tierData)
             } else {
                 await createBarang({
                     nama_barang: namaBarang,
                     satuan,
-                    harga_satuan: parseFloat(hargaSatuan) || 0,
+                    harga_satuan: hargaSatuan,
                     kategori: kategori || null
                 }, tierData)
             }
@@ -270,12 +273,11 @@ export default function BarangList() {
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 mb-1">Harga Satuan Default</label>
-                                    <input
-                                        type="number"
+                                    <CurrencyInput
                                         value={hargaSatuan}
-                                        onChange={(e) => setHargaSatuan(e.target.value)}
-                                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500/50"
+                                        onChange={setHargaSatuan}
                                         placeholder="0"
+                                        className="!rounded-lg !py-2"
                                     />
                                 </div>
                             </div>
@@ -293,54 +295,79 @@ export default function BarangList() {
 
                             {/* Harga Tier */}
                             <div>
-                                <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center justify-between mb-3">
                                     <label className="text-sm font-medium text-slate-700">Harga Tier (berdasarkan quantity)</label>
                                     <button
                                         type="button"
                                         onClick={addTierRow}
-                                        className="px-3 py-1 bg-emerald-50 text-emerald-600 text-sm font-medium rounded-lg hover:bg-emerald-100 transition-colors"
+                                        className="px-3 py-1.5 bg-violet-50 text-violet-600 text-sm font-medium rounded-lg hover:bg-violet-100 transition-colors flex items-center gap-1"
                                     >
-                                        + Tier
+                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                        </svg>
+                                        Tambah Tier
                                     </button>
                                 </div>
 
                                 {hargaTiers.length === 0 ? (
-                                    <p className="text-sm text-slate-500 italic">Belum ada tier harga. Harga default akan digunakan.</p>
+                                    <div className="text-center py-8 bg-slate-50 rounded-xl border-2 border-dashed border-slate-200">
+                                        <svg className="w-10 h-10 text-slate-300 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                        </svg>
+                                        <p className="text-sm text-slate-500">Belum ada tier harga</p>
+                                        <p className="text-xs text-slate-400 mt-1">Harga default akan digunakan untuk semua quantity</p>
+                                    </div>
                                 ) : (
                                     <div className="space-y-2">
                                         {hargaTiers.map((tier, index) => (
-                                            <div key={tier.id} className="flex items-center gap-2 p-2 bg-slate-50 rounded-lg">
-                                                <span className="text-sm text-slate-500 w-8">{index + 1}.</span>
-                                                <input
-                                                    type="number"
-                                                    value={tier.min_qty}
-                                                    onChange={(e) => updateTier(index, 'min_qty', parseInt(e.target.value) || 0)}
-                                                    className="w-20 px-2 py-1 border border-slate-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/50"
-                                                    placeholder="Min"
-                                                />
-                                                <span className="text-sm text-slate-500">-</span>
-                                                <input
-                                                    type="number"
-                                                    value={tier.max_qty || ''}
-                                                    onChange={(e) => updateTier(index, 'max_qty', e.target.value ? parseInt(e.target.value) : null)}
-                                                    className="w-20 px-2 py-1 border border-slate-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/50"
-                                                    placeholder="∞"
-                                                />
-                                                <span className="text-sm text-slate-500">pcs =</span>
-                                                <input
-                                                    type="number"
-                                                    value={tier.harga}
-                                                    onChange={(e) => updateTier(index, 'harga', parseFloat(e.target.value) || 0)}
-                                                    className="flex-1 px-2 py-1 border border-slate-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/50"
-                                                    placeholder="Harga"
-                                                />
+                                            <div key={tier.id} className="flex items-center gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200 group hover:border-violet-200 transition-colors">
+                                                {/* Tier Number */}
+                                                <span className="w-6 h-6 bg-violet-100 text-violet-600 rounded-full text-xs font-bold flex items-center justify-center flex-shrink-0">
+                                                    {index + 1}
+                                                </span>
+
+                                                {/* Range: Min - Max pcs */}
+                                                <div className="flex items-center gap-1.5">
+                                                    <NumberInput
+                                                        value={tier.min_qty}
+                                                        onChange={(val) => updateTier(index, 'min_qty', val)}
+                                                        placeholder="1"
+                                                        className="!w-16 !py-1.5 !px-2 !rounded-lg text-center text-sm"
+                                                    />
+                                                    <span className="text-slate-400 font-medium">-</span>
+                                                    <NumberInput
+                                                        value={tier.max_qty || 0}
+                                                        onChange={(val) => updateTier(index, 'max_qty', val === 0 ? null : val)}
+                                                        placeholder="∞"
+                                                        allowEmpty
+                                                        className="!w-16 !py-1.5 !px-2 !rounded-lg text-center text-sm"
+                                                    />
+                                                    <span className="text-sm text-slate-500 font-medium">pcs</span>
+                                                </div>
+
+                                                {/* Equals Sign */}
+                                                <span className="text-violet-500 font-bold text-lg">=</span>
+
+                                                {/* Price */}
+                                                <div className="flex items-center gap-1 flex-1">
+                                                    <span className="text-sm text-slate-500 font-medium">Rp</span>
+                                                    <CurrencyInput
+                                                        value={tier.harga}
+                                                        onChange={(val) => updateTier(index, 'harga', val)}
+                                                        placeholder="0"
+                                                        showPrefix={false}
+                                                        className="!py-1.5 !px-2 !rounded-lg text-sm font-semibold"
+                                                    />
+                                                </div>
+
+                                                {/* Delete Button */}
                                                 <button
                                                     type="button"
                                                     onClick={() => removeTierRow(index)}
-                                                    className="p-1 text-red-500 hover:bg-red-50 rounded"
+                                                    className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                                                 >
                                                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                                     </svg>
                                                 </button>
                                             </div>
