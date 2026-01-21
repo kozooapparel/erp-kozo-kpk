@@ -16,6 +16,10 @@
    BASE STYLES
    ============================================ */
 
+html {
+  font-size: 13.5px; /* Slight reduction to scale down rem units (~84%) */
+}
+
 body {
   background-color: #f8fafc;
   /* slate-50 */

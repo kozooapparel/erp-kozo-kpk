@@ -1,11 +1,12 @@
 'use client'
 
 import { useState } from 'react'
-import { Order, Customer, STAGE_LABELS, STAGES_ORDER, OrderStage, GATEKEEPER_STAGES } from '@/types/database'
+import { Order, Customer, STAGE_LABELS, STAGES_ORDER, OrderStage, GATEKEEPER_STAGES, SPKSection, ProductionSpecs } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { toast } from 'sonner'
+import { SPKEditor } from '@/components/spk'
 
 interface OrderWithCustomer extends Order {
     customer: Customer
@@ -19,13 +20,14 @@ interface OrderDetailModalProps {
 
 export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetailModalProps) {
     const [loading, setLoading] = useState(false)
-    const [activeTab, setActiveTab] = useState<'detail' | 'payment' | 'stage'>('detail')
+    const [activeTab, setActiveTab] = useState<'detail' | 'payment' | 'stage' | 'spk'>('detail')
     const [trackingNumber, setTrackingNumber] = useState('')
     const [paymentProofFile, setPaymentProofFile] = useState<File | null>(null)
     const [paymentProofPreview, setPaymentProofPreview] = useState<string | null>(null)
     const [uploadingProof, setUploadingProof] = useState(false)
     const [dpProduksiAmount, setDpProduksiAmount] = useState('')
     const [pelunasanAmount, setPelunasanAmount] = useState('')
+    const [previewImage, setPreviewImage] = useState<string | null>(null)
     const router = useRouter()
     const supabase = createClient()
 
@@ -179,14 +181,23 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
         const nextStage = getNextStage()
         if (!nextStage) return
 
+        // Validate SPK created before moving OUT of antrean_produksi
+        if (order.stage === 'antrean_produksi' && !order.spk_number) {
+            toast.warning('Buat SPK terlebih dahulu sebelum melanjutkan ke tahap produksi')
+            return
+        }
+
         setLoading(true)
         try {
+            // Build update data
+            const updateData: Record<string, unknown> = {
+                stage: nextStage,
+                stage_entered_at: new Date().toISOString()
+            }
+
             const { data, error } = await supabase
                 .from('orders')
-                .update({
-                    stage: nextStage,
-                    stage_entered_at: new Date().toISOString()
-                })
+                .update(updateData)
                 .eq('id', order.id)
                 .select()
                 .single()
@@ -258,7 +269,7 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
 
                 {/* Tabs */}
                 <div className="flex border-b border-slate-200">
-                    {(['detail', 'payment', 'stage'] as const).map((tab) => (
+                    {(['detail', 'payment', 'stage', 'spk'] as const).map((tab) => (
                         <button
                             key={tab}
                             onClick={() => setActiveTab(tab)}
@@ -269,7 +280,7 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                                 : 'text-slate-500 hover:text-slate-900'
                                 }`}
                         >
-                            {tab === 'detail' ? 'Detail Order' : tab === 'payment' ? 'Pembayaran' : 'Pindah Stage'}
+                            {tab === 'detail' ? 'Detail' : tab === 'payment' ? 'Bayar' : tab === 'stage' ? 'Stage' : 'SPK'}
                         </button>
                     ))}
                 </div>
@@ -280,9 +291,33 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                     {activeTab === 'detail' && (
                         <div className="space-y-6">
                             {/* Mockup */}
-                            {order.mockup_url && (
-                                <div className="relative w-full h-48 rounded-xl overflow-hidden bg-slate-100">
-                                    <Image src={order.mockup_url} alt="Mockup" fill className="object-contain" />
+                            {/* Mockup or Layout Preview */}
+                            {(order.layout_url || order.mockup_url) && (
+                                <div className="space-y-2">
+                                    <div
+                                        className="relative w-full h-48 rounded-xl overflow-hidden bg-slate-100 cursor-zoom-in hover:opacity-95 transition-opacity"
+                                        onClick={() => setPreviewImage(order.layout_url || order.mockup_url)}
+                                    >
+                                        <Image
+                                            src={order.layout_url || order.mockup_url || ''}
+                                            alt={order.layout_url ? "Layout Final" : "Mockup Desain"}
+                                            fill
+                                            className="object-contain"
+                                        />
+                                        {/* Label Badge */}
+                                        <div className="absolute top-2 left-2 px-2 py-1 rounded-md bg-black/50 backdrop-blur-sm text-white text-[10px] font-medium">
+                                            {order.layout_url ? "Layout Final" : "Mockup Desain"}
+                                        </div>
+                                    </div>
+                                    {/* If showing layout, show link to view original mockup? */}
+                                    {order.layout_url && order.mockup_url && (
+                                        <p
+                                            className="text-xs text-blue-500 hover:text-blue-600 cursor-pointer text-center"
+                                            onClick={() => setPreviewImage(order.mockup_url)}
+                                        >
+                                            Lihat Original Mockup
+                                        </p>
+                                    )}
                                 </div>
                             )}
 
@@ -303,6 +338,59 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                                 <div className="p-4 rounded-xl bg-slate-50">
                                     <p className="text-xs text-slate-500 mb-2">Deskripsi Order</p>
                                     <p className="text-slate-900 whitespace-pre-wrap">{order.order_description}</p>
+                                </div>
+                            )}
+
+                            {/* Size Breakdown */}
+                            {order.size_breakdown && Object.keys(order.size_breakdown).length > 0 && (
+                                <div className="p-4 rounded-xl bg-slate-50">
+                                    <p className="text-xs text-slate-500 mb-3">Breakdown Ukuran</p>
+                                    <div className="flex gap-2 flex-wrap">
+                                        {Object.entries(order.size_breakdown).map(([size, qty]) => (
+                                            <div key={size} className="px-3 py-2 rounded-lg bg-white border border-slate-200 text-center min-w-[50px]">
+                                                <p className="text-xs text-slate-500">{size}</p>
+                                                <p className="text-lg font-bold text-slate-900">{qty}</p>
+                                            </div>
+                                        ))}
+                                        <div className="px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-200 text-center min-w-[60px]">
+                                            <p className="text-xs text-emerald-600">Total</p>
+                                            <p className="text-lg font-bold text-emerald-600">
+                                                {Object.values(order.size_breakdown).reduce((a, b) => a + b, 0)}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Production Notes */}
+                            {order.production_notes && (
+                                <div className="p-4 rounded-xl bg-amber-50 border border-amber-200">
+                                    <p className="text-xs text-amber-600 mb-2 flex items-center gap-1">
+                                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                        </svg>
+                                        Catatan Produksi
+                                    </p>
+                                    <p className="text-slate-900 whitespace-pre-wrap">{order.production_notes}</p>
+                                </div>
+                            )}
+
+                            {/* SPK Number */}
+                            {order.spk_number && (
+                                <div className="p-3 rounded-lg bg-blue-50 border border-blue-200 flex items-center justify-between">
+                                    <div>
+                                        <p className="text-xs text-blue-600">Nomor SPK</p>
+                                        <p className="font-mono font-bold text-blue-800">{order.spk_number}</p>
+                                    </div>
+                                    <button
+                                        className="px-3 py-1.5 rounded-lg bg-blue-500 text-white text-xs font-medium hover:bg-blue-600 transition-colors"
+                                        onClick={() => {
+                                            // TODO: Print SPK
+                                            alert('Fitur Print SPK coming soon!')
+                                        }}
+                                    >
+                                        Print SPK
+                                    </button>
                                 </div>
                             )}
                         </div>
@@ -476,7 +564,10 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
 
                                 {/* Show existing proof if available */}
                                 {order.dp_desain_proof_url && (
-                                    <div className="relative w-full h-40 mb-3 rounded-lg overflow-hidden bg-white">
+                                    <div
+                                        className="relative w-full h-40 mb-3 rounded-lg overflow-hidden bg-white cursor-zoom-in hover:opacity-95 transition-opacity"
+                                        onClick={() => setPreviewImage(order.dp_desain_proof_url)}
+                                    >
                                         <Image src={order.dp_desain_proof_url} alt="Bukti Pembayaran" fill className="object-contain" />
                                     </div>
                                 )}
@@ -497,7 +588,10 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                                     />
 
                                     {paymentProofPreview && (
-                                        <div className="relative w-full h-40 rounded-lg overflow-hidden bg-white">
+                                        <div
+                                            className="relative w-full h-40 rounded-lg overflow-hidden bg-white cursor-zoom-in hover:opacity-95 transition-opacity"
+                                            onClick={() => setPreviewImage(paymentProofPreview)}
+                                        >
                                             <Image src={paymentProofPreview} alt="Preview" fill className="object-contain" />
                                         </div>
                                     )}
@@ -582,6 +676,225 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                                 </div>
                             )}
 
+                            {/* Size Breakdown Edit - Show only at antrean_produksi before SPK created */}
+                            {order.stage === 'antrean_produksi' && !order.spk_number && (
+                                <div className="border border-blue-200 rounded-xl p-4 bg-blue-50/50">
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <svg className="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                        </svg>
+                                        <p className="font-medium text-blue-800">Data SPK (Wajib sebelum Antrean Produksi)</p>
+                                    </div>
+
+                                    {/* Size Breakdown Inputs */}
+                                    <div className="mb-4">
+                                        <p className="text-sm text-slate-600 mb-2">Breakdown Ukuran</p>
+                                        <div className="grid grid-cols-5 gap-2" id="size-breakdown-inputs">
+                                            {['S', 'M', 'L', 'XL', 'XXL'].map(size => (
+                                                <div key={size}>
+                                                    <label className="block text-xs text-slate-500 mb-1 text-center">{size}</label>
+                                                    <input
+                                                        type="number"
+                                                        min="0"
+                                                        defaultValue={(order.size_breakdown as Record<string, number>)?.[size] || ''}
+                                                        placeholder="0"
+                                                        data-size={size}
+                                                        className="w-full px-2 py-2 rounded-lg bg-white border border-slate-300 text-slate-900 text-center text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                                                    />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Production Notes */}
+                                    <div className="mb-4">
+                                        <p className="text-sm text-slate-600 mb-2">Catatan Produksi</p>
+                                        <textarea
+                                            id="production-notes-input"
+                                            defaultValue={order.production_notes || ''}
+                                            placeholder="Jahit rantai, label custom, finishing khusus..."
+                                            rows={2}
+                                            className="w-full px-3 py-2 rounded-lg bg-white border border-slate-300 text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 resize-none"
+                                        />
+                                    </div>
+
+                                    {/* Save Button */}
+                                    <button
+                                        onClick={async () => {
+                                            setLoading(true)
+                                            try {
+                                                // Collect size breakdown from inputs
+                                                const sizeBreakdown: Record<string, number> = {}
+                                                const inputs = document.querySelectorAll('#size-breakdown-inputs input')
+                                                inputs.forEach((input) => {
+                                                    const el = input as HTMLInputElement
+                                                    const size = el.dataset.size!
+                                                    const val = parseInt(el.value)
+                                                    if (val > 0) sizeBreakdown[size] = val
+                                                })
+
+                                                // Get production notes
+                                                const notesEl = document.getElementById('production-notes-input') as HTMLTextAreaElement
+                                                const productionNotes = notesEl?.value || null
+
+                                                // Validate size breakdown is filled
+                                                if (Object.keys(sizeBreakdown).length === 0) {
+                                                    toast.warning('Isi minimal satu ukuran')
+                                                    setLoading(false)
+                                                    return
+                                                }
+
+                                                // Generate SPK number
+                                                const today = new Date()
+                                                const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '')
+                                                const randomNum = Math.floor(Math.random() * 900) + 100
+                                                const spkNumber = `SPK-${dateStr}-${randomNum}`
+
+                                                const { error } = await supabase
+                                                    .from('orders')
+                                                    .update({
+                                                        size_breakdown: sizeBreakdown,
+                                                        production_notes: productionNotes,
+                                                        spk_number: spkNumber
+                                                    })
+                                                    .eq('id', order.id)
+
+                                                if (error) throw error
+                                                toast.success(`SPK ${spkNumber} berhasil dibuat!`)
+                                                router.refresh()
+                                                onClose()
+                                            } catch (err) {
+                                                console.error('Save SPK data error:', err)
+                                                toast.error('Gagal menyimpan data SPK')
+                                            } finally {
+                                                setLoading(false)
+                                            }
+                                        }}
+                                        disabled={loading}
+                                        className="w-full py-2 px-4 rounded-lg bg-blue-500 text-white font-medium hover:bg-blue-600 transition-colors disabled:opacity-50"
+                                    >
+                                        {loading ? 'Membuat SPK...' : 'Buat SPK'}
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* Layout Section for proses_layout */}
+                            {order.stage === 'proses_layout' && (
+                                <div className="space-y-4">
+                                    {/* Warning - Only show if no layout uploaded yet */}
+                                    {!order.layout_url && (
+                                        <div className="p-4 rounded-xl bg-orange-500/10 border border-orange-500/30 flex items-center gap-3">
+                                            <svg className="w-6 h-6 text-orange-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                            </svg>
+                                            <div>
+                                                <p className="text-orange-500 font-medium">Upload Layout Desain</p>
+                                                <p className="text-sm text-slate-500">Upload file layout final untuk menyelesaikan stage ini.</p>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Upload Area or Preview */}
+                                    <div className="border border-slate-200 rounded-xl p-4 bg-white">
+                                        <p className="text-sm font-medium text-slate-900 mb-3">
+                                            {order.layout_url ? 'Layout Final' : 'Upload Layout Final'}
+                                        </p>
+
+                                        {!order.layout_url ? (
+                                            <div className="space-y-3">
+                                                <div className="relative">
+                                                    <input
+                                                        type="file"
+                                                        accept="image/*"
+                                                        onChange={async (e) => {
+                                                            const file = e.target.files?.[0]
+                                                            if (!file) return
+
+                                                            try {
+                                                                setUploadingProof(true)
+                                                                const fileExt = file.name.split('.').pop()
+                                                                const fileName = `layout-${order.id}-${Date.now()}.${fileExt}`
+                                                                const { error: uploadError } = await supabase.storage
+                                                                    .from('order-assets')
+                                                                    .upload(fileName, file)
+
+                                                                if (uploadError) throw uploadError
+
+                                                                const { data: { publicUrl } } = supabase.storage
+                                                                    .from('order-assets')
+                                                                    .getPublicUrl(fileName)
+
+                                                                const { error: updateError } = await supabase
+                                                                    .from('orders')
+                                                                    .update({
+                                                                        layout_url: publicUrl,
+                                                                        layout_completed: true,
+                                                                        layout_completed_at: new Date().toISOString()
+                                                                    } as any)
+                                                                    .eq('id', order.id)
+
+                                                                if (updateError) throw updateError
+
+                                                                toast.success('Layout berhasil diupload!')
+                                                                onClose() // Close modal
+                                                                router.refresh() // Refresh page
+                                                            } catch (err: unknown) {
+                                                                console.error('Error uploading layout:', err)
+                                                                toast.error('Gagal upload layout')
+                                                            } finally {
+                                                                setUploadingProof(false)
+                                                            }
+                                                        }}
+                                                        disabled={uploadingProof}
+                                                        className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 disabled:opacity-50 cursor-pointer"
+                                                    />
+                                                </div>
+                                                {uploadingProof && <p className="text-xs text-blue-500 animate-pulse">Mengupload layout...</p>}
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-2">
+                                                <div
+                                                    className="relative w-full h-48 rounded-lg overflow-hidden bg-slate-100 cursor-zoom-in group"
+                                                    onClick={() => setPreviewImage(order.layout_url)}
+                                                >
+                                                    <Image src={order.layout_url} alt="Layout" fill className="object-contain" />
+                                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                                                    <div className="absolute top-2 left-2 px-2 py-1 rounded-md bg-emerald-500 text-white text-[10px] font-medium">
+                                                        ✓ Uploaded
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    onClick={async () => {
+                                                        if (!confirm('Hapus layout ini?')) return
+
+                                                        try {
+                                                            const { error } = await supabase
+                                                                .from('orders')
+                                                                .update({
+                                                                    layout_url: null,
+                                                                    layout_completed: false,
+                                                                    layout_completed_at: null
+                                                                } as any)
+                                                                .eq('id', order.id)
+
+                                                            if (error) throw error
+                                                            toast.success('Layout dihapus')
+                                                            onClose()
+                                                            router.refresh()
+                                                        } catch (err) {
+                                                            toast.error('Gagal menghapus layout')
+                                                        }
+                                                    }}
+                                                    className="text-xs text-red-500 hover:text-red-600 font-medium"
+                                                >
+                                                    Hapus & Upload Ulang
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
                             {/* Design Gatekeeper Warning for proses_desain */}
                             {order.stage === 'proses_desain' && !order.mockup_url && (
                                 <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center gap-3">
@@ -601,7 +914,10 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                                     <p className="text-sm font-medium text-slate-900">Upload Desain Final</p>
 
                                     {order.mockup_url && (
-                                        <div className="relative w-full h-40 rounded-lg overflow-hidden bg-white">
+                                        <div
+                                            className="relative w-full h-40 rounded-lg overflow-hidden bg-white cursor-zoom-in hover:opacity-95 transition-opacity"
+                                            onClick={() => setPreviewImage(order.mockup_url)}
+                                        >
                                             <Image src={order.mockup_url} alt="Desain" fill className="object-contain" />
                                             <div className="absolute top-2 right-2 px-2 py-1 rounded bg-emerald-500 text-slate-900 text-xs font-medium">
                                                 ✓ Uploaded
@@ -783,9 +1099,9 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                                             }
                                         }}
                                         disabled={loading}
-                                        className={`w-full py-3 px-4 rounded-xl font-medium transition-all flex items-center justify-center gap-2 ${isReady
-                                            ? 'bg-emerald-500 text-white hover:bg-emerald-600'
-                                            : 'bg-red-500 text-white hover:bg-red-600'
+                                        className={`w-full py-3 px-4 rounded-xl font-medium transition-all flex items-center justify-center gap-2 border-2 ${isReady
+                                            ? 'border-emerald-500 text-emerald-600 bg-emerald-50 hover:bg-emerald-100'
+                                            : 'border-red-400 text-red-500 bg-red-50 hover:bg-red-100'
                                             } disabled:opacity-50`}
                                     >
                                         {loading ? (
@@ -842,9 +1158,66 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                             )}
                         </div>
                     )}
+
+                    {/* SPK Tab */}
+                    {activeTab === 'spk' && (
+                        <SPKEditor
+                            orderId={order.id}
+                            namaPo={order.nama_po || null}
+                            sections={(order.spk_sections as SPKSection[]) || []}
+                            productionSpecs={(order.production_specs as ProductionSpecs) || null}
+                            productionNotes={order.production_notes}
+                            onSave={async (data) => {
+                                try {
+                                    const { error } = await supabase
+                                        .from('orders')
+                                        .update({
+                                            nama_po: data.nama_po,
+                                            spk_sections: data.spk_sections,
+                                            production_specs: data.production_specs,
+                                            production_notes: data.production_notes,
+                                        })
+                                        .eq('id', order.id)
+
+                                    if (error) throw error
+                                    toast.success('SPK data berhasil disimpan!')
+                                    router.refresh()
+                                } catch (err) {
+                                    console.error('Save SPK error:', err)
+                                    toast.error('Gagal menyimpan SPK data')
+                                    throw err
+                                }
+                            }}
+                            isLoading={loading}
+                        />
+                    )}
                 </div>
             </div>
+            {/* Image Preview Lightbox */}
+            {previewImage && (
+                <div
+                    className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+                    onClick={() => setPreviewImage(null)}
+                >
+                    <button
+                        className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors z-[101]"
+                        onClick={() => setPreviewImage(null)}
+                    >
+                        <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                    <div className="relative w-full h-full max-w-5xl max-h-[90vh]" onClick={e => e.stopPropagation()}>
+                        <Image
+                            src={previewImage}
+                            alt="Preview"
+                            fill
+                            className="object-contain"
+                            priority
+                        />
+                    </div>
+                </div>
+            )}
         </div >
     )
 }
-

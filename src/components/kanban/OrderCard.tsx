@@ -53,10 +53,14 @@ export default function OrderCard({ order, isBottleneck, onClick }: OrderCardPro
                     isReady: order.mockup_url !== null,
                     reason: order.mockup_url ? undefined : 'Belum upload mockup ACC'
                 }
-            case 'dp_produksi':
                 return {
                     isReady: order.dp_produksi_verified,
                     reason: order.dp_produksi_verified ? undefined : 'Menunggu DP Produksi'
+                }
+            case 'proses_layout':
+                return {
+                    isReady: order.layout_completed,
+                    reason: order.layout_completed ? undefined : 'Menunggu Layout Selesai'
                 }
             case 'pelunasan':
                 return {
@@ -102,19 +106,19 @@ export default function OrderCard({ order, isBottleneck, onClick }: OrderCardPro
         <>
             <div
                 onClick={onClick}
-                className={`group relative p-4 rounded-2xl bg-white border shadow-sm transition-all duration-200 cursor-pointer hover:-translate-y-1 hover:shadow-lg overflow-hidden ${isBottleneck
+                className={`group relative p-3 rounded-xl bg-white border shadow-sm transition-all duration-200 cursor-pointer hover:-translate-y-1 hover:shadow-lg overflow-hidden ${isBottleneck
                     ? 'border-red-300 shadow-md shadow-red-100'
                     : 'border-slate-200 hover:border-slate-300'
                     }`}
             >
                 {/* Left Border Color Indicator */}
-                <div className={`absolute left-0 top-0 bottom-0 w-2 ${stageReadiness.isReady
+                <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${stageReadiness.isReady
                     ? 'bg-emerald-500'
                     : 'bg-red-500'
                     }`} />
 
                 {/* Readiness Badge */}
-                <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-extrabold uppercase tracking-wide mb-2 ${stageReadiness.isReady
+                <div className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wide mb-1.5 ${stageReadiness.isReady
                     ? 'bg-emerald-500 text-white shadow-sm shadow-emerald-200'
                     : 'bg-red-500 text-white shadow-sm shadow-red-200'
                     }`}>
@@ -132,8 +136,8 @@ export default function OrderCard({ order, isBottleneck, onClick }: OrderCardPro
                 )}
 
                 {/* Category Tag */}
-                <div className="flex items-center gap-2 mb-2">
-                    <span className="text-[11px] font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+                <div className="flex items-center gap-2 mb-1.5">
+                    <span className="text-[10px] font-medium text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
                         {order.stage === 'cutting_jahit' ? 'Produksi' :
                             order.stage === 'print_press' ? 'Finishing' :
                                 order.stage === 'proses_desain' ? 'Design' :
@@ -147,17 +151,17 @@ export default function OrderCard({ order, isBottleneck, onClick }: OrderCardPro
                 </h4>
 
                 {/* Order Description */}
-                <p className="text-xs text-slate-500 line-clamp-2 mb-3">
+                <p className="text-[11px] text-slate-500 line-clamp-2 mb-2 leading-snug">
                     {order.order_description || `Order ${order.total_quantity} pcs jersey`}
                 </p>
 
                 {/* Progress Bar */}
-                <div className="mb-3">
-                    <div className="flex items-center justify-between text-[10px] text-slate-500 mb-1">
+                <div className="mb-2">
+                    <div className="flex items-center justify-between text-[10px] text-slate-500 mb-0.5">
                         <span>Progress</span>
                         <span>{Math.min(daysInStage * 10, 100)}%</span>
                     </div>
-                    <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                    <div className="h-1 bg-slate-100 rounded-full overflow-hidden">
                         <div
                             className={`h-full rounded-full transition-all ${isBottleneck ? 'bg-red-500' : 'bg-blue-500'}`}
                             style={{ width: `${Math.min(daysInStage * 10, 100)}%` }}
@@ -194,13 +198,16 @@ export default function OrderCard({ order, isBottleneck, onClick }: OrderCardPro
                     </span>
                 </div>
 
-                {/* Mockup Image - Clickable for preview (hidden on customer_dp_desain stage) */}
-                {order.mockup_url && order.stage !== 'customer_dp_desain' && (
-                    <div className="mt-3 pt-3 border-t border-slate-100">
+                {/* Thumbnail Logic */}
+                {/* 1. Proses Desain: Show Mockup */}
+                {order.stage === 'proses_desain' && order.mockup_url && (
+                    <div className="mt-2 pt-2 border-t border-slate-100">
                         <div
-                            onClick={handleImageClick}
-                            className="relative w-full h-20 rounded-lg overflow-hidden bg-slate-50 cursor-zoom-in hover:ring-2 hover:ring-blue-400 transition-all"
-                            title="Klik untuk perbesar"
+                            onClick={(e) => {
+                                e.stopPropagation()
+                                setShowImagePreview(true)
+                            }}
+                            className="relative w-full h-16 rounded-lg overflow-hidden bg-slate-50 cursor-zoom-in hover:ring-2 hover:ring-blue-400 transition-all"
                         >
                             <Image
                                 src={order.mockup_url}
@@ -208,12 +215,26 @@ export default function OrderCard({ order, isBottleneck, onClick }: OrderCardPro
                                 fill
                                 className="object-cover"
                             />
-                            {/* Zoom icon overlay */}
-                            <div className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-colors flex items-center justify-center">
-                                <svg className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-                                </svg>
-                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* 2. Proses Layout: Show Layout URL (if exists) */}
+                {order.stage === 'proses_layout' && order.layout_url && (
+                    <div className="mt-2 pt-2 border-t border-slate-100">
+                        <div
+                            onClick={(e) => {
+                                e.stopPropagation()
+                                setShowImagePreview(true)
+                            }}
+                            className="relative w-full h-16 rounded-lg overflow-hidden bg-slate-50 cursor-zoom-in hover:ring-2 hover:ring-blue-400 transition-all"
+                        >
+                            <Image
+                                src={order.layout_url}
+                                alt="Layout"
+                                fill
+                                className="object-cover"
+                            />
                         </div>
                     </div>
                 )}
@@ -247,7 +268,11 @@ export default function OrderCard({ order, isBottleneck, onClick }: OrderCardPro
                         onClick={(e) => e.stopPropagation()}
                     >
                         <Image
-                            src={order.mockup_url}
+                            src={
+                                (order.stage === 'proses_layout' && order.layout_url)
+                                    ? order.layout_url
+                                    : order.mockup_url || ''
+                            }
                             alt="Mockup Preview"
                             fill
                             className="object-contain"

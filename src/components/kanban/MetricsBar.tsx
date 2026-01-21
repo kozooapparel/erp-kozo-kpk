@@ -61,11 +61,11 @@ export default function MetricsBar({ metrics }: MetricsBarProps) {
     ]
 
     return (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
             {metricsData.map((metric, index) => (
                 <div
                     key={index}
-                    className={`relative overflow-hidden rounded-xl bg-white border border-slate-200 p-3 md:p-4 hover:shadow-md transition-all duration-200 ${metric.alert ? 'ring-2 ring-red-500/30' : ''
+                    className={`relative overflow-hidden rounded-xl bg-white border border-slate-200 p-2 md:p-3 hover:shadow-md transition-all duration-200 ${metric.alert ? 'ring-2 ring-red-500/30' : ''
                         }`}
                 >
                     <div className="flex items-center gap-2 md:gap-3">

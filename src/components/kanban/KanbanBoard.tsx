@@ -303,9 +303,9 @@ export default function KanbanBoard({ orders, metrics, customers, admins }: Kanb
     const activeOrder = activeId ? orders.find(o => o.id === activeId) : null
 
     return (
-        <div className="flex flex-col h-[calc(100vh-5rem)]">
+        <div className="flex flex-col h-[calc(100vh-4rem)]">
             {/* Header Section */}
-            <div className="space-y-3 mb-4">
+            <div className="space-y-2 mb-3">
                 {/* Metrics Row */}
                 <MetricsBar metrics={metrics} />
 
@@ -369,7 +369,7 @@ export default function KanbanBoard({ orders, metrics, customers, admins }: Kanb
 
             {/* Kanban Board - Full height, scrollbar at bottom */}
             <DndContext
-                sensors={sensors}
+                sensors={isMobile ? [] : sensors}
                 collisionDetection={closestCorners}
                 onDragStart={handleDragStart}
                 onDragEnd={handleDragEnd}
@@ -483,7 +483,7 @@ export default function KanbanBoard({ orders, metrics, customers, admins }: Kanb
                             ref={scrollContainerRef}
                             className="h-full overflow-x-auto overflow-y-hidden scrollbar-thin"
                         >
-                            <div className="flex gap-3 min-w-max h-full pb-2 px-2">
+                            <div className="flex gap-2 min-w-max h-full pb-1 px-1">
                                 {STAGES_ORDER.map((stage) => (
                                     <DroppableColumn
                                         key={stage}

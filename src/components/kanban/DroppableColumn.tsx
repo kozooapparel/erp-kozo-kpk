@@ -41,7 +41,7 @@ export default function DroppableColumn({
         <div className={`${fullWidth ? 'w-full' : 'w-64'} flex-shrink-0 flex flex-col h-full`}>
             {/* Column Header */}
             <div
-                className={`mb-3 p-3 rounded-xl flex items-center justify-between bg-white border ${isGatekeeper
+                className={`mb-2 p-2 rounded-xl flex items-center justify-between bg-white border ${isGatekeeper
                     ? 'border-amber-300 bg-amber-50'
                     : isBottleneckStage
                         ? 'border-red-300 bg-red-50'
@@ -80,7 +80,7 @@ export default function DroppableColumn({
 
             <div
                 ref={setNodeRef}
-                className={`flex-1 overflow-y-auto space-y-2 p-2 rounded-xl transition-all duration-200 ${isOver
+                className={`flex-1 overflow-y-auto space-y-1.5 p-1.5 rounded-xl transition-all duration-200 ${isOver
                     ? 'bg-blue-50 border-2 border-dashed border-blue-400'
                     : 'bg-slate-100/80 border border-slate-200'
                     }`}
@@ -107,9 +107,9 @@ export default function DroppableColumn({
             {/* Add Task Button at Bottom */}
             <button
                 onClick={onAddClick}
-                className="mt-3 w-full py-2.5 rounded-xl border border-dashed border-slate-300 text-slate-500 text-sm font-medium hover:border-red-400 hover:text-red-500 hover:bg-red-50 transition-all flex items-center justify-center gap-2"
+                className="mt-2 w-full py-2 rounded-xl border border-dashed border-slate-300 text-slate-500 text-xs font-medium hover:border-red-400 hover:text-red-500 hover:bg-red-50 transition-all flex items-center justify-center gap-2"
             >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
                 Add Order

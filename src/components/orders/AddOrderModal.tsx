@@ -26,6 +26,13 @@ export default function AddOrderModal({ isOpen, onClose, customers }: AddOrderMo
     const [orderDescription, setOrderDescription] = useState('')
     const [deadline, setDeadline] = useState('')
     const [dpDesainAmount, setDpDesainAmount] = useState('')
+    // SPK fields
+    const [sizeS, setSizeS] = useState('')
+    const [sizeM, setSizeM] = useState('')
+    const [sizeL, setSizeL] = useState('')
+    const [sizeXL, setSizeXL] = useState('')
+    const [sizeXXL, setSizeXXL] = useState('')
+    const [productionNotes, setProductionNotes] = useState('')
 
     const router = useRouter()
     const supabase = createClient()
@@ -88,6 +95,14 @@ export default function AddOrderModal({ isOpen, onClose, customers }: AddOrderMo
                 finalCustomerId = newCustomer.id
             }
 
+            // Build size breakdown object
+            const sizeBreakdown: Record<string, number> = {}
+            if (sizeS) sizeBreakdown['S'] = parseInt(sizeS)
+            if (sizeM) sizeBreakdown['M'] = parseInt(sizeM)
+            if (sizeL) sizeBreakdown['L'] = parseInt(sizeL)
+            if (sizeXL) sizeBreakdown['XL'] = parseInt(sizeXL)
+            if (sizeXXL) sizeBreakdown['XXL'] = parseInt(sizeXXL)
+
             // Create order with created_by
             const orderData: OrderInsert = {
                 customer_id: finalCustomerId,
@@ -97,7 +112,9 @@ export default function AddOrderModal({ isOpen, onClose, customers }: AddOrderMo
                 dp_desain_amount: dpDesainAmount ? parseFloat(dpDesainAmount) : 0,
                 dp_desain_verified: dpDesainAmount ? true : false,
                 stage: 'customer_dp_desain',
-                created_by: user?.id || null, // Track who created this order
+                created_by: user?.id || null,
+                size_breakdown: Object.keys(sizeBreakdown).length > 0 ? sizeBreakdown : null,
+                production_notes: productionNotes || null,
             }
 
             const { data: order, error: orderError } = await supabase
@@ -142,6 +159,13 @@ export default function AddOrderModal({ isOpen, onClose, customers }: AddOrderMo
         setMockupPreview(null)
         setShowNewCustomer(false)
         setError(null)
+        // Reset SPK fields
+        setSizeS('')
+        setSizeM('')
+        setSizeL('')
+        setSizeXL('')
+        setSizeXXL('')
+        setProductionNotes('')
     }
 
     if (!isOpen) return null
@@ -237,7 +261,7 @@ export default function AddOrderModal({ isOpen, onClose, customers }: AddOrderMo
                     {/* Quantity */}
                     <div>
                         <label className="block text-sm font-medium text-slate-300 mb-2">
-                            Jumlah (pcs) *
+                            Jumlah Total (pcs) *
                         </label>
                         <input
                             type="number"
@@ -247,6 +271,85 @@ export default function AddOrderModal({ isOpen, onClose, customers }: AddOrderMo
                             required
                             placeholder="50"
                             className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                        />
+                    </div>
+
+                    {/* Size Breakdown */}
+                    <div>
+                        <label className="block text-sm font-medium text-slate-300 mb-2">
+                            Breakdown Ukuran
+                        </label>
+                        <div className="grid grid-cols-5 gap-2">
+                            <div>
+                                <label className="block text-xs text-slate-500 mb-1 text-center">S</label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    value={sizeS}
+                                    onChange={(e) => setSizeS(e.target.value)}
+                                    placeholder="0"
+                                    className="w-full px-2 py-2 rounded-lg bg-slate-50 border border-slate-300 text-slate-900 text-center text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs text-slate-500 mb-1 text-center">M</label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    value={sizeM}
+                                    onChange={(e) => setSizeM(e.target.value)}
+                                    placeholder="0"
+                                    className="w-full px-2 py-2 rounded-lg bg-slate-50 border border-slate-300 text-slate-900 text-center text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs text-slate-500 mb-1 text-center">L</label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    value={sizeL}
+                                    onChange={(e) => setSizeL(e.target.value)}
+                                    placeholder="0"
+                                    className="w-full px-2 py-2 rounded-lg bg-slate-50 border border-slate-300 text-slate-900 text-center text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs text-slate-500 mb-1 text-center">XL</label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    value={sizeXL}
+                                    onChange={(e) => setSizeXL(e.target.value)}
+                                    placeholder="0"
+                                    className="w-full px-2 py-2 rounded-lg bg-slate-50 border border-slate-300 text-slate-900 text-center text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs text-slate-500 mb-1 text-center">XXL</label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    value={sizeXXL}
+                                    onChange={(e) => setSizeXXL(e.target.value)}
+                                    placeholder="0"
+                                    className="w-full px-2 py-2 rounded-lg bg-slate-50 border border-slate-300 text-slate-900 text-center text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                                />
+                            </div>
+                        </div>
+                        <p className="text-xs text-slate-400 mt-1">Isi breakdown ukuran untuk SPK</p>
+                    </div>
+
+                    {/* Production Notes */}
+                    <div>
+                        <label className="block text-sm font-medium text-slate-300 mb-2">
+                            Catatan Produksi
+                        </label>
+                        <textarea
+                            value={productionNotes}
+                            onChange={(e) => setProductionNotes(e.target.value)}
+                            placeholder="Jahit rantai, label custom, finishing khusus..."
+                            rows={2}
+                            className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 resize-none"
                         />
                     </div>
 

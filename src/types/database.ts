@@ -45,6 +45,7 @@ export type Database = {
                     total_quantity: number
                     order_description: string | null
                     mockup_url: string | null
+                    layout_url: string | null
                     deadline: string | null
                     stage: OrderStage
                     dp_desain_amount: number
@@ -80,6 +81,14 @@ export type Database = {
                     sewing_completed_at: string | null
                     packing_completed: boolean
                     packing_completed_at: string | null
+                    // SPK fields
+                    spk_number: string | null
+                    size_breakdown: Record<string, number> | null
+                    production_notes: string | null
+                    // Flexible SPK fields
+                    nama_po: string | null
+                    spk_sections: SPKSection[] | null
+                    production_specs: ProductionSpecs | null
                 }
                 Insert: {
                     id?: string
@@ -107,6 +116,14 @@ export type Database = {
                     print_completed?: boolean
                     sewing_completed?: boolean
                     packing_completed?: boolean
+                    // SPK fields
+                    spk_number?: string | null
+                    size_breakdown?: Record<string, number> | null
+                    production_notes?: string | null
+                    // Flexible SPK fields
+                    nama_po?: string | null
+                    spk_sections?: SPKSection[] | null
+                    production_specs?: ProductionSpecs | null
                 }
                 Update: {
                     id?: string
@@ -114,6 +131,7 @@ export type Database = {
                     total_quantity?: number
                     order_description?: string | null
                     mockup_url?: string | null
+                    layout_url?: string | null
                     deadline?: string | null
                     stage?: OrderStage
                     dp_desain_amount?: number
@@ -140,6 +158,14 @@ export type Database = {
                     sewing_completed_at?: string | null
                     packing_completed?: boolean
                     packing_completed_at?: string | null
+                    // SPK fields
+                    spk_number?: string | null
+                    size_breakdown?: Record<string, number> | null
+                    production_notes?: string | null
+                    // Flexible SPK fields
+                    nama_po?: string | null
+                    spk_sections?: SPKSection[] | null
+                    production_specs?: ProductionSpecs | null
                 }
             }
             profiles: {
@@ -426,8 +452,8 @@ export type OrderStage =
 export const STAGE_LABELS: Record<OrderStage, string> = {
     customer_dp_desain: 'Customer DP Desain',
     proses_desain: 'Proses Desain',
-    proses_layout: 'Proses Layout',
     dp_produksi: 'DP Produksi',
+    proses_layout: 'Proses Layout',
     antrean_produksi: 'Antrean Produksi',
     print_press: 'Print & Press',
     cutting_jahit: 'Cutting & Jahit',
@@ -439,8 +465,8 @@ export const STAGE_LABELS: Record<OrderStage, string> = {
 export const STAGES_ORDER: OrderStage[] = [
     'customer_dp_desain',
     'proses_desain',
-    'proses_layout',
     'dp_produksi',
+    'proses_layout',
     'antrean_produksi',
     'print_press',
     'cutting_jahit',
@@ -513,3 +539,67 @@ export interface BarangWithTiers extends Barang {
 
 // Payment Status Type
 export type PaymentStatus = 'BELUM_LUNAS' | 'SUDAH_LUNAS'
+
+// ==========================================
+// SPK (Surat Perintah Kerja) Types
+// ==========================================
+
+// Individual person in personalization list
+export interface PersonItem {
+    no?: number
+    name: string
+    back_name?: string           // Nama punggung
+    size: string
+    sleeve_type?: 'Pendek' | 'Panjang' | 'Tanpa Lengan'
+    completed?: boolean          // Checklist ✓ for production tracking
+    group?: string               // Group/location: "Cikeas", "Kalapa Dua", etc.
+}
+
+// Size rekap with optional notes
+export interface SizeRekapItem {
+    size: string
+    jumlah: number
+    keterangan?: string          // "BAHAN MICROCOOL", "BAHAN EMBOSS", etc.
+}
+
+// Section within SPK (supports multi-product orders)
+export interface SPKSection {
+    id: string
+    title: string                // "Timnas Tenis", "Men 1", "Lengan Pendek", etc.
+    mockup_urls: string[]        // Multiple mockup images per section
+    collar_image_url?: string    // Jenis kerah image
+
+    // Format A: Simple rekap (qty per size)
+    size_breakdown?: Record<string, number>  // { "M": 5, "L": 10 }
+
+    // Format B: Personalization list (with names)
+    personalization_list?: PersonItem[]
+
+    // Format C: Rekap with notes/keterangan
+    size_rekap?: SizeRekapItem[]
+
+    notes?: string               // Notes specific to this section
+}
+
+// Production specifications
+export interface ProductionSpecs {
+    kerah?: string               // Collar type: "V NECK", "Polo", etc.
+    kerah_image_url?: string     // Collar reference image
+    bahan?: string               // Material: "MILANO PREMIUM", "EMBOSS", etc.
+    bahan_celana?: string        // Pants material
+    kategori?: string            // "PANJANG & PENDEK", etc.
+    bis?: string                 // "BRAND SENDIRI", "POLOSIN", etc.
+    autentic?: string            // Authentic label
+    penjahit?: string            // Tailor name
+    need_atasan: boolean         // Checkbox: needs top
+    need_celana: boolean         // Checkbox: needs pants
+}
+
+// Full SPK data structure
+export interface SPKData {
+    nama_po: string
+    deadline: string | null
+    sections: SPKSection[]
+    production_specs: ProductionSpecs
+    notes: string
+}
