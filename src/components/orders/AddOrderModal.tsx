@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { Customer, OrderInsert } from '@/types/database'
+import { useState, useEffect } from 'react'
+import { Customer, OrderInsert, Brand } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import NumberInput from '@/components/ui/NumberInput'
@@ -16,14 +16,39 @@ interface AddOrderModalProps {
 export default function AddOrderModal({ isOpen, onClose, customers }: AddOrderModalProps) {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const [brands, setBrands] = useState<Brand[]>([])
 
-    // Form state - minimal fields only
+    // Form state
+    const [brandId, setBrandId] = useState('')
     const [customerId, setCustomerId] = useState('')
-    const [totalQuantity, setTotalQuantity] = useState(0)
-    const [dpDesainAmount, setDpDesainAmount] = useState(0)
 
     const router = useRouter()
     const supabase = createClient()
+
+    // Fetch brands on mount
+    useEffect(() => {
+        const fetchBrands = async () => {
+            const { data } = await supabase
+                .from('brands')
+                .select('*')
+                .eq('is_active', true)
+                .order('is_default', { ascending: false })
+                .order('name')
+
+            if (data) {
+                setBrands(data)
+                // Auto-select default brand
+                const defaultBrand = data.find(b => b.is_default)
+                if (defaultBrand) {
+                    setBrandId(defaultBrand.id)
+                }
+            }
+        }
+
+        if (isOpen) {
+            fetchBrands()
+        }
+    }, [isOpen, supabase])
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -34,14 +59,15 @@ export default function AddOrderModal({ isOpen, onClose, customers }: AddOrderMo
             // Get current user
             const { data: { user } } = await supabase.auth.getUser()
 
-            // Create order with minimal data
+            // Create order with brand (quantity will be updated when size_breakdown is set)
             const orderData: OrderInsert = {
                 customer_id: customerId,
-                total_quantity: totalQuantity,
-                dp_desain_amount: dpDesainAmount,
-                dp_desain_verified: dpDesainAmount > 0,
+                total_quantity: 0,  // Will be calculated from size_breakdown later
+                dp_desain_amount: 0,
+                dp_desain_verified: false,
                 stage: 'customer_dp_desain',
                 created_by: user?.id || null,
+                brand_id: brandId || null,
             }
 
             const { error: orderError } = await supabase
@@ -65,12 +91,13 @@ export default function AddOrderModal({ isOpen, onClose, customers }: AddOrderMo
 
     const resetForm = () => {
         setCustomerId('')
-        setTotalQuantity(0)
-        setDpDesainAmount(0)
         setError(null)
+        // Keep brand selection for convenience
     }
 
     if (!isOpen) return null
+
+    const selectedBrand = brands.find(b => b.id === brandId)
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -103,6 +130,46 @@ export default function AddOrderModal({ isOpen, onClose, customers }: AddOrderMo
                         </div>
                     )}
 
+                    {/* Brand Selection */}
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                            Brand *
+                        </label>
+                        <div className="flex gap-2">
+                            {brands.map((brand) => (
+                                <button
+                                    key={brand.id}
+                                    type="button"
+                                    onClick={() => setBrandId(brand.id)}
+                                    className={`flex-1 flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 transition-all ${brandId === brand.id
+                                        ? 'border-blue-500 bg-blue-50'
+                                        : 'border-slate-200 hover:border-slate-300'
+                                        }`}
+                                >
+                                    {brand.logo_url ? (
+                                        <img
+                                            src={brand.logo_url}
+                                            alt={brand.name}
+                                            className="w-6 h-6 object-contain"
+                                        />
+                                    ) : (
+                                        <span className="w-6 h-6 rounded bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-500">
+                                            {brand.code}
+                                        </span>
+                                    )}
+                                    <span className={`text-sm font-medium ${brandId === brand.id ? 'text-blue-700' : 'text-slate-700'}`}>
+                                        {brand.name}
+                                    </span>
+                                </button>
+                            ))}
+                        </div>
+                        {selectedBrand && (
+                            <p className="text-xs text-slate-400 mt-2">
+                                Invoice prefix: <span className="font-medium">{selectedBrand.invoice_prefix}</span>
+                            </p>
+                        )}
+                    </div>
+
                     {/* Customer Selection */}
                     <div>
                         <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -126,35 +193,10 @@ export default function AddOrderModal({ isOpen, onClose, customers }: AddOrderMo
                         </p>
                     </div>
 
-                    {/* Quantity */}
-                    <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">
-                            Jumlah Total (pcs) *
-                        </label>
-                        <NumberInput
-                            value={totalQuantity}
-                            onChange={setTotalQuantity}
-                            placeholder="100"
-                            min={1}
-                        />
-                    </div>
-
-                    {/* DP Desain */}
-                    <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">
-                            DP Desain (Rp)
-                        </label>
-                        <CurrencyInput
-                            value={dpDesainAmount}
-                            onChange={setDpDesainAmount}
-                            placeholder="500000"
-                        />
-                    </div>
-
                     {/* Submit Button */}
                     <button
                         type="submit"
-                        disabled={loading}
+                        disabled={loading || !brandId}
                         className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold hover:from-emerald-600 hover:to-teal-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                     >
                         {loading ? (

@@ -141,7 +141,14 @@ export default function InvoiceList({ invoices }: InvoiceListProps) {
                                             {formatDateShort(invoice.tanggal)}
                                         </td>
                                         <td className="px-6 py-4 text-sm text-slate-900">
-                                            {invoice.customer?.name || '-'}
+                                            <div className="flex items-center gap-2">
+                                                {invoice.customer?.name || '-'}
+                                                {(invoice as any).brand?.code && (
+                                                    <span className="px-1.5 py-0.5 text-[10px] font-medium bg-slate-100 text-slate-600 rounded">
+                                                        {(invoice as any).brand.code}
+                                                    </span>
+                                                )}
+                                            </div>
                                         </td>
                                         <td className="px-6 py-4 text-sm text-slate-900 text-right font-medium">
                                             {formatCurrency(invoice.total)}

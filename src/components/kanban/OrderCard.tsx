@@ -1,11 +1,12 @@
 'use client'
 
 import { useState } from 'react'
-import { Order, Customer, OrderStage } from '@/types/database'
+import { Order, Customer, OrderStage, Brand } from '@/types/database'
 import Image from 'next/image'
 
 interface OrderWithCustomer extends Order {
     customer: Customer
+    brand?: Brand | null
 }
 
 interface OrderCardProps {
@@ -135,7 +136,7 @@ export default function OrderCard({ order, isBottleneck, onClick }: OrderCardPro
                     </div>
                 )}
 
-                {/* Category Tag */}
+                {/* Category Tag + Brand Badge */}
                 <div className="flex items-center gap-2 mb-1.5">
                     <span className="text-[10px] font-medium text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
                         {order.stage === 'cutting_jahit' ? 'Produksi' :
@@ -143,6 +144,19 @@ export default function OrderCard({ order, isBottleneck, onClick }: OrderCardPro
                                 order.stage === 'proses_desain' ? 'Design' :
                                     'Order'}
                     </span>
+                    {/* Brand Badge */}
+                    {order.brand && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
+                            {order.brand.logo_url ? (
+                                <img
+                                    src={order.brand.logo_url}
+                                    alt={order.brand.name}
+                                    className="w-3 h-3 object-contain"
+                                />
+                            ) : null}
+                            {order.brand.code}
+                        </span>
+                    )}
                 </div>
 
                 {/* Customer Name - Title */}

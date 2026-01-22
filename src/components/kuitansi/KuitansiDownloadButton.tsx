@@ -27,9 +27,19 @@ export default function KuitansiDownloadButton({ kuitansiId, kuitansi: propKuita
                 return
             }
 
-            // Generate PDF blob
+            // Get brand info from invoice if available
+            const brand = kuitansi.invoice?.brand
+
+            // Generate PDF blob with brand info
             const blob = await pdf(
-                <KuitansiPDFDocument kuitansi={kuitansi} />
+                <KuitansiPDFDocument
+                    kuitansi={kuitansi}
+                    companyInfo={brand ? {
+                        name: brand.company_name,
+                        address: brand.address || '',
+                        phone: brand.phone || ''
+                    } : undefined}
+                />
             ).toBlob()
 
             // Create download link

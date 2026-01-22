@@ -28,11 +28,30 @@ export default function InvoiceDownloadButton({ invoiceId, invoice: propInvoice,
                 return
             }
 
-            // Fetch settings
-            const [bankInfo, companyInfo] = await Promise.all([
-                getBankInfo(),
-                getCompanyInfo()
-            ])
+            // Use brand info from invoice, fallback to global settings
+            let bankInfo, companyInfo
+
+            if (invoice.brand) {
+                // Use brand-specific info
+                bankInfo = {
+                    bank_name: invoice.brand.bank_name || '',
+                    account_name: invoice.brand.account_name || '',
+                    account_number: invoice.brand.account_number || ''
+                }
+                companyInfo = {
+                    name: invoice.brand.company_name,
+                    address: invoice.brand.address || '',
+                    phone: invoice.brand.phone || ''
+                }
+            } else {
+                // Fallback to global settings
+                const [globalBankInfo, globalCompanyInfo] = await Promise.all([
+                    getBankInfo(),
+                    getCompanyInfo()
+                ])
+                bankInfo = globalBankInfo
+                companyInfo = globalCompanyInfo
+            }
 
             // Generate PDF blob
             const blob = await pdf(
@@ -40,6 +59,11 @@ export default function InvoiceDownloadButton({ invoiceId, invoice: propInvoice,
                     invoice={invoice}
                     bankInfo={bankInfo || undefined}
                     companyInfo={companyInfo || undefined}
+                    brandInfo={invoice.brand ? {
+                        name: invoice.brand.company_name,
+                        address: invoice.brand.address,
+                        logo_url: invoice.brand.logo_url
+                    } : null}
                 />
             ).toBlob()
 

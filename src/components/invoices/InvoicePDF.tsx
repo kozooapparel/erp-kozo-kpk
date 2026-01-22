@@ -151,12 +151,21 @@ interface InvoicePDFProps {
         account_name: string
         account_number: string
     }
+    brandInfo?: {
+        name: string
+        address: string | null
+        logo_url: string | null
+    } | null
 }
 
-export function InvoicePDFDocument({ invoice, companyInfo, bankInfo }: InvoicePDFProps) {
+export function InvoicePDFDocument({ invoice, companyInfo, bankInfo, brandInfo }: InvoicePDFProps) {
     // Calculate jatuh tempo
     const jatuhTempo = new Date(invoice.tanggal)
     jatuhTempo.setDate(jatuhTempo.getDate() + (invoice.termin_pembayaran || 16))
+
+    // Use brand info if available, fallback to company info
+    const displayName = brandInfo?.name || companyInfo?.name || 'KOZO KPK'
+    const displayAddress = brandInfo?.address || companyInfo?.address || ''
 
     return (
         <Document>
@@ -187,9 +196,11 @@ export function InvoicePDFDocument({ invoice, companyInfo, bankInfo }: InvoicePD
                         </View>
                     </View>
                     <View>
-                        <Text style={styles.companyName}>{companyInfo?.name || 'KOZO KPK'}</Text>
-                        <Text style={styles.companyAddress}>{companyInfo?.address || ''}</Text>
-                        <Text style={styles.companyAddress}>{companyInfo?.phone || ''}</Text>
+                        <Text style={styles.companyName}>{displayName}</Text>
+                        <Text style={styles.companyAddress}>{displayAddress}</Text>
+                        {companyInfo?.phone && (
+                            <Text style={styles.companyAddress}>{companyInfo.phone}</Text>
+                        )}
                     </View>
                 </View>
 

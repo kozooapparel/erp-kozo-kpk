@@ -96,7 +96,14 @@ export default function KuitansiList({ kuitansiList }: KuitansiListProps) {
                                             {kuitansi.invoice?.no_invoice || '-'}
                                         </td>
                                         <td className="px-6 py-4 text-sm text-slate-900">
-                                            {kuitansi.invoice?.customer?.name || '-'}
+                                            <div className="flex items-center gap-2">
+                                                {kuitansi.invoice?.customer?.name || '-'}
+                                                {(kuitansi.invoice as any)?.brand?.code && (
+                                                    <span className="px-1.5 py-0.5 text-[10px] font-medium bg-slate-100 text-slate-600 rounded">
+                                                        {(kuitansi.invoice as any).brand.code}
+                                                    </span>
+                                                )}
+                                            </div>
                                         </td>
                                         <td className="px-6 py-4 text-sm text-right font-bold text-emerald-600">
                                             {formatCurrency(kuitansi.jumlah)}

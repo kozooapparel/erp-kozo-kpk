@@ -22,7 +22,8 @@ export default async function SPKPage() {
         .from('orders')
         .select(`
             *,
-            customer:customers(*)
+            customer:customers(*),
+            brand:brands(*)
         `)
         .not('spk_number', 'is', null)
         .order('created_at', { ascending: false })

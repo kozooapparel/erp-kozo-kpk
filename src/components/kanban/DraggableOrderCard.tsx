@@ -4,11 +4,13 @@ import { useState, useEffect } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { Order, Customer, OrderStage } from '@/types/database'
+import { createClient } from '@/lib/supabase/client'
 import Image from 'next/image'
 
 interface OrderWithCustomer extends Order {
     customer: Customer
     creator: { id: string; full_name: string } | null
+    brand?: { id: string; code: string; name: string; logo_url: string | null } | null
 }
 
 interface DraggableOrderCardProps {
@@ -18,6 +20,9 @@ interface DraggableOrderCardProps {
 }
 
 export default function DraggableOrderCard({ order, isBottleneck, onClick }: DraggableOrderCardProps) {
+    const supabase = createClient()
+    const [hasInvoice, setHasInvoice] = useState(false)
+
     const {
         attributes,
         listeners,
@@ -26,6 +31,24 @@ export default function DraggableOrderCard({ order, isBottleneck, onClick }: Dra
         transition,
         isDragging,
     } = useSortable({ id: order.id })
+
+    // Check if order has invoice (for dp_produksi stage)
+    useEffect(() => {
+        const checkInvoice = async () => {
+            if (order.stage !== 'dp_produksi') {
+                setHasInvoice(true) // Not relevant for other stages
+                return
+            }
+            const { data } = await supabase
+                .from('invoices')
+                .select('id')
+                .eq('order_id', order.id)
+                .limit(1)
+                .single()
+            setHasInvoice(!!data)
+        }
+        checkInvoice()
+    }, [order.id, order.stage, supabase])
 
     const style = {
         transform: CSS.Transform.toString(transform),
@@ -123,9 +146,16 @@ export default function DraggableOrderCard({ order, isBottleneck, onClick }: Dra
                     isReady: order.layout_completed
                 }
             case 'dp_produksi':
+                // Need invoice + DP verified + SPK filled
+                const hasSPK = (order.size_breakdown && Object.keys(order.size_breakdown).length > 0) ||
+                    (order.spk_sections && order.spk_sections.length > 0)
+                const dpReady = order.dp_produksi_verified && hasInvoice && hasSPK
+                const dpLabel = !hasInvoice ? 'Belum Invoice' :
+                    !hasSPK ? 'Belum SPK' :
+                        order.dp_produksi_verified ? 'Sudah DP' : 'Belum DP'
                 return {
-                    label: order.dp_produksi_verified ? 'Sudah DP' : 'Belum DP',
-                    isReady: order.dp_produksi_verified
+                    label: dpLabel,
+                    isReady: dpReady
                 }
             case 'antrean_produksi':
                 return {
@@ -242,10 +272,22 @@ export default function DraggableOrderCard({ order, isBottleneck, onClick }: Dra
                             </div>
                         )}
 
-                        {/* Customer Name */}
-                        <h4 className="font-semibold text-slate-900 dark:text-slate-100 text-xs truncate mb-1">
-                            {order.customer?.name || 'Unknown'}
-                        </h4>
+                        {/* Customer Name with Brand Logo */}
+                        <div className="flex items-center gap-1.5 mb-1">
+                            {order.brand?.logo_url && (
+                                <div className="w-4 h-4 relative flex-shrink-0">
+                                    <Image
+                                        src={order.brand.logo_url}
+                                        alt={order.brand.name || 'Brand'}
+                                        fill
+                                        className="object-contain rounded-sm"
+                                    />
+                                </div>
+                            )}
+                            <h4 className="font-semibold text-slate-900 dark:text-slate-100 text-xs truncate">
+                                {order.customer?.name || 'Unknown'}
+                            </h4>
+                        </div>
 
                         {/* Order Details Row */}
                         <div className="flex items-center justify-between">

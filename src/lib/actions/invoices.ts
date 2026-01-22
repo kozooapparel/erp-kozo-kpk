@@ -9,7 +9,8 @@ import type {
     InvoiceWithItems,
     InvoiceWithCustomer,
     InvoiceItem,
-    InvoiceItemInsert
+    InvoiceItemInsert,
+    Brand
 } from '@/types/database'
 import { generateInvoiceNumber } from '@/lib/utils/invoice-number'
 
@@ -31,7 +32,8 @@ export async function getInvoiceList(filters?: InvoiceFilters): Promise<InvoiceW
         .from('invoices')
         .select(`
             *,
-            customer:customers(*)
+            customer:customers(*),
+            brand:brands(*)
         `)
         .order('created_at', { ascending: false })
 
@@ -66,7 +68,7 @@ export async function getInvoiceList(filters?: InvoiceFilters): Promise<InvoiceW
 }
 
 /**
- * Get invoice by ID with items
+ * Get invoice by ID with items and brand
  */
 export async function getInvoiceById(id: string): Promise<InvoiceWithItems | null> {
     const supabase = await createClient()
@@ -75,7 +77,8 @@ export async function getInvoiceById(id: string): Promise<InvoiceWithItems | nul
         .from('invoices')
         .select(`
             *,
-            customer:customers(*)
+            customer:customers(*),
+            brand:brands(*)
         `)
         .eq('id', id)
         .single()
@@ -164,6 +167,20 @@ export async function createInvoice(
     // Get current user
     const { data: { user } } = await supabase.auth.getUser()
 
+    // Get order data including brand_id and dp_desain info
+    let brand_id: string | null = null
+    let orderData: { brand_id: string | null; dp_desain_verified: boolean; dp_desain_amount: number } | null = null
+
+    if (invoiceData.order_id) {
+        const { data: order } = await supabase
+            .from('orders')
+            .select('brand_id, dp_desain_verified, dp_desain_amount')
+            .eq('id', invoiceData.order_id)
+            .single()
+        brand_id = order?.brand_id || null
+        orderData = order
+    }
+
     // Generate invoice number
     const noInvoice = await generateUniqueInvoiceNumber(
         invoiceData.customerName,
@@ -176,7 +193,7 @@ export async function createInvoice(
     const ppnAmount = (subTotal * ppnPersen) / 100
     const total = subTotal + ppnAmount
 
-    // Create invoice
+    // Create invoice with brand_id from order
     const { data: invoice, error: invoiceError } = await supabase
         .from('invoices')
         .insert({
@@ -184,6 +201,7 @@ export async function createInvoice(
             tanggal: invoiceData.tanggal,
             customer_id: invoiceData.customer_id,
             order_id: invoiceData.order_id,
+            brand_id: brand_id,  // Auto-inherit from order
             perkiraan_produksi: invoiceData.perkiraan_produksi,
             deadline: invoiceData.deadline,
             termin_pembayaran: invoiceData.termin_pembayaran,
@@ -220,7 +238,27 @@ export async function createInvoice(
         }
     }
 
+    // Auto-create kuitansi for DP Desain if already verified
+    if (invoice && orderData?.dp_desain_verified && orderData.dp_desain_amount > 0) {
+        const { error: kuitansiError } = await supabase
+            .from('kuitansi')
+            .insert({
+                invoice_id: invoice.id,
+                tanggal: new Date().toISOString().split('T')[0],
+                jumlah: orderData.dp_desain_amount,
+                keterangan: `Pembayaran DP Desain - ${noInvoice}`,
+                created_by: user?.id
+            })
+
+        if (kuitansiError) {
+            console.error('Error creating auto-kuitansi for DP Desain:', kuitansiError)
+        } else {
+            console.log('Auto-kuitansi DP Desain created for invoice:', noInvoice)
+        }
+    }
+
     revalidatePath('/invoices')
+    revalidatePath('/kuitansi')
     return invoice
 }
 
@@ -339,14 +377,15 @@ export async function deleteInvoice(id: string): Promise<boolean> {
 /**
  * Get unpaid invoices for kuitansi dropdown
  */
-export async function getUnpaidInvoices(): Promise<InvoiceWithCustomer[]> {
+export async function getUnpaidInvoices(): Promise<(InvoiceWithCustomer & { brand?: Brand | null })[]> {
     const supabase = await createClient()
 
     const { data, error } = await supabase
         .from('invoices')
         .select(`
             *,
-            customer:customers(*)
+            customer:customers(*),
+            brand:brands(*)
         `)
         .eq('status_pembayaran', 'BELUM_LUNAS')
         .order('tanggal', { ascending: false })

@@ -15,6 +15,7 @@ interface InvoiceFormProps {
     invoice?: InvoiceWithItems | null
     orderId?: string
     prefilledCustomerId?: string
+    prefilledBrandId?: string
 }
 
 interface InvoiceItemRow {
@@ -31,7 +32,8 @@ export default function InvoiceForm({
     customers,
     invoice,
     orderId,
-    prefilledCustomerId
+    prefilledCustomerId,
+    prefilledBrandId
 }: InvoiceFormProps) {
     const router = useRouter()
     const isEdit = !!invoice
@@ -74,6 +76,7 @@ export default function InvoiceForm({
     const [barangList, setBarangList] = useState<Barang[]>([])
     const [bankInfo, setBankInfo] = useState<BankInfo | null>(null)
     const [companyInfo, setCompanyInfo] = useState<CompanyInfo | null>(null)
+    const [brandInfo, setBrandInfo] = useState<{ name: string; address: string | null; logo_url: string | null } | null>(null)
 
     // Load lookup data
     useEffect(() => {
@@ -86,9 +89,27 @@ export default function InvoiceForm({
             setBarangList(barang)
             setBankInfo(bank)
             setCompanyInfo(company)
+
+            // Fetch brand info if prefilledBrandId is provided
+            if (prefilledBrandId) {
+                const { createClient } = await import('@/lib/supabase/client')
+                const supabase = createClient()
+                const { data: brand } = await supabase
+                    .from('brands')
+                    .select('company_name, address, logo_url')
+                    .eq('id', prefilledBrandId)
+                    .single()
+                if (brand) {
+                    setBrandInfo({
+                        name: brand.company_name,
+                        address: brand.address,
+                        logo_url: brand.logo_url
+                    })
+                }
+            }
         }
         loadData()
-    }, [])
+    }, [prefilledBrandId])
 
     // Calculate totals
     const subTotal = items.reduce((sum, item) => sum + item.sub_total, 0)
@@ -250,61 +271,82 @@ export default function InvoiceForm({
 
             {/* Invoice Card */}
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                {/* Invoice Header */}
-                <div className="p-6 border-b border-slate-100">
+                {/* Invoice Header with Brand */}
+                <div className="p-6 bg-gradient-to-r from-slate-50 to-slate-100 border-b border-slate-200">
                     <div className="flex items-start justify-between">
-                        <div>
-                            <h1 className="text-2xl font-bold text-slate-900">INVOICE</h1>
-                            <div className="mt-2 space-y-1">
+                        {/* Left: Invoice Info */}
+                        <div className="space-y-3">
+                            <div className="flex items-center gap-3">
+                                <h1 className="text-3xl font-bold text-slate-800 tracking-tight">INVOICE</h1>
+                                <span className="px-3 py-1 text-xs font-semibold rounded-full bg-orange-100 text-orange-600">
+                                    {invoice?.no_invoice || 'DRAFT'}
+                                </span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
                                 <div className="flex items-center gap-2">
-                                    <span className="text-sm text-slate-500">No Invoice:</span>
-                                    <span className="text-sm font-medium text-slate-700">
-                                        {invoice?.no_invoice || '(Auto-generate saat simpan)'}
+                                    <span className="text-slate-500 w-20">No Invoice</span>
+                                    <span className="font-mono font-medium text-slate-700">
+                                        {invoice?.no_invoice || '(Auto-generate)'}
                                     </span>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <span className="text-sm text-slate-500">Tanggal:</span>
+                                    <span className="text-slate-500 w-16">Tanggal</span>
                                     <input
                                         type="date"
                                         value={tanggal}
                                         onChange={(e) => setTanggal(e.target.value)}
-                                        className="px-2 py-1 border border-slate-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/50"
+                                        className="px-2 py-1 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/50 bg-white"
                                     />
                                 </div>
                             </div>
                         </div>
-                        <div className="text-right">
+
+                        {/* Right: Brand/Company Info with Logo */}
+                        <div className="text-right flex flex-col items-end">
+                            {brandInfo?.logo_url && (
+                                <img
+                                    src={brandInfo.logo_url}
+                                    alt={brandInfo.name}
+                                    className="w-16 h-16 object-contain mb-2 rounded-lg"
+                                />
+                            )}
                             <h2 className="text-xl font-bold text-orange-500">
-                                {companyInfo?.name || 'KOZO KPK'}
+                                {brandInfo?.name || companyInfo?.name || 'KOZO KPK'}
                             </h2>
-                            <p className="text-xs text-slate-500 max-w-xs mt-1">
-                                {companyInfo?.address}
+                            <p className="text-xs text-slate-500 max-w-[200px] mt-1 leading-relaxed">
+                                {brandInfo?.address || companyInfo?.address}
                             </p>
                         </div>
                     </div>
+                </div>
 
-                    {/* Production Info */}
-                    <div className="mt-4 flex items-center gap-6">
-                        <div className="flex items-center gap-2">
-                            <span className="text-sm text-slate-500">Perkiraan Produksi:</span>
-                            <input
-                                type="number"
-                                value={perkiraanProduksi}
-                                onChange={(e) => setPerkiraanProduksi(e.target.value)}
-                                placeholder="16"
-                                className="w-16 px-2 py-1 border border-slate-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/50"
-                            />
-                            <span className="text-sm text-slate-500">hari kerja</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <span className="text-sm text-slate-500">Deadline:</span>
-                            <input
-                                type="date"
-                                value={deadline}
-                                onChange={(e) => setDeadline(e.target.value)}
-                                className="px-2 py-1 border border-slate-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/50"
-                            />
-                        </div>
+                {/* Production Info Bar */}
+                <div className="px-6 py-3 bg-white border-b border-slate-100 flex items-center gap-8">
+                    <div className="flex items-center gap-2">
+                        <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span className="text-sm text-slate-500">Produksi:</span>
+                        <input
+                            type="number"
+                            value={perkiraanProduksi}
+                            onChange={(e) => setPerkiraanProduksi(e.target.value)}
+                            placeholder="16"
+                            className="w-14 px-2 py-1 border border-slate-200 rounded text-sm text-center focus:outline-none focus:ring-2 focus:ring-orange-500/50"
+                        />
+                        <span className="text-sm text-slate-400">hari</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <span className="text-sm text-slate-500">Deadline:</span>
+                        <input
+                            type="date"
+                            value={deadline}
+                            onChange={(e) => setDeadline(e.target.value)}
+                            className="px-2 py-1 border border-slate-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/50"
+                        />
                     </div>
                 </div>
 
@@ -351,15 +393,18 @@ export default function InvoiceForm({
 
                 {/* Items Table */}
                 <div className="p-6">
+                    <div className="mb-4">
+                        <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Detail Item</h3>
+                    </div>
                     <table className="w-full">
                         <thead>
-                            <tr className="border-b border-slate-200">
-                                <th className="text-left text-sm font-medium text-slate-600 pb-2 w-12">#</th>
-                                <th className="text-left text-sm font-medium text-slate-600 pb-2">Deskripsi</th>
-                                <th className="text-center text-sm font-medium text-slate-600 pb-2 w-24">Jumlah</th>
-                                <th className="text-center text-sm font-medium text-slate-600 pb-2 w-20">Satuan</th>
-                                <th className="text-right text-sm font-medium text-slate-600 pb-2 w-36">Harga Satuan</th>
-                                <th className="text-right text-sm font-medium text-slate-600 pb-2 w-36">Sub Total</th>
+                            <tr className="bg-slate-50 border-y border-slate-200">
+                                <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide py-3 px-2 w-10">#</th>
+                                <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide py-3 px-2">Deskripsi</th>
+                                <th className="text-center text-xs font-semibold text-slate-500 uppercase tracking-wide py-3 px-2 w-20">Qty</th>
+                                <th className="text-center text-xs font-semibold text-slate-500 uppercase tracking-wide py-3 px-2 w-20">Satuan</th>
+                                <th className="text-right text-xs font-semibold text-slate-500 uppercase tracking-wide py-3 px-2 w-32">Harga</th>
+                                <th className="text-right text-xs font-semibold text-slate-500 uppercase tracking-wide py-3 px-2 w-32">Subtotal</th>
                                 <th className="w-10"></th>
                             </tr>
                         </thead>
@@ -459,59 +504,67 @@ export default function InvoiceForm({
                 </div>
 
                 {/* Totals Section */}
-                <div className="p-6 bg-slate-50 border-t border-slate-200">
+                <div className="p-6 bg-gradient-to-r from-slate-50 to-slate-100 border-t border-slate-200">
                     <div className="flex justify-end">
-                        <div className="w-80 space-y-2">
-                            <div className="flex justify-between text-sm">
-                                <span className="text-slate-600">Sub Total</span>
-                                <span className="font-medium">{formatCurrency(subTotal)}</span>
-                            </div>
-                            <div className="flex items-center justify-between text-sm">
-                                <div className="flex items-center gap-2">
-                                    <span className="text-slate-600">PPN</span>
-                                    <input
-                                        type="number"
-                                        value={ppnPersen}
-                                        onChange={(e) => setPpnPersen(e.target.value)}
-                                        className="w-16 px-2 py-1 border border-slate-300 rounded text-sm text-center focus:outline-none focus:ring-2 focus:ring-orange-500/50"
-                                        min="0"
-                                        max="100"
-                                    />
-                                    <span className="text-slate-500">%</span>
+                        <div className="w-80 bg-white rounded-lg border border-slate-200 p-4 shadow-sm">
+                            <div className="space-y-3">
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-slate-500">Subtotal</span>
+                                    <span className="font-medium text-slate-700">{formatCurrency(subTotal)}</span>
                                 </div>
-                                <span className="font-medium">{formatCurrency(ppnAmount)}</span>
+                                <div className="flex items-center justify-between text-sm">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-slate-500">PPN</span>
+                                        <input
+                                            type="number"
+                                            value={ppnPersen}
+                                            onChange={(e) => setPpnPersen(e.target.value)}
+                                            className="w-12 px-2 py-0.5 border border-slate-200 rounded text-xs text-center focus:outline-none focus:ring-2 focus:ring-orange-500/50"
+                                            min="0"
+                                            max="100"
+                                        />
+                                        <span className="text-slate-400 text-xs">%</span>
+                                    </div>
+                                    <span className="font-medium text-slate-700">{formatCurrency(ppnAmount)}</span>
+                                </div>
+                                <div className="pt-3 border-t border-slate-200">
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-lg font-bold text-slate-800">TOTAL</span>
+                                        <span className="text-xl font-bold text-emerald-600">{formatCurrency(total)}</span>
+                                    </div>
+                                    {total > 0 && (
+                                        <p className="text-xs text-slate-400 italic text-right mt-1">
+                                            {terbilang(total)}
+                                        </p>
+                                    )}
+                                </div>
                             </div>
-                            <div className="flex justify-between text-lg font-bold pt-2 border-t border-slate-300">
-                                <span className="text-slate-900">TOTAL</span>
-                                <span className="text-emerald-600">{formatCurrency(total)}</span>
-                            </div>
-                            {total > 0 && (
-                                <p className="text-xs text-slate-500 italic text-right">
-                                    {terbilang(total)}
-                                </p>
-                            )}
                         </div>
                     </div>
                 </div>
 
                 {/* Bank Info */}
                 {bankInfo && (
-                    <div className="p-6 border-t border-slate-200">
-                        <h4 className="text-sm font-medium text-slate-700 mb-2">Pembayaran:</h4>
-                        <div className="text-sm text-slate-600">
-                            <p>Bank: <span className="font-medium">{bankInfo.bank_name}</span></p>
-                            <p>Atas Nama: <span className="font-medium">{bankInfo.account_name}</span></p>
-                            <p>No. Rekening: <span className="font-medium">{bankInfo.account_number}</span></p>
-                        </div>
-                        <div className="flex items-center gap-2 mt-2">
-                            <span className="text-sm text-slate-600">Termin Pembayaran:</span>
-                            <input
-                                type="number"
-                                value={terminPembayaran}
-                                onChange={(e) => setTerminPembayaran(e.target.value)}
-                                className="w-16 px-2 py-1 border border-slate-300 rounded text-sm text-center focus:outline-none focus:ring-2 focus:ring-orange-500/50"
-                            />
-                            <span className="text-sm text-slate-500">hari</span>
+                    <div className="p-6 border-t border-slate-200 bg-white">
+                        <div className="flex items-start justify-between">
+                            <div>
+                                <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Pembayaran</h4>
+                                <div className="space-y-1 text-sm">
+                                    <p className="text-slate-600">Bank: <span className="font-semibold text-blue-600">{bankInfo.bank_name}</span></p>
+                                    <p className="text-slate-600">A/N: <span className="font-medium text-slate-800">{bankInfo.account_name}</span></p>
+                                    <p className="text-slate-600">No. Rek: <span className="font-mono font-medium text-slate-800">{bankInfo.account_number}</span></p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2 bg-slate-50 px-3 py-2 rounded-lg">
+                                <span className="text-sm text-slate-500">Termin:</span>
+                                <input
+                                    type="number"
+                                    value={terminPembayaran}
+                                    onChange={(e) => setTerminPembayaran(e.target.value)}
+                                    className="w-14 px-2 py-1 border border-slate-200 rounded text-sm text-center focus:outline-none focus:ring-2 focus:ring-orange-500/50"
+                                />
+                                <span className="text-sm text-slate-400">hari</span>
+                            </div>
                         </div>
                     </div>
                 )}

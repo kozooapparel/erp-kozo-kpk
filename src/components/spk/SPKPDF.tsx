@@ -1,7 +1,7 @@
 'use client'
 
 import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer'
-import { Order, Customer, SPKSection, ProductionSpecs, SizeRekapItem, PersonItem } from '@/types/database'
+import { Order, Customer, SPKSection, ProductionSpecs, SizeRekapItem, PersonItem, Brand } from '@/types/database'
 
 interface OrderWithCustomer extends Order {
     customer: Customer
@@ -9,6 +9,7 @@ interface OrderWithCustomer extends Order {
 
 interface SPKPDFProps {
     order: OrderWithCustomer
+    brand?: Brand
 }
 
 // Register font (using built-in Helvetica)
@@ -252,7 +253,7 @@ const styles = StyleSheet.create({
     },
 })
 
-export default function SPKPDF({ order }: SPKPDFProps) {
+export default function SPKPDF({ order, brand }: SPKPDFProps) {
     const formatDate = (date: string | null) => {
         if (!date) return '-'
         return new Date(date).toLocaleDateString('id-ID', {
@@ -551,10 +552,16 @@ export default function SPKPDF({ order }: SPKPDFProps) {
                     </View>
                 </View>
 
-                {/* Footer */}
-                <Text style={styles.footer}>
-                    {order.spk_number || 'SPK'} • Kozo KPK
-                </Text>
+                {/* Footer with Brand */}
+                <View style={[styles.footer, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
+                    <Text>{order.spk_number || 'SPK'}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                        {brand?.logo_url && (
+                            <Image src={brand.logo_url} style={{ width: 20, height: 20, objectFit: 'contain' }} />
+                        )}
+                        <Text>{brand?.company_name || 'Kozo KPK'}</Text>
+                    </View>
+                </View>
             </Page>
         </Document>
     )

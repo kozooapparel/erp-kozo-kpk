@@ -26,7 +26,8 @@ export async function getKuitansiList(filters?: KuitansiFilters): Promise<Kuitan
             *,
             invoice:invoices(
                 *,
-                customer:customers(*)
+                customer:customers(*),
+                brand:brands(*)
             )
         `)
         .order('created_at', { ascending: false })
@@ -65,7 +66,8 @@ export async function getKuitansiById(id: string): Promise<KuitansiWithInvoice |
             *,
             invoice:invoices(
                 *,
-                customer:customers(*)
+                customer:customers(*),
+                brand:brands(*)
             )
         `)
         .eq('id', id)

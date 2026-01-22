@@ -6,7 +6,7 @@ import DashboardLayout from '@/components/layout/DashboardLayout'
 export default async function NewInvoicePage({
     searchParams
 }: {
-    searchParams: Promise<{ orderId?: string; customerId?: string }>
+    searchParams: Promise<{ order_id?: string; customerId?: string }>
 }) {
     const supabase = await createClient()
 
@@ -29,8 +29,25 @@ export default async function NewInvoicePage({
 
     // Get search params
     const params = await searchParams
-    const orderId = params.orderId
+    const orderId = params.order_id
     const prefilledCustomerId = params.customerId
+
+    // Fetch order data if orderId provided
+    let orderCustomerId: string | undefined
+    let orderBrandId: string | undefined
+
+    if (orderId) {
+        const { data: order } = await supabase
+            .from('orders')
+            .select('customer_id, brand_id')
+            .eq('id', orderId)
+            .single()
+
+        if (order) {
+            orderCustomerId = order.customer_id
+            orderBrandId = order.brand_id || undefined
+        }
+    }
 
     return (
         <DashboardLayout user={profile}>
@@ -47,7 +64,8 @@ export default async function NewInvoicePage({
                 <InvoiceForm
                     customers={customers || []}
                     orderId={orderId}
-                    prefilledCustomerId={prefilledCustomerId}
+                    prefilledCustomerId={orderCustomerId || prefilledCustomerId}
+                    prefilledBrandId={orderBrandId}
                 />
             </div>
         </DashboardLayout>

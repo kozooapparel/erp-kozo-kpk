@@ -2,14 +2,14 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { InvoiceWithCustomer } from '@/types/database'
+import { InvoiceWithCustomer, Brand } from '@/types/database'
 import { createKuitansi } from '@/lib/actions/kuitansi'
 import { formatCurrency, formatDateInput, formatDate } from '@/lib/utils/format'
 import { terbilang } from '@/lib/utils/terbilang'
 import { toast } from 'sonner'
 
 interface KuitansiFormProps {
-    unpaidInvoices: InvoiceWithCustomer[]
+    unpaidInvoices: (InvoiceWithCustomer & { brand?: Brand | null })[]
     prefilledInvoiceId?: string
 }
 
@@ -99,46 +99,74 @@ export default function KuitansiForm({ unpaidInvoices, prefilledInvoiceId }: Kui
 
             {/* Kuitansi Card */}
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                {/* Header */}
+                {/* Header with Brand Info */}
                 <div className="bg-gradient-to-r from-slate-800 to-slate-700 text-white p-6">
                     <div className="flex items-start justify-between">
                         <div>
-                            <h1 className="text-3xl font-bold tracking-wide">KUITANSI</h1>
-                            <div className="mt-3 space-y-1">
+                            <div className="flex items-center gap-3">
+                                <h1 className="text-3xl font-bold tracking-wide">KUITANSI</h1>
+                                <span className="px-3 py-1 text-xs font-semibold rounded-full bg-white/20">
+                                    DRAFT
+                                </span>
+                            </div>
+                            <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
                                 <div className="flex items-center gap-2">
-                                    <span className="text-slate-300">No. Kuitansi:</span>
-                                    <span className="font-medium">(Auto-generate)</span>
+                                    <span className="text-slate-300 w-24">No. Kuitansi</span>
+                                    <span className="font-mono font-medium">(Auto-generate)</span>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <span className="text-slate-300">Tanggal:</span>
+                                    <span className="text-slate-300 w-16">Tanggal</span>
                                     <input
                                         type="date"
                                         value={tanggal}
                                         onChange={(e) => setTanggal(e.target.value)}
-                                        className="px-2 py-1 bg-white/10 border border-white/20 rounded text-white focus:outline-none focus:ring-2 focus:ring-white/50"
+                                        className="px-2 py-1 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-white/50"
                                     />
                                 </div>
                             </div>
                         </div>
-                        <div className="text-right">
-                            <div className="flex flex-col items-end gap-1">
-                                <span className="text-sm text-slate-300">No Invoice:</span>
-                                <select
-                                    value={invoiceId}
-                                    onChange={(e) => setInvoiceId(e.target.value)}
-                                    className="px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-white/50 min-w-[200px]"
-                                    required
-                                >
-                                    <option value="" className="text-slate-900">Pilih Invoice</option>
-                                    {unpaidInvoices.map(inv => (
-                                        <option key={inv.id} value={inv.id} className="text-slate-900">
-                                            {inv.no_invoice} - {inv.customer?.name}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
+                        {/* Brand Info - Show when invoice is selected */}
+                        <div className="text-right flex flex-col items-end">
+                            {selectedInvoice?.brand?.logo_url && (
+                                <img
+                                    src={selectedInvoice.brand.logo_url}
+                                    alt={selectedInvoice.brand.company_name}
+                                    className="w-14 h-14 object-contain mb-2 rounded-lg bg-white/10 p-1"
+                                />
+                            )}
+                            <h2 className="text-lg font-bold text-cyan-400">
+                                {selectedInvoice?.brand?.company_name || 'KOZO KPK'}
+                            </h2>
+                            {selectedInvoice?.brand?.address && (
+                                <p className="text-xs text-slate-300 max-w-[180px] mt-1">
+                                    {selectedInvoice.brand.address}
+                                </p>
+                            )}
                         </div>
                     </div>
+                </div>
+
+                {/* Invoice Selection Bar */}
+                <div className="px-6 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <span className="text-sm text-slate-500">Referensi Invoice:</span>
+                    </div>
+                    <select
+                        value={invoiceId}
+                        onChange={(e) => setInvoiceId(e.target.value)}
+                        className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/50 min-w-[250px]"
+                        required
+                    >
+                        <option value="">Pilih Invoice</option>
+                        {unpaidInvoices.map(inv => (
+                            <option key={inv.id} value={inv.id}>
+                                {inv.no_invoice} - {inv.customer?.name}
+                            </option>
+                        ))}
+                    </select>
                 </div>
 
                 {/* Content */}

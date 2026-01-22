@@ -38,6 +38,86 @@ export type Database = {
                     updated_at?: string
                 }
             }
+            // ==========================================
+            // BRANDS TABLE
+            // ==========================================
+            brands: {
+                Row: {
+                    id: string
+                    code: string
+                    name: string
+                    company_name: string
+                    address: string | null
+                    phone: string | null
+                    email: string | null
+                    logo_url: string | null
+                    bank_name: string | null
+                    account_name: string | null
+                    account_number: string | null
+                    primary_color: string
+                    accent_color: string
+                    invoice_prefix: string
+                    kuitansi_prefix: string
+                    spk_prefix: string
+                    invoice_counter: number
+                    kuitansi_counter: number
+                    spk_counter: number
+                    is_default: boolean
+                    is_active: boolean
+                    created_at: string
+                    updated_at: string
+                }
+                Insert: {
+                    id?: string
+                    code: string
+                    name: string
+                    company_name: string
+                    address?: string | null
+                    phone?: string | null
+                    email?: string | null
+                    logo_url?: string | null
+                    bank_name?: string | null
+                    account_name?: string | null
+                    account_number?: string | null
+                    primary_color?: string
+                    accent_color?: string
+                    invoice_prefix?: string
+                    kuitansi_prefix?: string
+                    spk_prefix?: string
+                    invoice_counter?: number
+                    kuitansi_counter?: number
+                    spk_counter?: number
+                    is_default?: boolean
+                    is_active?: boolean
+                    created_at?: string
+                    updated_at?: string
+                }
+                Update: {
+                    id?: string
+                    code?: string
+                    name?: string
+                    company_name?: string
+                    address?: string | null
+                    phone?: string | null
+                    email?: string | null
+                    logo_url?: string | null
+                    bank_name?: string | null
+                    account_name?: string | null
+                    account_number?: string | null
+                    primary_color?: string
+                    accent_color?: string
+                    invoice_prefix?: string
+                    kuitansi_prefix?: string
+                    spk_prefix?: string
+                    invoice_counter?: number
+                    kuitansi_counter?: number
+                    spk_counter?: number
+                    is_default?: boolean
+                    is_active?: boolean
+                    created_at?: string
+                    updated_at?: string
+                }
+            }
             orders: {
                 Row: {
                     id: string
@@ -89,6 +169,8 @@ export type Database = {
                     nama_po: string | null
                     spk_sections: SPKSection[] | null
                     production_specs: ProductionSpecs | null
+                    // Brand
+                    brand_id: string | null
                 }
                 Insert: {
                     id?: string
@@ -124,6 +206,8 @@ export type Database = {
                     nama_po?: string | null
                     spk_sections?: SPKSection[] | null
                     production_specs?: ProductionSpecs | null
+                    // Brand
+                    brand_id?: string | null
                 }
                 Update: {
                     id?: string
@@ -166,6 +250,8 @@ export type Database = {
                     nama_po?: string | null
                     spk_sections?: SPKSection[] | null
                     production_specs?: ProductionSpecs | null
+                    // Brand
+                    brand_id?: string | null
                 }
             }
             profiles: {
@@ -274,6 +360,8 @@ export type Database = {
                     created_by: string | null
                     created_at: string
                     updated_at: string
+                    // Brand
+                    brand_id: string | null
                 }
                 Insert: {
                     id?: string
@@ -295,6 +383,8 @@ export type Database = {
                     created_by?: string | null
                     created_at?: string
                     updated_at?: string
+                    // Brand
+                    brand_id?: string | null
                 }
                 Update: {
                     id?: string
@@ -316,6 +406,8 @@ export type Database = {
                     created_by?: string | null
                     created_at?: string
                     updated_at?: string
+                    // Brand
+                    brand_id?: string | null
                 }
             }
             invoice_items: {
@@ -519,6 +611,11 @@ export type Kuitansi = Database['public']['Tables']['kuitansi']['Row']
 export type KuitansiInsert = Database['public']['Tables']['kuitansi']['Insert']
 export type AppSettings = Database['public']['Tables']['app_settings']['Row']
 
+// Brand System Type Aliases
+export type Brand = Database['public']['Tables']['brands']['Row']
+export type BrandInsert = Database['public']['Tables']['brands']['Insert']
+export type BrandUpdate = Database['public']['Tables']['brands']['Update']
+
 // Extended types with relations
 export interface InvoiceWithCustomer extends Invoice {
     customer: Customer
@@ -527,10 +624,11 @@ export interface InvoiceWithCustomer extends Invoice {
 export interface InvoiceWithItems extends Invoice {
     customer: Customer
     items: InvoiceItem[]
+    brand?: Brand | null
 }
 
 export interface KuitansiWithInvoice extends Kuitansi {
-    invoice: InvoiceWithCustomer
+    invoice: InvoiceWithCustomer & { brand?: Brand | null }
 }
 
 export interface BarangWithTiers extends Barang {

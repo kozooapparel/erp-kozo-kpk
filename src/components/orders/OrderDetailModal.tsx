@@ -1,12 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Order, Customer, STAGE_LABELS, STAGES_ORDER, OrderStage, GATEKEEPER_STAGES, SPKSection, ProductionSpecs } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
+import Link from 'next/link'
 import { toast } from 'sonner'
 import { SPKEditor } from '@/components/spk'
+import { verifyDPPayment, moveOrderToNextStage } from '@/lib/actions/orders'
 
 interface OrderWithCustomer extends Order {
     customer: Customer
@@ -25,11 +27,29 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
     const [paymentProofFile, setPaymentProofFile] = useState<File | null>(null)
     const [paymentProofPreview, setPaymentProofPreview] = useState<string | null>(null)
     const [uploadingProof, setUploadingProof] = useState(false)
+    const [dpDesainAmount, setDpDesainAmount] = useState('')
     const [dpProduksiAmount, setDpProduksiAmount] = useState('')
     const [pelunasanAmount, setPelunasanAmount] = useState('')
     const [previewImage, setPreviewImage] = useState<string | null>(null)
+    const [orderInvoice, setOrderInvoice] = useState<{ id: string; no_invoice: string; total: number; sisa_tagihan: number } | null>(null)
     const router = useRouter()
     const supabase = createClient()
+
+    // Fetch invoice for this order
+    useEffect(() => {
+        const fetchInvoice = async () => {
+            if (!order?.id) return
+            const { data } = await supabase
+                .from('invoices')
+                .select('id, no_invoice, total, sisa_tagihan')
+                .eq('order_id', order.id)
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .single()
+            setOrderInvoice(data || null)
+        }
+        fetchInvoice()
+    }, [order?.id, supabase])
 
     // Update trackingNumber when order changes
     if (order?.tracking_number && trackingNumber === '' && order.tracking_number !== trackingNumber) {
@@ -49,7 +69,11 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
             case 'proses_layout':
                 return order.layout_completed
             case 'dp_produksi':
-                return order.dp_produksi_verified
+                // Must have: invoice + dp verified + SPK data filled
+                const hasInvoice = orderInvoice !== null
+                const hasSPK = (order.size_breakdown && Object.keys(order.size_breakdown).length > 0) ||
+                    (order.spk_sections && order.spk_sections.length > 0)
+                return !!(order.dp_produksi_verified && hasInvoice && hasSPK)
             case 'antrean_produksi':
                 return order.production_ready
             case 'print_press':
@@ -135,7 +159,8 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
             case 'proses_layout':
                 return order.layout_completed && getNextStage() !== null
             case 'dp_produksi':
-                return order.dp_produksi_verified && getNextStage() !== null
+                // Require invoice AND DP verified to move from DP Produksi
+                return order.dp_produksi_verified && orderInvoice !== null && getNextStage() !== null
             case 'antrean_produksi':
                 return order.production_ready && getNextStage() !== null
             case 'print_press':
@@ -153,30 +178,29 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
         }
     }
 
-    // Handle payment verification
-    const handleVerifyPayment = async (type: 'dp_desain' | 'dp_produksi' | 'pelunasan') => {
+    // Handle payment verification with auto-kuitansi
+    const handleVerifyPayment = async (type: 'dp_desain' | 'dp_produksi' | 'pelunasan', amount?: number) => {
         setLoading(true)
         try {
-            const updateData: Record<string, boolean | string> = {}
-            updateData[`${type}_verified`] = true
-            updateData[`${type}_verified_at`] = new Date().toISOString()
+            const result = await verifyDPPayment(order.id, type, amount)
 
-            const { error } = await supabase
-                .from('orders')
-                .update(updateData)
-                .eq('id', order.id)
+            if (!result.success) {
+                toast.error(result.message)
+                return
+            }
 
-            if (error) throw error
+            toast.success(result.message)
             router.refresh()
             onClose()
         } catch (err) {
             console.error('Verify error:', err)
+            toast.error('Gagal verify pembayaran')
         } finally {
             setLoading(false)
         }
     }
 
-    // Handle stage transition
+    // Handle stage transition with auto-SPK generation
     const handleMoveToNextStage = async () => {
         const nextStage = getNextStage()
         if (!nextStage) return
@@ -189,38 +213,25 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
 
         setLoading(true)
         try {
-            // Build update data
-            const updateData: Record<string, unknown> = {
-                stage: nextStage,
-                stage_entered_at: new Date().toISOString()
-            }
+            const result = await moveOrderToNextStage(order.id, order.stage, nextStage)
 
-            const { data, error } = await supabase
-                .from('orders')
-                .update(updateData)
-                .eq('id', order.id)
-                .select()
-                .single()
-
-            if (error) {
-                console.error('Move stage error:', error)
-                toast.error(`Gagal pindah stage: ${error.message || JSON.stringify(error)}`)
+            if (!result.success) {
+                toast.error(result.message)
                 return
             }
 
-            if (!data) {
-                console.error('No data returned after update')
-                toast.error('Gagal pindah stage: Update tidak berhasil')
-                return
+            if (result.spkGenerated) {
+                toast.success('Berhasil pindah stage! SPK otomatis di-generate 🎉')
+            } else {
+                toast.success('Berhasil pindah stage')
             }
 
-            console.log('Stage updated successfully:', data)
             router.refresh()
             onClose()
         } catch (err) {
             console.error('Move stage error:', err)
-            const message = err instanceof Error ? err.message : JSON.stringify(err)
-            toast.error(`Gagal pindah stage: ${message}`)
+            const message = err instanceof Error ? err.message : 'Gagal pindah stage'
+            toast.error(message)
         } finally {
             setLoading(false)
         }
@@ -267,22 +278,58 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                     </div>
                 </div>
 
-                {/* Tabs */}
+                {/* Tabs - Conditional based on stage */}
                 <div className="flex border-b border-slate-200">
-                    {(['detail', 'payment', 'stage', 'spk'] as const).map((tab) => (
+                    {/* Detail tab - always show */}
+                    <button
+                        onClick={() => setActiveTab('detail')}
+                        className={`flex-1 py-3 text-sm font-medium transition-colors ${activeTab === 'detail'
+                            ? isReady
+                                ? 'text-emerald-500 border-b-2 border-emerald-500'
+                                : 'text-red-500 border-b-2 border-red-500'
+                            : 'text-slate-500 hover:text-slate-900'
+                            }`}
+                    >
+                        Detail
+                    </button>
+                    {/* Bayar tab - always show */}
+                    <button
+                        onClick={() => setActiveTab('payment')}
+                        className={`flex-1 py-3 text-sm font-medium transition-colors ${activeTab === 'payment'
+                            ? isReady
+                                ? 'text-emerald-500 border-b-2 border-emerald-500'
+                                : 'text-red-500 border-b-2 border-red-500'
+                            : 'text-slate-500 hover:text-slate-900'
+                            }`}
+                    >
+                        Bayar
+                    </button>
+                    {/* SPK tab - show at dp_produksi and onwards */}
+                    {['dp_produksi', 'antrean_produksi', 'print_press', 'cutting_jahit', 'packing', 'pelunasan', 'pengiriman'].includes(order.stage) && (
                         <button
-                            key={tab}
-                            onClick={() => setActiveTab(tab)}
-                            className={`flex-1 py-3 text-sm font-medium capitalize transition-colors ${activeTab === tab
+                            onClick={() => setActiveTab('spk')}
+                            className={`flex-1 py-3 text-sm font-medium transition-colors ${activeTab === 'spk'
                                 ? isReady
                                     ? 'text-emerald-500 border-b-2 border-emerald-500'
                                     : 'text-red-500 border-b-2 border-red-500'
                                 : 'text-slate-500 hover:text-slate-900'
                                 }`}
                         >
-                            {tab === 'detail' ? 'Detail' : tab === 'payment' ? 'Bayar' : tab === 'stage' ? 'Stage' : 'SPK'}
+                            SPK
                         </button>
-                    ))}
+                    )}
+                    {/* Stage tab - always show */}
+                    <button
+                        onClick={() => setActiveTab('stage')}
+                        className={`flex-1 py-3 text-sm font-medium transition-colors ${activeTab === 'stage'
+                            ? isReady
+                                ? 'text-emerald-500 border-b-2 border-emerald-500'
+                                : 'text-red-500 border-b-2 border-red-500'
+                            : 'text-slate-500 hover:text-slate-900'
+                            }`}
+                    >
+                        Stage
+                    </button>
                 </div>
 
                 {/* Content */}
@@ -290,7 +337,34 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                     {/* Detail Tab */}
                     {activeTab === 'detail' && (
                         <div className="space-y-6">
-                            {/* Mockup */}
+                            {/* Customer Info - Show at early stages */}
+                            {['customer_dp_desain', 'proses_desain', 'proses_layout'].includes(order.stage) && (
+                                <div className="p-4 rounded-xl bg-blue-50 border border-blue-100">
+                                    <p className="text-xs text-blue-600 mb-3 font-medium">Info Customer</p>
+                                    <div className="space-y-2">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold">
+                                                {order.customer?.name?.charAt(0) || '?'}
+                                            </div>
+                                            <div>
+                                                <p className="font-bold text-slate-900">{order.customer?.name}</p>
+                                                <p className="text-sm text-slate-600">{order.customer?.phone}</p>
+                                            </div>
+                                        </div>
+                                        {order.customer?.alamat && (
+                                            <p className="text-sm text-slate-600 pl-13">
+                                                <span className="text-slate-400">Alamat:</span> {order.customer.alamat}
+                                            </p>
+                                        )}
+                                        {order.customer?.kota && (
+                                            <p className="text-sm text-slate-600">
+                                                <span className="text-slate-400">Kota:</span> {order.customer.kota}
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
                             {/* Mockup or Layout Preview */}
                             {(order.layout_url || order.mockup_url) && (
                                 <div className="space-y-2">
@@ -404,25 +478,98 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                                 <p className="text-xs text-slate-500">Stage: <span className={`font-medium ${isReady ? 'text-emerald-600' : 'text-red-600'}`}>{STAGE_LABELS[order.stage]}</span></p>
                             </div>
 
+                            {/* Invoice Info Card - Show if invoice exists */}
+                            {orderInvoice && (
+                                <div className="p-4 rounded-xl bg-blue-50 border border-blue-200">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <div className="flex items-center gap-2">
+                                            <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                            </svg>
+                                            <span className="text-sm font-semibold text-blue-800">Invoice</span>
+                                        </div>
+                                        <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-emerald-100 text-emerald-700">
+                                            ✓ Dibuat
+                                        </span>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-slate-600">No. Invoice</span>
+                                            <span className="font-mono font-medium text-slate-900">{orderInvoice.no_invoice}</span>
+                                        </div>
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-slate-600">Total Invoice</span>
+                                            <span className="font-semibold text-slate-900">{formatCurrency(orderInvoice.total)}</span>
+                                        </div>
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-slate-600">Total Dibayar</span>
+                                            <span className="font-semibold text-emerald-600">
+                                                {formatCurrency(order.dp_desain_amount + order.dp_produksi_amount + order.pelunasan_amount)}
+                                            </span>
+                                        </div>
+                                        <div className="flex justify-between text-sm pt-2 border-t border-blue-200">
+                                            <span className="text-slate-700 font-medium">Sisa Tagihan</span>
+                                            {(() => {
+                                                const totalDibayar = order.dp_desain_amount + order.dp_produksi_amount + order.pelunasan_amount
+                                                const sisaTagihan = orderInvoice.total - totalDibayar
+                                                return (
+                                                    <span className={`font-bold ${sisaTagihan > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                                                        {formatCurrency(sisaTagihan)}
+                                                    </span>
+                                                )
+                                            })()}
+                                        </div>
+                                    </div>
+                                    <Link
+                                        href={`/invoices/${orderInvoice.id}`}
+                                        className="mt-3 w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                        </svg>
+                                        Lihat Invoice
+                                    </Link>
+                                </div>
+                            )}
                             {/* DP Desain - Show only at customer_dp_desain stage OR if already verified */}
                             {(order.stage === 'customer_dp_desain' || order.dp_desain_verified) && (
-                                <div className="p-4 rounded-xl bg-slate-50 flex items-center justify-between">
-                                    <div>
+                                <div className="p-4 rounded-xl bg-slate-50 space-y-3">
+                                    <div className="flex items-center justify-between">
                                         <p className="text-sm font-medium text-slate-900">DP Desain</p>
-                                        <p className="text-lg font-bold text-emerald-400">{formatCurrency(order.dp_desain_amount)}</p>
-                                    </div>
-                                    <div className="flex items-center gap-3">
                                         {getPaymentBadge(order.dp_desain_verified, order.dp_desain_amount)}
-                                        {!order.dp_desain_verified && order.dp_desain_amount > 0 && (
-                                            <button
-                                                onClick={() => handleVerifyPayment('dp_desain')}
-                                                disabled={loading}
-                                                className="px-3 py-1 text-sm rounded-lg bg-emerald-500 text-slate-900 hover:bg-emerald-600 disabled:opacity-50"
-                                            >
-                                                Verify
-                                            </button>
-                                        )}
                                     </div>
+
+                                    {order.dp_desain_verified ? (
+                                        <p className="text-lg font-bold text-emerald-400">{formatCurrency(order.dp_desain_amount)}</p>
+                                    ) : (
+                                        <div className="flex gap-2">
+                                            <div className="flex-1 relative">
+                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">Rp</span>
+                                                <input
+                                                    type="number"
+                                                    value={dpDesainAmount || order.dp_desain_amount || ''}
+                                                    onChange={(e) => setDpDesainAmount(e.target.value)}
+                                                    placeholder="0"
+                                                    className="w-full pl-10 pr-4 py-2 rounded-lg bg-white border border-slate-200 text-slate-900 placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                                                />
+                                            </div>
+                                            <button
+                                                onClick={async () => {
+                                                    const amount = parseInt(dpDesainAmount) || 0
+                                                    if (amount <= 0) {
+                                                        toast.warning('Masukkan nominal DP Desain')
+                                                        return
+                                                    }
+                                                    await handleVerifyPayment('dp_desain', amount)
+                                                }}
+                                                disabled={loading}
+                                                className="px-4 py-2 rounded-lg bg-emerald-500 text-slate-900 font-medium hover:bg-emerald-600 disabled:opacity-50 whitespace-nowrap"
+                                            >
+                                                Simpan & Verify
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             )}
 
@@ -461,22 +608,7 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                                                         toast.warning('Masukkan nominal DP Produksi')
                                                         return
                                                     }
-                                                    setLoading(true)
-                                                    const { error } = await supabase
-                                                        .from('orders')
-                                                        .update({
-                                                            dp_produksi_amount: amount,
-                                                            dp_produksi_verified: true,
-                                                            dp_produksi_verified_at: new Date().toISOString()
-                                                        })
-                                                        .eq('id', order.id)
-                                                    if (error) {
-                                                        toast.error(`Gagal: ${error.message}`)
-                                                    } else {
-                                                        onClose()
-                                                        router.refresh()
-                                                    }
-                                                    setLoading(false)
+                                                    await handleVerifyPayment('dp_produksi', amount)
                                                 }}
                                                 disabled={loading}
                                                 className="px-4 py-2 rounded-lg bg-emerald-500 text-slate-900 font-medium hover:bg-emerald-600 disabled:opacity-50 whitespace-nowrap"
@@ -523,22 +655,7 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                                                         toast.warning('Masukkan nominal Pelunasan')
                                                         return
                                                     }
-                                                    setLoading(true)
-                                                    const { error } = await supabase
-                                                        .from('orders')
-                                                        .update({
-                                                            pelunasan_amount: amount,
-                                                            pelunasan_verified: true,
-                                                            pelunasan_verified_at: new Date().toISOString()
-                                                        })
-                                                        .eq('id', order.id)
-                                                    if (error) {
-                                                        toast.error(`Gagal: ${error.message}`)
-                                                    } else {
-                                                        onClose()
-                                                        router.refresh()
-                                                    }
-                                                    setLoading(false)
+                                                    await handleVerifyPayment('pelunasan', amount)
                                                 }}
                                                 disabled={loading}
                                                 className="px-4 py-2 rounded-lg bg-emerald-500 text-slate-900 font-medium hover:bg-emerald-600 disabled:opacity-50 whitespace-nowrap"
@@ -673,6 +790,109 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                                 <div className="p-4 rounded-xl bg-slate-50">
                                     <p className="text-xs text-slate-500 mb-1">Stage Berikutnya</p>
                                     <p className="text-xl font-bold text-slate-900">{STAGE_LABELS[nextStage]}</p>
+                                </div>
+                            )}
+
+                            {/* Invoice & DP Status Checklist for dp_produksi stage */}
+                            {order.stage === 'dp_produksi' && (
+                                <div className="space-y-2">
+                                    {/* Invoice Status Row */}
+                                    <div className={`p-3 rounded-lg flex items-center justify-between ${orderInvoice ? 'bg-emerald-50 border border-emerald-200' : 'bg-orange-50 border border-orange-200'}`}>
+                                        <div className="flex items-center gap-2">
+                                            {orderInvoice ? (
+                                                <svg className="w-5 h-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                </svg>
+                                            ) : (
+                                                <svg className="w-5 h-5 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                </svg>
+                                            )}
+                                            <span className={`font-medium ${orderInvoice ? 'text-emerald-700' : 'text-orange-700'}`}>
+                                                Invoice
+                                            </span>
+                                            {orderInvoice && (
+                                                <span className="text-sm text-slate-500 font-mono">{orderInvoice.no_invoice}</span>
+                                            )}
+                                        </div>
+                                        {orderInvoice ? (
+                                            <Link
+                                                href={`/invoices/${orderInvoice.id}`}
+                                                className="px-3 py-1 text-xs font-medium rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 transition-colors"
+                                            >
+                                                Lihat
+                                            </Link>
+                                        ) : (
+                                            <Link
+                                                href={`/invoices/new?order_id=${order.id}`}
+                                                className="px-3 py-1 text-xs font-medium rounded-lg bg-orange-500 text-white hover:bg-orange-600 transition-colors"
+                                            >
+                                                + Buat
+                                            </Link>
+                                        )}
+                                    </div>
+
+                                    {/* DP Produksi Status Row */}
+                                    <div className={`p-3 rounded-lg flex items-center justify-between ${order.dp_produksi_verified ? 'bg-emerald-50 border border-emerald-200' : 'bg-amber-50 border border-amber-200'}`}>
+                                        <div className="flex items-center gap-2">
+                                            {order.dp_produksi_verified ? (
+                                                <svg className="w-5 h-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                </svg>
+                                            ) : (
+                                                <svg className="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                                </svg>
+                                            )}
+                                            <span className={`font-medium ${order.dp_produksi_verified ? 'text-emerald-700' : 'text-amber-700'}`}>
+                                                DP Produksi
+                                            </span>
+                                        </div>
+                                        <span className={`text-xs font-medium px-2 py-1 rounded-full ${order.dp_produksi_verified ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                                            {order.dp_produksi_verified ? '✓ Verified' : 'Belum diverifikasi'}
+                                        </span>
+                                    </div>
+
+                                    {/* SPK Status Row */}
+                                    {(() => {
+                                        const hasSPK = (order.size_breakdown && Object.keys(order.size_breakdown).length > 0) ||
+                                            (order.spk_sections && order.spk_sections.length > 0)
+                                        return (
+                                            <div className={`p-3 rounded-lg flex items-center justify-between ${hasSPK ? 'bg-emerald-50 border border-emerald-200' : 'bg-orange-50 border border-orange-200'}`}>
+                                                <div className="flex items-center gap-2">
+                                                    {hasSPK ? (
+                                                        <svg className="w-5 h-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                        </svg>
+                                                    ) : (
+                                                        <svg className="w-5 h-5 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                                        </svg>
+                                                    )}
+                                                    <span className={`font-medium ${hasSPK ? 'text-emerald-700' : 'text-orange-700'}`}>
+                                                        SPK Data
+                                                    </span>
+                                                </div>
+                                                <span className={`text-xs font-medium px-2 py-1 rounded-full ${hasSPK ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'}`}>
+                                                    {hasSPK ? '✓ Sudah diisi' : 'Belum diisi'}
+                                                </span>
+                                            </div>
+                                        )
+                                    })()}
+
+                                    {/* Help text */}
+                                    {(() => {
+                                        const hasSPKData = (order.size_breakdown && Object.keys(order.size_breakdown).length > 0) ||
+                                            (order.spk_sections && order.spk_sections.length > 0)
+                                        if (orderInvoice && order.dp_produksi_verified && hasSPKData) return null
+                                        return (
+                                            <p className="text-xs text-slate-500 text-center py-2">
+                                                {!orderInvoice ? 'Buat Invoice terlebih dahulu' :
+                                                    !order.dp_produksi_verified ? 'Verifikasi DP di Tab Bayar' :
+                                                        'Isi SPK di Tab SPK untuk melanjutkan'}
+                                            </p>
+                                        )
+                                    })()}
                                 </div>
                             )}
 

@@ -138,9 +138,17 @@ const styles = StyleSheet.create({
 
 interface KuitansiPDFProps {
     kuitansi: KuitansiWithInvoice
+    companyInfo?: {
+        name: string
+        address: string
+        phone: string
+    }
 }
 
-export function KuitansiPDFDocument({ kuitansi }: KuitansiPDFProps) {
+export function KuitansiPDFDocument({ kuitansi, companyInfo }: KuitansiPDFProps) {
+    // Get brand info from invoice, fallback to company info
+    const displayName = kuitansi.invoice?.brand?.company_name || companyInfo?.name || 'KOZO KPK'
+    const displayAddress = kuitansi.invoice?.brand?.address || companyInfo?.address || ''
     return (
         <Document>
             <Page size="A4" style={styles.page}>
@@ -215,6 +223,7 @@ export function KuitansiPDFDocument({ kuitansi }: KuitansiPDFProps) {
 
                 {/* Footer */}
                 <View style={styles.footer}>
+                    <Text style={[styles.footerText, { fontWeight: 'bold', marginBottom: 3 }]}>{displayName}</Text>
                     <Text style={styles.footerText}>Kuitansi ini berlaku sah, setelah uang diterima.</Text>
                     <Text style={styles.footerSubtext}>This payment will be legal, if the cheque has been accepted by the bank</Text>
                 </View>

@@ -25,13 +25,14 @@ export default async function DashboardPage() {
         .select('*')
         .single()
 
-    // Fetch all orders with customer info AND creator (admin) profile
+    // Fetch all orders with customer info, creator (admin) profile, AND brand
     const { data: orders } = await supabase
         .from('orders')
         .select(`
             *,
             customer:customers(*),
-            creator:profiles!created_by(id, full_name)
+            creator:profiles!created_by(id, full_name),
+            brand:brands(*)
         `)
         .order('created_at', { ascending: false })
 

@@ -2,11 +2,12 @@
 
 import { useState } from 'react'
 import { pdf } from '@react-pdf/renderer'
-import { Order, Customer } from '@/types/database'
+import { Order, Customer, Brand } from '@/types/database'
 import SPKPDF from './SPKPDF'
 
 interface OrderWithCustomer extends Order {
     customer: Customer
+    brand?: Brand | null
 }
 
 interface SPKDownloadButtonProps {
@@ -19,7 +20,13 @@ export default function SPKDownloadButton({ order }: SPKDownloadButtonProps) {
     const handleDownload = async () => {
         setLoading(true)
         try {
-            const blob = await pdf(<SPKPDF order={order} />).toBlob()
+            // Pass brand info to SPKPDF
+            const blob = await pdf(
+                <SPKPDF
+                    order={order}
+                    brand={order.brand || undefined}
+                />
+            ).toBlob()
             const url = URL.createObjectURL(blob)
             const link = document.createElement('a')
             link.href = url
