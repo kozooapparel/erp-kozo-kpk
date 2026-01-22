@@ -9,6 +9,7 @@ import SearchBar from '../ui/SearchBar'
 import OrderStatusFilter, { OrderFilter } from '../ui/OrderStatusFilter'
 import AddOrderModal from '../orders/AddOrderModal'
 import OrderDetailModal from '../orders/OrderDetailModal'
+import AddCustomerModal from '../customers/AddCustomerModal'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
@@ -23,20 +24,29 @@ interface AdminProfile {
     full_name: string
 }
 
+interface BrandItem {
+    id: string
+    code: string
+    name: string
+}
+
 interface KanbanBoardProps {
     orders: OrderWithCustomer[]
     metrics: DashboardMetrics
     customers: Customer[]
     admins: AdminProfile[]
+    brands: BrandItem[]
 }
 
-export default function KanbanBoard({ orders, metrics, customers, admins }: KanbanBoardProps) {
+export default function KanbanBoard({ orders, metrics, customers, admins, brands }: KanbanBoardProps) {
     const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+    const [isAddCustomerModalOpen, setIsAddCustomerModalOpen] = useState(false)
     const [selectedOrder, setSelectedOrder] = useState<OrderWithCustomer | null>(null)
     const [searchQuery, setSearchQuery] = useState('')
     const [activeId, setActiveId] = useState<string | null>(null)
     const [orderFilter, setOrderFilter] = useState<OrderFilter>('all')
     const [adminFilter, setAdminFilter] = useState<string>('all') // Admin filter state
+    const [brandFilter, setBrandFilter] = useState<string>('all') // Brand filter state
 
     // Mobile responsive states
     const [isMobile, setIsMobile] = useState(false)
@@ -157,6 +167,11 @@ export default function KanbanBoard({ orders, metrics, customers, admins }: Kanb
         // Admin filter
         if (adminFilter !== 'all') {
             if (order.created_by !== adminFilter) return false
+        }
+
+        // Brand filter
+        if (brandFilter !== 'all') {
+            if (order.brand_id !== brandFilter) return false
         }
 
         return true
@@ -315,6 +330,15 @@ export default function KanbanBoard({ orders, metrics, customers, admins }: Kanb
                         <SearchBar onSearch={setSearchQuery} />
                     </div>
                     <button
+                        onClick={() => setIsAddCustomerModalOpen(true)}
+                        className="flex items-center gap-2 px-4 py-3 md:px-6 rounded-xl bg-slate-600 text-white font-semibold hover:bg-slate-700 transition-all shadow-lg shadow-slate-600/25 whitespace-nowrap"
+                    >
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                        </svg>
+                        <span className="hidden sm:inline">Tambah Customer</span>
+                    </button>
+                    <button
                         onClick={() => setIsAddModalOpen(true)}
                         className="flex items-center gap-2 px-4 py-3 md:px-6 rounded-xl bg-red-500 text-white font-semibold hover:bg-red-600 transition-all shadow-lg shadow-red-500/25 whitespace-nowrap"
                     >
@@ -357,6 +381,41 @@ export default function KanbanBoard({ orders, metrics, customers, admins }: Kanb
                         </select>
                         <svg
                             className={`absolute right-2 w-4 h-4 pointer-events-none transition-colors ${adminFilter !== 'all' ? 'text-white' : 'text-slate-400'}`}
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                        >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </div>
+
+                    {/* Brand Filter Dropdown with Icon */}
+                    <div className="relative flex items-center">
+                        <svg
+                            className={`absolute left-2.5 w-4 h-4 pointer-events-none transition-colors ${brandFilter !== 'all' ? 'text-white' : 'text-slate-500'}`}
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                        >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" />
+                        </svg>
+                        <select
+                            value={brandFilter}
+                            onChange={(e) => setBrandFilter(e.target.value)}
+                            className={`pl-8 pr-8 py-1.5 text-sm rounded-lg border focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-400 transition-all appearance-none cursor-pointer ${brandFilter !== 'all'
+                                ? 'bg-slate-700 text-white border-slate-700 font-semibold'
+                                : 'bg-white text-slate-700 border-slate-200'
+                                }`}
+                        >
+                            <option value="all" className="bg-white text-slate-700">Semua Brand</option>
+                            {brands.map(brand => (
+                                <option key={brand.id} value={brand.id} className="bg-white text-slate-700">
+                                    {brand.name}
+                                </option>
+                            ))}
+                        </select>
+                        <svg
+                            className={`absolute right-2 w-4 h-4 pointer-events-none transition-colors ${brandFilter !== 'all' ? 'text-white' : 'text-slate-400'}`}
                             fill="none"
                             viewBox="0 0 24 24"
                             stroke="currentColor"
@@ -521,6 +580,11 @@ export default function KanbanBoard({ orders, metrics, customers, admins }: Kanb
                 order={selectedOrder}
                 isOpen={selectedOrder !== null}
                 onClose={() => setSelectedOrder(null)}
+            />
+
+            <AddCustomerModal
+                isOpen={isAddCustomerModalOpen}
+                onClose={() => setIsAddCustomerModalOpen(false)}
             />
         </div>
     )

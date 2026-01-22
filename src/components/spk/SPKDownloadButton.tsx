@@ -12,9 +12,10 @@ interface OrderWithCustomer extends Order {
 
 interface SPKDownloadButtonProps {
     order: OrderWithCustomer
+    deadline?: string | null
 }
 
-export default function SPKDownloadButton({ order }: SPKDownloadButtonProps) {
+export default function SPKDownloadButton({ order, deadline }: SPKDownloadButtonProps) {
     const [loading, setLoading] = useState(false)
 
     const handleDownload = async () => {
@@ -25,6 +26,7 @@ export default function SPKDownloadButton({ order }: SPKDownloadButtonProps) {
                 <SPKPDF
                     order={order}
                     brand={order.brand || undefined}
+                    deadline={deadline}
                 />
             ).toBlob()
             const url = URL.createObjectURL(blob)

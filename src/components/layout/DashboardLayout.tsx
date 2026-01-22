@@ -14,7 +14,7 @@ export default function DashboardLayout({ user, children }: DashboardLayoutProps
     const router = useRouter()
     const pathname = usePathname()
     const supabase = createClient()
-    const [sidebarOpen, setSidebarOpen] = useState(true)
+    const [sidebarOpen, setSidebarOpen] = useState(false)
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
     const [isMobile, setIsMobile] = useState(false)
 
@@ -130,13 +130,15 @@ export default function DashboardLayout({ user, children }: DashboardLayoutProps
                 key={item.href}
                 href={item.href}
                 title={!sidebarOpen ? item.label : undefined}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${isActive
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${isActive
                     ? 'bg-red-50 text-red-600 border border-red-200'
                     : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                     } ${sidebarOpen ? '' : 'justify-center'}`}
             >
-                <span className="flex-shrink-0">{item.icon}</span>
-                {sidebarOpen && <span>{item.label}</span>}
+                <span className="flex-shrink-0 transition-transform duration-200">{item.icon}</span>
+                <span className={`whitespace-nowrap transition-all duration-200 ease-in-out ${sidebarOpen ? 'opacity-100 translate-x-0 w-auto' : 'opacity-0 -translate-x-2 w-0 overflow-hidden'}`}>
+                    {item.label}
+                </span>
             </a>
         )
     }
@@ -152,12 +154,17 @@ export default function DashboardLayout({ user, children }: DashboardLayoutProps
             )}
 
             {/* Sidebar */}
-            <aside className={`
-                ${sidebarOpen ? 'w-64' : 'w-20'} 
-                flex-shrink-0 bg-white border-r border-slate-200 flex flex-col transition-all duration-300
-                ${isMobile ? 'fixed top-0 h-screen z-50' : 'sticky top-0 h-screen'}
-                ${isMobile ? (mobileMenuOpen ? 'translate-x-0' : '-translate-x-full') : 'translate-x-0'}
-            `}>
+            <aside
+                className={`
+                    ${sidebarOpen ? 'w-64' : 'w-20'} 
+                    flex-shrink-0 bg-white border-r border-slate-200 flex flex-col
+                    transition-[width] duration-300 ease-in-out
+                    ${isMobile ? 'fixed top-0 h-screen z-50' : 'sticky top-0 h-screen'}
+                    ${isMobile ? (mobileMenuOpen ? 'translate-x-0' : '-translate-x-full') : 'translate-x-0'}
+                `}
+                onMouseEnter={() => !isMobile && setSidebarOpen(true)}
+                onMouseLeave={() => !isMobile && setSidebarOpen(false)}
+            >
                 {/* Logo */}
                 <div className="p-4 border-b border-slate-200">
                     <div className="flex items-center gap-3">
@@ -166,14 +173,12 @@ export default function DashboardLayout({ user, children }: DashboardLayoutProps
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                             </svg>
                         </div>
-                        {sidebarOpen && (
-                            <div className="overflow-hidden">
-                                <h1 className="text-base font-semibold text-slate-900 whitespace-nowrap">
-                                    Kozo <span className="text-brand">KPK</span>
-                                </h1>
-                                <p className="text-xs text-slate-500 whitespace-nowrap">Jersey Convection</p>
-                            </div>
-                        )}
+                        <div className={`overflow-hidden transition-all duration-200 ease-in-out ${sidebarOpen ? 'opacity-100 w-auto translate-x-0' : 'opacity-0 w-0 -translate-x-2'}`}>
+                            <h1 className="text-base font-semibold text-slate-900 whitespace-nowrap">
+                                Kozo <span className="text-brand">KPK</span>
+                            </h1>
+                            <p className="text-xs text-slate-500 whitespace-nowrap">Jersey Convection</p>
+                        </div>
                         {/* Mobile Close Button */}
                         {isMobile && (
                             <button
@@ -188,26 +193,15 @@ export default function DashboardLayout({ user, children }: DashboardLayoutProps
                     </div>
                 </div>
 
-                {/* Toggle Button */}
-                <button
-                    onClick={() => setSidebarOpen(!sidebarOpen)}
-                    className="mx-3 mt-3 p-2.5 rounded-lg bg-slate-100 text-slate-500 hover:text-slate-900 hover:bg-slate-200 transition-all flex items-center justify-center"
-                    title={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
-                >
-                    <svg className={`w-4 h-4 transition-transform duration-300 ${sidebarOpen ? '' : 'rotate-180'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
-                    </svg>
-                </button>
+
 
                 {/* Navigation */}
                 <nav className="flex-1 px-3 py-4 space-y-6 overflow-y-auto">
                     {/* Main Menu Section */}
                     <div>
-                        {sidebarOpen && (
-                            <p className="px-3 mb-2 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                                Main Menu
-                            </p>
-                        )}
+                        <p className={`px-3 mb-2 text-[11px] font-semibold text-slate-400 uppercase tracking-wider whitespace-nowrap transition-all duration-200 ease-in-out ${sidebarOpen ? 'opacity-100' : 'opacity-0 h-0 mb-0 overflow-hidden'}`}>
+                            Main Menu
+                        </p>
                         <div className="space-y-1">
                             {mainMenuItems.map(renderNavItem)}
                         </div>
@@ -217,11 +211,9 @@ export default function DashboardLayout({ user, children }: DashboardLayoutProps
 
                     {/* Invoice Section */}
                     <div>
-                        {sidebarOpen && (
-                            <p className="px-3 mb-2 text-[11px] font-semibold text-orange-500 uppercase tracking-wider">
-                                Invoice
-                            </p>
-                        )}
+                        <p className={`px-3 mb-2 text-[11px] font-semibold text-orange-500 uppercase tracking-wider whitespace-nowrap transition-all duration-200 ease-in-out ${sidebarOpen ? 'opacity-100' : 'opacity-0 h-0 mb-0 overflow-hidden'}`}>
+                            Invoice
+                        </p>
                         <div className="space-y-1">
                             {invoiceItems.map(renderNavItem)}
                         </div>
@@ -229,11 +221,9 @@ export default function DashboardLayout({ user, children }: DashboardLayoutProps
 
                     {/* Keuangan Section */}
                     <div>
-                        {sidebarOpen && (
-                            <p className="px-3 mb-2 text-[11px] font-semibold text-emerald-500 uppercase tracking-wider">
-                                Keuangan
-                            </p>
-                        )}
+                        <p className={`px-3 mb-2 text-[11px] font-semibold text-emerald-500 uppercase tracking-wider whitespace-nowrap transition-all duration-200 ease-in-out ${sidebarOpen ? 'opacity-100' : 'opacity-0 h-0 mb-0 overflow-hidden'}`}>
+                            Keuangan
+                        </p>
                         <div className="space-y-1">
                             {keuanganItems.map(renderNavItem)}
                         </div>
@@ -241,11 +231,9 @@ export default function DashboardLayout({ user, children }: DashboardLayoutProps
 
                     {/* SPK Section */}
                     <div>
-                        {sidebarOpen && (
-                            <p className="px-3 mb-2 text-[11px] font-semibold text-blue-500 uppercase tracking-wider">
-                                Produksi
-                            </p>
-                        )}
+                        <p className={`px-3 mb-2 text-[11px] font-semibold text-blue-500 uppercase tracking-wider whitespace-nowrap transition-all duration-200 ease-in-out ${sidebarOpen ? 'opacity-100' : 'opacity-0 h-0 mb-0 overflow-hidden'}`}>
+                            Produksi
+                        </p>
                         <div className="space-y-1">
                             {spkItems.map(renderNavItem)}
                         </div>
@@ -254,11 +242,9 @@ export default function DashboardLayout({ user, children }: DashboardLayoutProps
                     {/* Settings Section - Owner Only */}
                     {user?.role === 'owner' && (
                         <div>
-                            {sidebarOpen && (
-                                <p className="px-3 mb-2 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                                    Settings
-                                </p>
-                            )}
+                            <p className={`px-3 mb-2 text-[11px] font-semibold text-slate-400 uppercase tracking-wider whitespace-nowrap transition-all duration-200 ease-in-out ${sidebarOpen ? 'opacity-100' : 'opacity-0 h-0 mb-0 overflow-hidden'}`}>
+                                Settings
+                            </p>
                             <div className="space-y-1">
                                 {renderNavItem({
                                     href: '/users',
@@ -285,44 +271,28 @@ export default function DashboardLayout({ user, children }: DashboardLayoutProps
 
                 {/* Bottom Section */}
                 <div className="p-3 border-t border-slate-200">
-                    {sidebarOpen ? (
-                        <>
-                            <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-100">
-                                <div className="w-9 h-9 rounded-full bg-brand-gradient flex items-center justify-center text-white font-medium text-sm flex-shrink-0">
-                                    {user?.full_name?.charAt(0) || 'U'}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium text-slate-900 truncate">{user?.full_name || 'User'}</p>
-                                    <p className="text-xs text-slate-500 truncate capitalize">{user?.role || 'admin'}</p>
-                                </div>
-                            </div>
-
-                            <button
-                                onClick={handleLogout}
-                                className="mt-2 w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-red-50 hover:text-red-600 transition-all"
-                            >
-                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                                </svg>
-                                Logout
-                            </button>
-                        </>
-                    ) : (
-                        <div className="flex flex-col items-center gap-2">
-                            <div className="w-9 h-9 rounded-full bg-brand-gradient flex items-center justify-center text-white font-medium text-sm">
-                                {user?.full_name?.charAt(0) || 'U'}
-                            </div>
-                            <button
-                                onClick={handleLogout}
-                                className="p-2 rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-600 transition-all"
-                                title="Logout"
-                            >
-                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                                </svg>
-                            </button>
+                    <div className={`flex items-center gap-3 p-2 rounded-lg hover:bg-slate-100 transition-all duration-200 ${sidebarOpen ? '' : 'justify-center'}`}>
+                        <div className="w-9 h-9 rounded-full bg-brand-gradient flex items-center justify-center text-white font-medium text-sm flex-shrink-0">
+                            {user?.full_name?.charAt(0) || 'U'}
                         </div>
-                    )}
+                        <div className={`flex-1 min-w-0 transition-all duration-200 ease-in-out ${sidebarOpen ? 'opacity-100 w-auto' : 'opacity-0 w-0 overflow-hidden'}`}>
+                            <p className="text-sm font-medium text-slate-900 truncate whitespace-nowrap">{user?.full_name || 'User'}</p>
+                            <p className="text-xs text-slate-500 truncate capitalize whitespace-nowrap">{user?.role || 'admin'}</p>
+                        </div>
+                    </div>
+
+                    <button
+                        onClick={handleLogout}
+                        className={`mt-2 w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-red-50 hover:text-red-600 transition-all duration-200 ${sidebarOpen ? 'justify-center' : 'justify-center'}`}
+                        title="Logout"
+                    >
+                        <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                        </svg>
+                        <span className={`whitespace-nowrap transition-all duration-200 ease-in-out ${sidebarOpen ? 'opacity-100 w-auto' : 'opacity-0 w-0 overflow-hidden'}`}>
+                            Logout
+                        </span>
+                    </button>
                 </div>
             </aside>
 

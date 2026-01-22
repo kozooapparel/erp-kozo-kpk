@@ -10,6 +10,7 @@ interface OrderWithCustomer extends Order {
 interface SPKPDFProps {
     order: OrderWithCustomer
     brand?: Brand
+    deadline?: string | null
 }
 
 // Register font (using built-in Helvetica)
@@ -253,7 +254,7 @@ const styles = StyleSheet.create({
     },
 })
 
-export default function SPKPDF({ order, brand }: SPKPDFProps) {
+export default function SPKPDF({ order, brand, deadline }: SPKPDFProps) {
     const formatDate = (date: string | null) => {
         if (!date) return '-'
         return new Date(date).toLocaleDateString('id-ID', {
@@ -416,7 +417,7 @@ export default function SPKPDF({ order, brand }: SPKPDFProps) {
                 </View>
                 <View style={styles.headerRow}>
                     <Text style={styles.headerLabel}>TANGGAL DATE LINE</Text>
-                    <Text style={styles.headerValue}>{formatDate(order.deadline)}</Text>
+                    <Text style={styles.headerValue}>{formatDate(deadline || order.deadline)}</Text>
                 </View>
 
                 {/* Main Content - 2 Column Layout */}

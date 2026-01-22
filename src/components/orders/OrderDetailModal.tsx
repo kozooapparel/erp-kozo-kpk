@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
 import { toast } from 'sonner'
-import { SPKEditor } from '@/components/spk'
+import { SPKEditor, SPKDownloadButton } from '@/components/spk'
 import { verifyDPPayment, moveOrderToNextStage } from '@/lib/actions/orders'
 
 interface OrderWithCustomer extends Order {
@@ -447,15 +447,10 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                                         <p className="text-xs text-blue-600">Nomor SPK</p>
                                         <p className="font-mono font-bold text-blue-800">{order.spk_number}</p>
                                     </div>
-                                    <button
-                                        className="px-3 py-1.5 rounded-lg bg-blue-500 text-white text-xs font-medium hover:bg-blue-600 transition-colors"
-                                        onClick={() => {
-                                            // TODO: Print SPK
-                                            alert('Fitur Print SPK coming soon!')
-                                        }}
-                                    >
-                                        Print SPK
-                                    </button>
+                                    <SPKDownloadButton
+                                        order={order}
+                                        deadline={orderInvoice?.deadline}
+                                    />
                                 </div>
                             )}
                         </div>

@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import AddCustomerModal from './AddCustomerModal'
 import CustomerDetailModal from './CustomerDetailModal'
+import EditCustomerModal from './EditCustomerModal'
 
 interface CustomerWithStats {
     id: string
@@ -22,7 +24,9 @@ interface CustomerListProps {
 export default function CustomerList({ customers }: CustomerListProps) {
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [selectedCustomer, setSelectedCustomer] = useState<CustomerWithStats | null>(null)
+    const [editingCustomer, setEditingCustomer] = useState<CustomerWithStats | null>(null)
     const [isMobile, setIsMobile] = useState(false)
+    const router = useRouter()
 
     // Detect mobile viewport
     useEffect(() => {
@@ -244,6 +248,15 @@ export default function CustomerList({ customers }: CustomerListProps) {
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                                                         </svg>
                                                     </button>
+                                                    <button
+                                                        onClick={() => setEditingCustomer(customer)}
+                                                        className="p-2 rounded-lg bg-amber-100 hover:bg-amber-200 transition-colors"
+                                                        title="Edit Customer"
+                                                    >
+                                                        <svg className="w-4 h-4 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                        </svg>
+                                                    </button>
                                                     <a
                                                         href={`https://wa.me/${customer.phone.replace(/^0/, '62')}`}
                                                         target="_blank"
@@ -280,6 +293,17 @@ export default function CustomerList({ customers }: CustomerListProps) {
                 customer={selectedCustomer}
                 isOpen={selectedCustomer !== null}
                 onClose={() => setSelectedCustomer(null)}
+            />
+
+            {/* Edit Customer Modal */}
+            <EditCustomerModal
+                customer={editingCustomer}
+                isOpen={editingCustomer !== null}
+                onClose={() => setEditingCustomer(null)}
+                onSuccess={() => {
+                    setEditingCustomer(null)
+                    router.refresh()
+                }}
             />
         </div>
     )

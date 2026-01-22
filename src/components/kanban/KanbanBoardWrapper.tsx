@@ -27,14 +27,21 @@ interface AdminProfile {
     full_name: string
 }
 
+interface BrandItem {
+    id: string
+    code: string
+    name: string
+}
+
 interface KanbanBoardWrapperProps {
     orders: OrderWithCustomerAndCreator[]
     metrics: DashboardMetrics
     customers: Customer[]
     admins: AdminProfile[]
+    brands: BrandItem[]
 }
 
-export default function KanbanBoardWrapper({ orders, metrics, customers, admins }: KanbanBoardWrapperProps) {
+export default function KanbanBoardWrapper({ orders, metrics, customers, admins, brands }: KanbanBoardWrapperProps) {
     const router = useRouter()
     const supabase = createClient()
 
@@ -64,6 +71,7 @@ export default function KanbanBoardWrapper({ orders, metrics, customers, admins 
             metrics={metrics}
             customers={customers}
             admins={admins}
+            brands={brands}
         />
     )
 }

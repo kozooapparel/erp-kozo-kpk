@@ -48,6 +48,13 @@ export default async function DashboardPage() {
         .select('id, full_name')
         .order('full_name', { ascending: true })
 
+    // Fetch all brands for filter dropdown
+    const { data: brands } = await supabase
+        .from('brands')
+        .select('id, code, name')
+        .eq('is_active', true)
+        .order('name', { ascending: true })
+
     return (
         <DashboardLayout user={profile}>
             <KanbanBoardWrapper
@@ -60,6 +67,7 @@ export default async function DashboardPage() {
                 }}
                 customers={customers || []}
                 admins={admins || []}
+                brands={brands || []}
             />
         </DashboardLayout>
     )
