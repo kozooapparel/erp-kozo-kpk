@@ -149,7 +149,7 @@ export default function DraggableOrderCard({ order, isBottleneck, onClick }: Dra
                 // Need invoice + DP verified + SPK filled
                 const hasSPK = (order.size_breakdown && Object.keys(order.size_breakdown).length > 0) ||
                     (order.spk_sections && order.spk_sections.length > 0)
-                const dpReady = order.dp_produksi_verified && hasInvoice && hasSPK
+                const dpReady = !!(order.dp_produksi_verified && hasInvoice && hasSPK)
                 const dpLabel = !hasInvoice ? 'Belum Invoice' :
                     !hasSPK ? 'Belum SPK' :
                         order.dp_produksi_verified ? 'Sudah DP' : 'Belum DP'
