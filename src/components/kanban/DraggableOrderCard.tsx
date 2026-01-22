@@ -263,14 +263,7 @@ export default function DraggableOrderCard({ order, isBottleneck, onClick }: Dra
                             </div>
                         )}
 
-                        {/* 2. Proses Layout: Show Layout URL (if exists) */}
-                        {order.stage === 'proses_layout' && order.layout_url && (
-                            <div className="relative mb-2">
-                                <div className="relative w-full h-16 rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-800">
-                                    <Image src={order.layout_url} alt="Layout" fill className="object-cover pointer-events-none" />
-                                </div>
-                            </div>
-                        )}
+
 
                         {/* Customer Name with Brand Logo */}
                         <div className="flex items-center gap-1.5 mb-1">
@@ -288,6 +281,13 @@ export default function DraggableOrderCard({ order, isBottleneck, onClick }: Dra
                                 {order.customer?.name || 'Unknown'}
                             </h4>
                         </div>
+
+                        {/* Nama PO - Show from proses_layout stage onwards if SPK is filled */}
+                        {order.nama_po && ['proses_layout', 'dp_produksi', 'antrean_produksi', 'print_press', 'cutting_jahit', 'packing', 'pelunasan', 'pengiriman'].includes(order.stage) && (
+                            <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 truncate mb-1">
+                                PO: <span className="text-slate-700 dark:text-slate-200 font-semibold">{order.nama_po}</span>
+                            </p>
+                        )}
 
                         {/* Order Details Row */}
                         <div className="flex items-center justify-between">

@@ -339,7 +339,7 @@ export default function SPKEditor({
                         <label className="flex items-center gap-2 cursor-pointer">
                             <input
                                 type="checkbox"
-                                checked={specs.need_atasan}
+                                checked={specs.need_atasan ?? false}
                                 onChange={(e) => setSpecs(prev => ({ ...prev, need_atasan: e.target.checked }))}
                                 className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                             />
@@ -348,7 +348,7 @@ export default function SPKEditor({
                         <label className="flex items-center gap-2 cursor-pointer">
                             <input
                                 type="checkbox"
-                                checked={specs.need_celana}
+                                checked={specs.need_celana ?? false}
                                 onChange={(e) => setSpecs(prev => ({ ...prev, need_celana: e.target.checked }))}
                                 className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                             />

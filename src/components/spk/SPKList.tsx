@@ -16,8 +16,9 @@ export default function SPKList({ orders }: SPKListProps) {
     const [filter, setFilter] = useState<string>('all')
     const [search, setSearch] = useState('')
 
-    // Production stages for filtering
+    // Production stages for filtering (include dp_produksi since SPK can be filled there)
     const productionStages: OrderStage[] = [
+        'dp_produksi',
         'antrean_produksi',
         'print_press',
         'cutting_jahit',
@@ -35,6 +36,7 @@ export default function SPKList({ orders }: SPKListProps) {
             const searchLower = search.toLowerCase()
             return (
                 order.spk_number?.toLowerCase().includes(searchLower) ||
+                order.nama_po?.toLowerCase().includes(searchLower) ||
                 order.customer?.name?.toLowerCase().includes(searchLower)
             )
         }
@@ -61,7 +63,7 @@ export default function SPKList({ orders }: SPKListProps) {
                     </svg>
                     <input
                         type="text"
-                        placeholder="Cari SPK atau customer..."
+                        placeholder="Cari SPK, PO, atau customer..."
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
@@ -92,14 +94,24 @@ export default function SPKList({ orders }: SPKListProps) {
                     </div>
                 ) : (
                     filteredOrders.map(order => (
-                        <div key={order.id} className="bg-white rounded-xl border border-slate-200 p-4 hover:shadow-md transition-shadow">
+                        <div key={order.id} className={`bg-white rounded-xl border p-4 hover:shadow-md transition-shadow ${order.spk_number ? 'border-slate-200' : 'border-amber-300 bg-amber-50/30'}`}>
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                                 {/* SPK Info */}
                                 <div className="flex-1">
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <span className="font-mono font-bold text-blue-600">{order.spk_number}</span>
+                                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                        {order.spk_number ? (
+                                            <span className="font-mono font-bold text-blue-600">{order.spk_number}</span>
+                                        ) : (
+                                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
+                                                Draft SPK
+                                            </span>
+                                        )}
+                                        {order.nama_po && (
+                                            <span className="text-sm text-slate-600">• PO: {order.nama_po}</span>
+                                        )}
                                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${order.stage === 'pengiriman' ? 'bg-purple-100 text-purple-700' :
-                                            'bg-blue-100 text-blue-700'
+                                            order.stage === 'dp_produksi' ? 'bg-amber-100 text-amber-700' :
+                                                'bg-blue-100 text-blue-700'
                                             }`}>
                                             {STAGE_LABELS[order.stage]}
                                         </span>
@@ -110,8 +122,16 @@ export default function SPKList({ orders }: SPKListProps) {
                                         <span>•</span>
                                         <span>Deadline: {formatDate(order.deadline)}</span>
                                     </div>
-                                    {/* Size Breakdown Preview */}
-                                    {order.size_breakdown && Object.keys(order.size_breakdown).length > 0 && (
+                                    {/* Size Breakdown Preview - from spk_sections or size_breakdown */}
+                                    {order.spk_sections && order.spk_sections.length > 0 ? (
+                                        <div className="flex gap-1 mt-2 flex-wrap">
+                                            {order.spk_sections.map((section: { id: string; title: string; size_breakdown?: Record<string, number> }) => (
+                                                <span key={section.id} className="px-2 py-0.5 rounded bg-blue-50 text-xs text-blue-600 border border-blue-100">
+                                                    {section.title}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    ) : order.size_breakdown && Object.keys(order.size_breakdown).length > 0 && (
                                         <div className="flex gap-1 mt-2">
                                             {Object.entries(order.size_breakdown).map(([size, qty]) => (
                                                 <span key={size} className="px-2 py-0.5 rounded bg-slate-100 text-xs text-slate-600">

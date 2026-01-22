@@ -30,7 +30,7 @@ export default function SPKDownloadButton({ order }: SPKDownloadButtonProps) {
             const url = URL.createObjectURL(blob)
             const link = document.createElement('a')
             link.href = url
-            link.download = `${order.spk_number || 'SPK'}.pdf`
+            link.download = `SPK-${order.nama_po || order.spk_number || order.customer?.name || 'Draft'}.pdf`
             document.body.appendChild(link)
             link.click()
             document.body.removeChild(link)

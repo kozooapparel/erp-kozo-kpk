@@ -31,7 +31,7 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
     const [dpProduksiAmount, setDpProduksiAmount] = useState('')
     const [pelunasanAmount, setPelunasanAmount] = useState('')
     const [previewImage, setPreviewImage] = useState<string | null>(null)
-    const [orderInvoice, setOrderInvoice] = useState<{ id: string; no_invoice: string; total: number; sisa_tagihan: number } | null>(null)
+    const [orderInvoice, setOrderInvoice] = useState<{ id: string; no_invoice: string; total: number; sisa_tagihan: number; deadline: string | null } | null>(null)
     const router = useRouter()
     const supabase = createClient()
 
@@ -41,7 +41,7 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
             if (!order?.id) return
             const { data } = await supabase
                 .from('invoices')
-                .select('id, no_invoice, total, sisa_tagihan')
+                .select('id, no_invoice, total, sisa_tagihan, deadline')
                 .eq('order_id', order.id)
                 .order('created_at', { ascending: false })
                 .limit(1)
@@ -304,8 +304,8 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                     >
                         Bayar
                     </button>
-                    {/* SPK tab - show at dp_produksi and onwards */}
-                    {['dp_produksi', 'antrean_produksi', 'print_press', 'cutting_jahit', 'packing', 'pelunasan', 'pengiriman'].includes(order.stage) && (
+                    {/* SPK tab - show at proses_layout and onwards */}
+                    {['proses_layout', 'dp_produksi', 'antrean_produksi', 'print_press', 'cutting_jahit', 'packing', 'pelunasan', 'pengiriman'].includes(order.stage) && (
                         <button
                             onClick={() => setActiveTab('spk')}
                             className={`flex-1 py-3 text-sm font-medium transition-colors ${activeTab === 'spk'
@@ -365,33 +365,24 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                                 </div>
                             )}
 
-                            {/* Mockup or Layout Preview */}
-                            {(order.layout_url || order.mockup_url) && (
+                            {/* Mockup Preview - Only show mockup image */}
+                            {order.mockup_url && (
                                 <div className="space-y-2">
                                     <div
                                         className="relative w-full h-48 rounded-xl overflow-hidden bg-slate-100 cursor-zoom-in hover:opacity-95 transition-opacity"
-                                        onClick={() => setPreviewImage(order.layout_url || order.mockup_url)}
+                                        onClick={() => setPreviewImage(order.mockup_url)}
                                     >
                                         <Image
-                                            src={order.layout_url || order.mockup_url || ''}
-                                            alt={order.layout_url ? "Layout Final" : "Mockup Desain"}
+                                            src={order.mockup_url || ''}
+                                            alt="Mockup Desain"
                                             fill
                                             className="object-contain"
                                         />
                                         {/* Label Badge */}
                                         <div className="absolute top-2 left-2 px-2 py-1 rounded-md bg-black/50 backdrop-blur-sm text-white text-[10px] font-medium">
-                                            {order.layout_url ? "Layout Final" : "Mockup Desain"}
+                                            Mockup Desain
                                         </div>
                                     </div>
-                                    {/* If showing layout, show link to view original mockup? */}
-                                    {order.layout_url && order.mockup_url && (
-                                        <p
-                                            className="text-xs text-blue-500 hover:text-blue-600 cursor-pointer text-center"
-                                            onClick={() => setPreviewImage(order.mockup_url)}
-                                        >
-                                            Lihat Original Mockup
-                                        </p>
-                                    )}
                                 </div>
                             )}
 
@@ -403,7 +394,7 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                                 </div>
                                 <div className="p-4 rounded-xl bg-slate-50">
                                     <p className="text-xs text-slate-500 mb-1">Deadline</p>
-                                    <p className="text-xl font-bold text-slate-900">{formatDate(order.deadline)}</p>
+                                    <p className="text-xl font-bold text-slate-900">{formatDate(orderInvoice?.deadline || order.deadline)}</p>
                                 </div>
                             </div>
 
@@ -899,132 +890,125 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
 
                             {/* Layout Section for proses_layout */}
                             {order.stage === 'proses_layout' && (
-                                <div className="space-y-4">
-                                    {/* Info - Only show if no layout link yet */}
-                                    {!order.layout_url && (
-                                        <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center gap-3">
-                                            <svg className="w-6 h-6 text-blue-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <div className="border border-slate-200 rounded-xl p-4 bg-white">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <div className="flex items-center gap-2">
+                                            <svg className="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                                             </svg>
-                                            <div>
-                                                <p className="text-blue-400 font-medium">Masukkan Link Google Drive</p>
-                                                <p className="text-sm text-slate-500">Upload layout ke Google Drive lalu paste link sharing di sini.</p>
-                                            </div>
+                                            <p className="text-sm font-medium text-slate-900">
+                                                Link Layout (Google Drive)
+                                            </p>
                                         </div>
-                                    )}
+                                        {order.layout_url && (
+                                            <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-emerald-100 text-emerald-700">
+                                                ✓ Tersimpan
+                                            </span>
+                                        )}
+                                    </div>
 
-                                    {/* Link Input Area */}
-                                    <div className="border border-slate-200 rounded-xl p-4 bg-white">
-                                        <p className="text-sm font-medium text-slate-900 mb-3">
-                                            Link Layout Final (Google Drive)
-                                        </p>
+                                    {order.layout_url ? (
+                                        /* VIEW MODE - Link sudah tersimpan */
+                                        <div className="flex gap-2">
+                                            <a
+                                                href={order.layout_url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-blue-500 text-white font-medium hover:bg-blue-600 transition-colors"
+                                            >
+                                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                                </svg>
+                                                Buka di Google Drive
+                                            </a>
+                                            <button
+                                                onClick={async () => {
+                                                    if (!confirm('Hapus link layout ini?')) return
 
-                                        <div className="space-y-3">
-                                            <div className="relative">
-                                                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-                                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                                                    </svg>
-                                                </div>
+                                                    try {
+                                                        const { error } = await supabase
+                                                            .from('orders')
+                                                            .update({
+                                                                layout_url: null,
+                                                                layout_completed: false,
+                                                                layout_completed_at: null
+                                                            } as any)
+                                                            .eq('id', order.id)
+
+                                                        if (error) throw error
+                                                        toast.success('Link dihapus')
+                                                        router.refresh()
+                                                        onClose()
+                                                    } catch (err) {
+                                                        toast.error('Gagal menghapus link')
+                                                    }
+                                                }}
+                                                className="px-3 py-2.5 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition-colors"
+                                                title="Hapus Link"
+                                            >
+                                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        /* EDIT MODE - Belum ada link */
+                                        <div className="flex gap-2">
+                                            <div className="relative flex-1">
                                                 <input
                                                     type="url"
                                                     id="layout-drive-link"
-                                                    defaultValue={order.layout_url || ''}
-                                                    placeholder="https://drive.google.com/..."
-                                                    className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                                                    placeholder="Paste link Google Drive..."
+                                                    className="w-full px-4 py-2.5 rounded-lg bg-slate-50 border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
                                                 />
                                             </div>
+                                            <button
+                                                onClick={async () => {
+                                                    const input = document.getElementById('layout-drive-link') as HTMLInputElement
+                                                    const link = input?.value?.trim()
 
-                                            <div className="flex gap-2">
-                                                {order.layout_url && (
-                                                    <a
-                                                        href={order.layout_url}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-blue-50 text-blue-600 font-medium hover:bg-blue-100 transition-colors"
-                                                    >
-                                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                                                        </svg>
-                                                        Buka di Drive
-                                                    </a>
-                                                )}
-                                                <button
-                                                    onClick={async () => {
-                                                        const input = document.getElementById('layout-drive-link') as HTMLInputElement
-                                                        const link = input?.value?.trim()
+                                                    if (!link) {
+                                                        toast.warning('Masukkan link Google Drive')
+                                                        return
+                                                    }
 
-                                                        if (!link) {
-                                                            toast.warning('Masukkan link Google Drive')
-                                                            return
-                                                        }
+                                                    // Simple validation for Google Drive links
+                                                    if (!link.includes('drive.google.com') && !link.includes('docs.google.com')) {
+                                                        toast.warning('Link harus dari Google Drive')
+                                                        return
+                                                    }
 
-                                                        // Simple validation for Google Drive links
-                                                        if (!link.includes('drive.google.com') && !link.includes('docs.google.com')) {
-                                                            toast.warning('Link harus dari Google Drive')
-                                                            return
-                                                        }
+                                                    try {
+                                                        setLoading(true)
+                                                        const { error } = await supabase
+                                                            .from('orders')
+                                                            .update({
+                                                                layout_url: link,
+                                                                layout_completed: true,
+                                                                layout_completed_at: new Date().toISOString()
+                                                            } as any)
+                                                            .eq('id', order.id)
 
-                                                        try {
-                                                            setLoading(true)
-                                                            const { error } = await supabase
-                                                                .from('orders')
-                                                                .update({
-                                                                    layout_url: link,
-                                                                    layout_completed: true,
-                                                                    layout_completed_at: new Date().toISOString()
-                                                                } as any)
-                                                                .eq('id', order.id)
-
-                                                            if (error) throw error
-                                                            toast.success('Link layout berhasil disimpan!')
-                                                            router.refresh()
-                                                        } catch (err) {
-                                                            console.error('Error saving layout link:', err)
-                                                            toast.error('Gagal menyimpan link')
-                                                        } finally {
-                                                            setLoading(false)
-                                                        }
-                                                    }}
-                                                    disabled={loading}
-                                                    className={`${order.layout_url ? '' : 'flex-1'} flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-emerald-500 text-white font-medium hover:bg-emerald-600 transition-colors disabled:opacity-50`}
-                                                >
-                                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                                    </svg>
-                                                    Simpan Link
-                                                </button>
-                                            </div>
-
-                                            {order.layout_url && (
-                                                <button
-                                                    onClick={async () => {
-                                                        if (!confirm('Hapus link layout ini?')) return
-
-                                                        try {
-                                                            const { error } = await supabase
-                                                                .from('orders')
-                                                                .update({
-                                                                    layout_url: null,
-                                                                    layout_completed: false,
-                                                                    layout_completed_at: null
-                                                                } as any)
-                                                                .eq('id', order.id)
-
-                                                            if (error) throw error
-                                                            toast.success('Link dihapus')
-                                                            router.refresh()
-                                                        } catch (err) {
-                                                            toast.error('Gagal menghapus link')
-                                                        }
-                                                    }}
-                                                    className="text-xs text-red-500 hover:text-red-600 font-medium text-center"
-                                                >
-                                                    Hapus Link
-                                                </button>
-                                            )}
+                                                        if (error) throw error
+                                                        toast.success('Link layout berhasil disimpan!')
+                                                        router.refresh()
+                                                        onClose()
+                                                    } catch (err) {
+                                                        console.error('Error saving layout link:', err)
+                                                        toast.error('Gagal menyimpan link')
+                                                    } finally {
+                                                        setLoading(false)
+                                                    }
+                                                }}
+                                                disabled={loading}
+                                                className="px-4 py-2.5 rounded-lg bg-emerald-500 text-white font-medium hover:bg-emerald-600 transition-colors disabled:opacity-50"
+                                            >
+                                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                </svg>
+                                            </button>
                                         </div>
-                                    </div>
+                                    )}
                                 </div>
                             )}
 
@@ -1314,6 +1298,7 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
 
                                     if (error) throw error
                                     toast.success('SPK data berhasil disimpan!')
+                                    onClose()
                                     router.refresh()
                                 } catch (err) {
                                     console.error('Save SPK error:', err)
