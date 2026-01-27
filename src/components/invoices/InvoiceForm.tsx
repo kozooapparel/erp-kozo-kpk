@@ -9,6 +9,7 @@ import { getBankInfo, getCompanyInfo, BankInfo, CompanyInfo } from '@/lib/action
 import { formatCurrency, formatDateInput } from '@/lib/utils/format'
 import { terbilang } from '@/lib/utils/terbilang'
 import { toast } from 'sonner'
+import BrandSelector from './BrandSelector'
 
 interface InvoiceFormProps {
     customers: Customer[]
@@ -47,6 +48,7 @@ export default function InvoiceForm({
     const [terminPembayaran, setTerminPembayaran] = useState(invoice?.termin_pembayaran?.toString() || '16')
     const [noPo, setNoPo] = useState(invoice?.no_po || '')
     const [ppnPersen, setPpnPersen] = useState(invoice?.ppn_persen?.toString() || '0')
+    const [selectedBrandId, setSelectedBrandId] = useState<string | null>(prefilledBrandId || null)
 
     // Items state
     const [items, setItems] = useState<InvoiceItemRow[]>(() => {
@@ -90,14 +92,15 @@ export default function InvoiceForm({
             setBankInfo(bank)
             setCompanyInfo(company)
 
-            // Fetch brand info if prefilledBrandId is provided
-            if (prefilledBrandId) {
+            // Fetch brand info if brand is selected or prefilled
+            const activeBrandId = selectedBrandId || prefilledBrandId
+            if (activeBrandId) {
                 const { createClient } = await import('@/lib/supabase/client')
                 const supabase = createClient()
                 const { data: brand } = await supabase
                     .from('brands')
-                    .select('company_name, address, logo_url')
-                    .eq('id', prefilledBrandId)
+                    .select('company_name, address, logo_url, bank_name, account_name, account_number')
+                    .eq('id', activeBrandId)
                     .single()
                 if (brand) {
                     setBrandInfo({
@@ -105,11 +108,19 @@ export default function InvoiceForm({
                         address: brand.address,
                         logo_url: brand.logo_url
                     })
+                    // Update bank info with brand-specific data
+                    if (brand.bank_name && brand.account_name && brand.account_number) {
+                        setBankInfo({
+                            bank_name: brand.bank_name,
+                            account_name: brand.account_name,
+                            account_number: brand.account_number
+                        })
+                    }
                 }
             }
         }
         loadData()
-    }, [prefilledBrandId])
+    }, [prefilledBrandId, selectedBrandId])
 
     // Calculate totals
     const subTotal = items.reduce((sum, item) => sum + item.sub_total, 0)
@@ -191,6 +202,13 @@ export default function InvoiceForm({
             return
         }
 
+        // Validate brand selection (critical for bank account info)
+        const finalBrandId = selectedBrandId || prefilledBrandId
+        if (!finalBrandId && !isEdit) {
+            toast.error('🚨 Pilih Brand terlebih dahulu! Ini menentukan rekening bank yang akan digunakan.')
+            return
+        }
+
         if (items.every(item => !item.deskripsi)) {
             toast.warning('Tambahkan minimal satu item')
             return
@@ -224,10 +242,12 @@ export default function InvoiceForm({
                     ppn_persen: parseFloat(ppnPersen) || 0
                 }, invoiceItems)
             } else {
+                const finalBrandId = selectedBrandId || prefilledBrandId
                 await createInvoice({
                     customerName,
                     customer_id: customerId,
                     order_id: orderId || null,
+                    brand_id: finalBrandId || null,
                     tanggal,
                     perkiraan_produksi: perkiraanProduksi ? parseInt(perkiraanProduksi) : null,
                     deadline: deadline || null,
@@ -268,6 +288,15 @@ export default function InvoiceForm({
                     Buat Baru
                 </button>
             </div>
+
+            {/* Brand Selector - Only show for manual invoice creation (no order context) */}
+            {!prefilledBrandId && !isEdit && (
+                <BrandSelector
+                    selectedBrandId={selectedBrandId}
+                    onSelect={setSelectedBrandId}
+                    required={true}
+                />
+            )}
 
             {/* Invoice Card */}
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">

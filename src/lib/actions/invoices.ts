@@ -168,7 +168,7 @@ export async function createInvoice(
     const { data: { user } } = await supabase.auth.getUser()
 
     // Get order data including brand_id and dp_desain info
-    let brand_id: string | null = null
+    let orderBrandId: string | null = null
     let orderData: { brand_id: string | null; dp_desain_verified: boolean; dp_desain_amount: number } | null = null
 
     if (invoiceData.order_id) {
@@ -177,9 +177,12 @@ export async function createInvoice(
             .select('brand_id, dp_desain_verified, dp_desain_amount')
             .eq('id', invoiceData.order_id)
             .single()
-        brand_id = order?.brand_id || null
+        orderBrandId = order?.brand_id || null
         orderData = order
     }
+
+    // Prioritize brand_id from invoiceData (manual selection), then fallback to order's brand
+    const finalBrandId = invoiceData.brand_id || orderBrandId
 
     // Generate invoice number
     const noInvoice = await generateUniqueInvoiceNumber(
@@ -193,7 +196,7 @@ export async function createInvoice(
     const ppnAmount = (subTotal * ppnPersen) / 100
     const total = subTotal + ppnAmount
 
-    // Create invoice with brand_id from order
+    // Create invoice with brand_id from manual selection or order
     const { data: invoice, error: invoiceError } = await supabase
         .from('invoices')
         .insert({
@@ -201,7 +204,7 @@ export async function createInvoice(
             tanggal: invoiceData.tanggal,
             customer_id: invoiceData.customer_id,
             order_id: invoiceData.order_id,
-            brand_id: brand_id,  // Auto-inherit from order
+            brand_id: finalBrandId,  // Use prioritized brand_id
             perkiraan_produksi: invoiceData.perkiraan_produksi,
             deadline: invoiceData.deadline,
             termin_pembayaran: invoiceData.termin_pembayaran,
