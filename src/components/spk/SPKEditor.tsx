@@ -39,7 +39,7 @@ const DEFAULT_PRODUCTION_SPECS: ProductionSpecs = {
     need_celana: false,
 }
 
-const AVAILABLE_SIZES = ['S', 'M', 'L', 'XL', 'XXL', 'XXXL', '2XL', '3XL', '4XL', '5XL', '6XL']
+const AVAILABLE_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL', '2XL', '3XL', '4XL', '5XL', '6XL']
 const SLEEVE_TYPES = ['Pendek', 'Panjang', 'Tanpa Lengan'] as const
 
 export default function SPKEditor({
