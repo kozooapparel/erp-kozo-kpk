@@ -543,8 +543,8 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                                             <button
                                                 onClick={async () => {
                                                     const amount = parseInt(dpDesainAmount) || 0
-                                                    if (amount <= 0) {
-                                                        toast.warning('Masukkan nominal DP Desain')
+                                                    if (amount < 0) {
+                                                        toast.warning('Nominal tidak boleh negatif')
                                                         return
                                                     }
                                                     await handleVerifyPayment('dp_desain', amount)
