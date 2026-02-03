@@ -262,3 +262,67 @@ export async function moveOrderToNextStage(
         }
     }
 }
+
+/**
+ * Delete an order and its related data (invoices, kuitansi)
+ */
+export async function deleteOrder(orderId: string): Promise<{ success: boolean; message: string }> {
+    const supabase = await createClient()
+
+    try {
+        // First, get all invoices for this order
+        const { data: invoices } = await supabase
+            .from('invoices')
+            .select('id')
+            .eq('order_id', orderId)
+
+        // Delete kuitansi for each invoice
+        if (invoices && invoices.length > 0) {
+            const invoiceIds = invoices.map(inv => inv.id)
+
+            const { error: kuitansiError } = await supabase
+                .from('kuitansi')
+                .delete()
+                .in('invoice_id', invoiceIds)
+
+            if (kuitansiError) {
+                console.error('Delete kuitansi error:', kuitansiError)
+            }
+        }
+
+        // Delete invoices for this order
+        const { error: invoiceError } = await supabase
+            .from('invoices')
+            .delete()
+            .eq('order_id', orderId)
+
+        if (invoiceError) {
+            console.error('Delete invoices error:', invoiceError)
+        }
+
+        // Finally, delete the order
+        const { error: orderError } = await supabase
+            .from('orders')
+            .delete()
+            .eq('id', orderId)
+
+        if (orderError) throw orderError
+
+        revalidatePath('/')
+        revalidatePath('/dashboard')
+        revalidatePath('/invoices')
+        revalidatePath('/kuitansi')
+
+        return {
+            success: true,
+            message: 'Order berhasil dihapus'
+        }
+
+    } catch (err) {
+        console.error('Delete order error:', err)
+        return {
+            success: false,
+            message: err instanceof Error ? err.message : 'Gagal menghapus order'
+        }
+    }
+}
