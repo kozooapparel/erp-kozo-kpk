@@ -1343,6 +1343,23 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                             productionNotes={order.production_notes}
                             onSave={async (data) => {
                                 try {
+                                    // Calculate total_quantity from all sections
+                                    let totalQuantity = 0
+                                    for (const section of data.spk_sections) {
+                                        // Format A: Simple size breakdown
+                                        if (section.size_breakdown && Object.keys(section.size_breakdown).length > 0) {
+                                            totalQuantity += Object.values(section.size_breakdown).reduce((sum, qty) => sum + qty, 0)
+                                        }
+                                        // Format B: Personalization list (count people)
+                                        else if (section.personalization_list && section.personalization_list.length > 0) {
+                                            totalQuantity += section.personalization_list.length
+                                        }
+                                        // Format C: Size rekap with keterangan
+                                        else if (section.size_rekap && section.size_rekap.length > 0) {
+                                            totalQuantity += section.size_rekap.reduce((sum, item) => sum + item.jumlah, 0)
+                                        }
+                                    }
+
                                     const { error } = await supabase
                                         .from('orders')
                                         .update({
@@ -1350,6 +1367,8 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                                             spk_sections: data.spk_sections,
                                             production_specs: data.production_specs,
                                             production_notes: data.production_notes,
+                                            // Update total_quantity from SPK sections
+                                            total_quantity: totalQuantity > 0 ? totalQuantity : order.total_quantity,
                                         })
                                         .eq('id', order.id)
 
