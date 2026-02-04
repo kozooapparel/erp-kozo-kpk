@@ -50,6 +50,7 @@ export default async function EditInvoicePage({
                 <InvoiceForm
                     customers={customers || []}
                     invoice={invoice}
+                    prefilledBrandId={invoice.brand_id || undefined}
                 />
             </div>
         </DashboardLayout>
