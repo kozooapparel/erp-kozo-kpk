@@ -39,7 +39,8 @@ export async function updateSession(request: NextRequest) {
         !user &&
         !request.nextUrl.pathname.startsWith('/login') &&
         !request.nextUrl.pathname.startsWith('/auth') &&
-        !request.nextUrl.pathname.startsWith('/api/iclock') // Allow fingerprint machine ADMS protocol
+        !request.nextUrl.pathname.startsWith('/api/iclock') && // Allow fingerprint machine ADMS protocol
+        !request.nextUrl.pathname.startsWith('/api/bioclock') // Allow Bioclock Push SDK webhook
     ) {
         // no user, potentially redirect to login page
         const url = request.nextUrl.clone()
