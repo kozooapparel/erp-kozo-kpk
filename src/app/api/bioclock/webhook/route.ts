@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 /**
  * Bioclock Push SDK Webhook Endpoint
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
 
         console.log(`[Bioclock] Processing ${event} for NIK: ${nik} at ${transactionTime}`)
 
-        const supabase = await createClient()
+        const supabase = createAdminClient()
 
         // Find employee by NIK
         const { data: employee, error: employeeError } = await supabase
