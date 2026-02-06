@@ -77,15 +77,20 @@ export default function PayrollDetailClient({
         <div className="space-y-6">
             {/* Header */}
             <div>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
-                        <div className="flex items-center gap-3">
-                            <h1 className="text-3xl font-bold text-slate-900">{period.period_name}</h1>
+                        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">{period.period_name}</h1>
                             {getStatusBadge(period.status)}
                         </div>
-                        <p className="text-slate-500 mt-1">
-                            {formatDate(period.start_date)} - {formatDate(period.end_date)} |
-                            Pembayaran: {formatDate(period.payment_date)}
+                        <p className="text-xs sm:text-sm text-slate-500 mt-1">
+                            <span className="block sm:inline">
+                                {formatDate(period.start_date)} - {formatDate(period.end_date)}
+                            </span>
+                            <span className="hidden sm:inline"> | </span>
+                            <span className="block sm:inline">
+                                Pembayaran: {formatDate(period.payment_date)}
+                            </span>
                         </p>
                     </div>
 
@@ -105,27 +110,81 @@ export default function PayrollDetailClient({
             </div>
 
             {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm">
-                    <p className="text-sm text-slate-500">Total Karyawan</p>
-                    <p className="text-2xl font-bold text-slate-900">{period.payroll_entries?.length || 0}</p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+                <div className="p-4 sm:p-6 rounded-2xl bg-white border border-slate-200 shadow-sm">
+                    <p className="text-xs sm:text-sm text-slate-500">Total Karyawan</p>
+                    <p className="text-xl sm:text-2xl font-bold text-slate-900">{period.payroll_entries?.length || 0}</p>
                 </div>
-                <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm">
-                    <p className="text-sm text-slate-500">Total Gross Salary</p>
-                    <p className="text-2xl font-bold text-emerald-600">{formatCurrency(totalGross)}</p>
+                <div className="p-4 sm:p-6 rounded-2xl bg-white border border-slate-200 shadow-sm">
+                    <p className="text-xs sm:text-sm text-slate-500">Total Gross</p>
+                    <p className="text-lg sm:text-2xl font-bold text-emerald-600 truncate">{formatCurrency(totalGross)}</p>
                 </div>
-                <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm">
-                    <p className="text-sm text-slate-500">Total Potongan</p>
-                    <p className="text-2xl font-bold text-red-600">-{formatCurrency(totalDeductions)}</p>
+                <div className="p-4 sm:p-6 rounded-2xl bg-white border border-slate-200 shadow-sm">
+                    <p className="text-xs sm:text-sm text-slate-500">Total Potongan</p>
+                    <p className="text-lg sm:text-2xl font-bold text-red-600 truncate">-{formatCurrency(totalDeductions)}</p>
                 </div>
-                <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm">
-                    <p className="text-sm text-slate-500">Total Net Salary</p>
-                    <p className="text-2xl font-bold text-purple-600">{formatCurrency(totalNet)}</p>
+                <div className="p-4 sm:p-6 rounded-2xl bg-white border border-slate-200 shadow-sm">
+                    <p className="text-xs sm:text-sm text-slate-500">Total Net</p>
+                    <p className="text-lg sm:text-2xl font-bold text-purple-600 truncate">{formatCurrency(totalNet)}</p>
                 </div>
             </div>
 
-            {/* Payroll Entries */}
-            <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm">
+            {/* Payroll Entries - Mobile Cards */}
+            <div className="block md:hidden space-y-3">
+                <h2 className="text-lg font-semibold text-slate-900">Detail Slip Gaji</h2>
+                {period.payroll_entries?.map((entry) => (
+                    <div key={entry.id} className="p-4 rounded-xl bg-white border border-slate-200 shadow-sm">
+                        <div className="flex items-center justify-between mb-3">
+                            <div>
+                                <p className="font-semibold text-slate-900">{entry.employees.full_name}</p>
+                                <p className="text-xs text-slate-500">{entry.employees.nik} • {entry.employees.department}</p>
+                            </div>
+                            <SlipGajiPrint
+                                entry={entry}
+                                period={{
+                                    period_name: period.period_name,
+                                    start_date: period.start_date,
+                                    end_date: period.end_date,
+                                    payment_date: period.payment_date
+                                }}
+                            />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                            <div>
+                                <p className="text-slate-500">Gaji Pokok</p>
+                                <p className="font-medium">{formatCurrency(entry.base_salary)}</p>
+                            </div>
+                            <div>
+                                <p className="text-slate-500">Hari Kerja</p>
+                                <p className="font-medium">{entry.total_work_days} hari</p>
+                            </div>
+                            <div>
+                                <p className="text-slate-500">Tunjangan</p>
+                                <p className="font-medium text-emerald-600">+{formatCurrency(entry.total_allowances)}</p>
+                            </div>
+                            <div>
+                                <p className="text-slate-500">Lembur</p>
+                                <p className="font-medium text-blue-600">+{formatCurrency(entry.total_overtime)}</p>
+                            </div>
+                            <div>
+                                <p className="text-slate-500">Bonus</p>
+                                <p className="font-medium text-purple-600">+{formatCurrency(entry.total_bonuses)}</p>
+                            </div>
+                            <div>
+                                <p className="text-slate-500">Potongan</p>
+                                <p className="font-medium text-red-600">-{formatCurrency(entry.total_deductions)}</p>
+                            </div>
+                        </div>
+                        <div className="mt-3 pt-3 border-t border-slate-200 flex justify-between items-center">
+                            <span className="font-semibold text-slate-900">Gaji Bersih</span>
+                            <span className="text-lg font-bold text-purple-600">{formatCurrency(entry.net_salary)}</span>
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            {/* Payroll Entries - Desktop Table */}
+            <div className="hidden md:block p-6 rounded-2xl bg-white border border-slate-200 shadow-sm">
                 <h2 className="text-xl font-semibold text-slate-900 mb-4">Detail Slip Gaji</h2>
 
                 <div className="overflow-x-auto">
