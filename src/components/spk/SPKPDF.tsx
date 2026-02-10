@@ -16,7 +16,10 @@ interface SPKPDFProps {
 // Register font (using built-in Helvetica)
 const styles = StyleSheet.create({
     page: {
-        padding: 20,
+        paddingTop: 20,
+        paddingLeft: 20,
+        paddingRight: 20,
+        paddingBottom: 40,
         fontSize: 8,
         fontFamily: 'Helvetica',
         backgroundColor: '#ffffff',
@@ -72,8 +75,8 @@ const styles = StyleSheet.create({
         gap: 5,
     },
     mockupImage: {
-        width: 80,
-        height: 100,
+        width: 280,
+        height: 340,
         objectFit: 'contain',
         border: '1px solid #e0e0e0',
     },
