@@ -1177,8 +1177,8 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                             )}
 
 
-                            {/* Layout Section for proses_layout */}
-                            {order.stage === 'proses_layout' && (
+                            {/* Layout Section - Show from proses_layout onwards */}
+                            {['proses_layout', 'antrean_produksi', 'print_press', 'cutting_jahit', 'packing', 'pelunasan', 'pengiriman'].includes(order.stage) && (
                                 <div className="border border-slate-200 rounded-xl p-4 bg-white">
                                     <div className="flex items-center justify-between mb-3">
                                         <div className="flex items-center gap-2">
@@ -1210,38 +1210,41 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                                                 </svg>
                                                 Buka di Google Drive
                                             </a>
-                                            <button
-                                                onClick={async () => {
-                                                    if (!confirm('Hapus link layout ini?')) return
+                                            {/* Delete button - only on proses_layout */}
+                                            {order.stage === 'proses_layout' && (
+                                                <button
+                                                    onClick={async () => {
+                                                        if (!confirm('Hapus link layout ini?')) return
 
-                                                    try {
-                                                        const { error } = await supabase
-                                                            .from('orders')
-                                                            .update({
-                                                                layout_url: null,
-                                                                layout_completed: false,
-                                                                layout_completed_at: null
-                                                            } as any)
-                                                            .eq('id', order.id)
+                                                        try {
+                                                            const { error } = await supabase
+                                                                .from('orders')
+                                                                .update({
+                                                                    layout_url: null,
+                                                                    layout_completed: false,
+                                                                    layout_completed_at: null
+                                                                } as any)
+                                                                .eq('id', order.id)
 
-                                                        if (error) throw error
-                                                        toast.success('Link dihapus')
-                                                        router.refresh()
-                                                        onClose()
-                                                    } catch (err) {
-                                                        toast.error('Gagal menghapus link')
-                                                    }
-                                                }}
-                                                className="px-3 py-2.5 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition-colors"
-                                                title="Hapus Link"
-                                            >
-                                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                </svg>
-                                            </button>
+                                                            if (error) throw error
+                                                            toast.success('Link dihapus')
+                                                            router.refresh()
+                                                            onClose()
+                                                        } catch (err) {
+                                                            toast.error('Gagal menghapus link')
+                                                        }
+                                                    }}
+                                                    className="px-3 py-2.5 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition-colors"
+                                                    title="Hapus Link"
+                                                >
+                                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                    </svg>
+                                                </button>
+                                            )}
                                         </div>
-                                    ) : (
-                                        /* EDIT MODE - Belum ada link */
+                                    ) : order.stage === 'proses_layout' ? (
+                                        /* EDIT MODE - Belum ada link (only on proses_layout) */
                                         <div className="flex gap-2">
                                             <div className="relative flex-1">
                                                 <input
@@ -1297,6 +1300,9 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                                                 </svg>
                                             </button>
                                         </div>
+                                    ) : (
+                                        /* No link, not in proses_layout - show info */
+                                        <p className="text-xs text-slate-400 italic">Belum ada link layout</p>
                                     )}
                                 </div>
                             )}

@@ -233,23 +233,21 @@ export default function OrderCard({ order, isBottleneck, onClick }: OrderCardPro
                     </div>
                 )}
 
-                {/* 2. Proses Layout: Show Layout URL (if exists) */}
-                {order.stage === 'proses_layout' && order.layout_url && (
+                {/* 2. Layout Link: Show from proses_layout onwards */}
+                {order.layout_url && ['proses_layout', 'antrean_produksi', 'print_press', 'cutting_jahit', 'packing', 'pelunasan', 'pengiriman'].includes(order.stage) && (
                     <div className="mt-2 pt-2 border-t border-slate-100">
-                        <div
-                            onClick={(e) => {
-                                e.stopPropagation()
-                                setShowImagePreview(true)
-                            }}
-                            className="relative w-full h-16 rounded-lg overflow-hidden bg-slate-50 cursor-zoom-in hover:ring-2 hover:ring-blue-400 transition-all"
+                        <a
+                            href={order.layout_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="flex items-center justify-center gap-1.5 w-full py-1.5 px-3 rounded-lg bg-blue-50 text-blue-600 text-xs font-medium hover:bg-blue-100 transition-colors border border-blue-200"
                         >
-                            <Image
-                                src={order.layout_url}
-                                alt="Layout"
-                                fill
-                                className="object-cover"
-                            />
-                        </div>
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                            </svg>
+                            Buka Layout
+                        </a>
                     </div>
                 )}
             </div>
