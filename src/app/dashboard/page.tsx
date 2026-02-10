@@ -26,6 +26,7 @@ export default async function DashboardPage() {
         .single()
 
     // Fetch all orders with customer info, creator (admin) profile, AND brand
+    // Exclude archived orders from Kanban view
     const { data: orders } = await supabase
         .from('orders')
         .select(`
@@ -34,6 +35,7 @@ export default async function DashboardPage() {
             creator:profiles!created_by(id, full_name),
             brand:brands(*)
         `)
+        .eq('is_archived', false)
         .order('created_at', { ascending: false })
 
     // Fetch all customers for Add Order form

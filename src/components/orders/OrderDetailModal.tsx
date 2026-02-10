@@ -8,7 +8,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import { SPKEditor, SPKDownloadButton } from '@/components/spk'
-import { verifyDPPayment, moveOrderToNextStage, deleteOrder } from '@/lib/actions/orders'
+import { verifyDPPayment, correctDPPayment, moveOrderToNextStage, deleteOrder, updateDesignNotes, archiveOrder } from '@/lib/actions/orders'
 
 interface OrderWithCustomer extends Order {
     customer: Customer
@@ -34,6 +34,13 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
     const [orderInvoice, setOrderInvoice] = useState<{ id: string; no_invoice: string; total: number; sisa_tagihan: number; deadline: string | null } | null>(null)
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
     const [deleting, setDeleting] = useState(false)
+    const [designNotes, setDesignNotes] = useState('')
+    const [savingNotes, setSavingNotes] = useState(false)
+    const [archiving, setArchiving] = useState(false)
+    const [showArchiveConfirm, setShowArchiveConfirm] = useState(false)
+    const [editingDP, setEditingDP] = useState<'dp_desain' | 'dp_produksi' | 'pelunasan' | null>(null)
+    const [editDPAmount, setEditDPAmount] = useState('')
+    const [savingCorrection, setSavingCorrection] = useState(false)
     const router = useRouter()
     const supabase = createClient()
 
@@ -57,6 +64,13 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
     if (order?.tracking_number && trackingNumber === '' && order.tracking_number !== trackingNumber) {
         setTrackingNumber(order.tracking_number)
     }
+
+    // Update designNotes when order changes
+    useEffect(() => {
+        if (order?.design_notes !== undefined) {
+            setDesignNotes(order.design_notes || '')
+        }
+    }, [order?.design_notes])
 
     // Determine if order is ready to move to next stage
     const getStageReadiness = (): boolean => {
@@ -271,6 +285,30 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
         }
     }
 
+    // Handle archive order
+    const handleArchiveOrder = async () => {
+        setArchiving(true)
+        try {
+            const result = await archiveOrder(order.id)
+            if (!result.success) {
+                toast.error(result.message)
+                return
+            }
+            toast.success(result.message)
+            setShowArchiveConfirm(false)
+            router.refresh()
+            onClose()
+        } catch (err) {
+            console.error('Archive error:', err)
+            toast.error('Gagal mengarsip order')
+        } finally {
+            setArchiving(false)
+        }
+    }
+
+    // Check if order can be archived
+    const canArchive = order.stage === 'pengiriman' && order.tracking_number && order.shipped_at
+
     const nextStage = getNextStage()
 
     return (
@@ -293,6 +331,18 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                             }`}>
                             {STAGE_LABELS[order.stage]}
                         </span>
+                        {/* Archive button - only show for completed pengiriman orders */}
+                        {canArchive && (
+                            <button
+                                onClick={() => setShowArchiveConfirm(true)}
+                                className="p-2 rounded-lg hover:bg-amber-100 text-amber-500 hover:text-amber-700"
+                                title="Arsipkan Order"
+                            >
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                                </svg>
+                            </button>
+                        )}
                         <button
                             onClick={() => setShowDeleteConfirm(true)}
                             className="p-2 rounded-lg hover:bg-red-100 text-red-500 hover:text-red-700"
@@ -417,6 +467,44 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                                     </div>
                                 </div>
                             )}
+
+                            {/* Design Notes */}
+                            <div className="p-4 rounded-xl bg-violet-50 border border-violet-100">
+                                <p className="text-xs text-violet-600 mb-2 flex items-center gap-1 font-medium">
+                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                    </svg>
+                                    Catatan Desain
+                                </p>
+                                <textarea
+                                    value={designNotes}
+                                    onChange={(e) => setDesignNotes(e.target.value)}
+                                    placeholder="Tambahkan catatan desain..."
+                                    className="w-full px-3 py-2 rounded-lg bg-white border border-violet-200 text-slate-900 placeholder-subtle focus:outline-none focus:border-violet-500 resize-none text-sm"
+                                    rows={3}
+                                />
+                                <button
+                                    onClick={async () => {
+                                        setSavingNotes(true)
+                                        try {
+                                            const result = await updateDesignNotes(order.id, designNotes)
+                                            if (result.success) {
+                                                toast.success(result.message)
+                                            } else {
+                                                toast.error(result.message)
+                                            }
+                                        } catch {
+                                            toast.error('Gagal menyimpan catatan')
+                                        } finally {
+                                            setSavingNotes(false)
+                                        }
+                                    }}
+                                    disabled={savingNotes}
+                                    className="mt-2 px-4 py-2 rounded-lg bg-violet-500 text-white text-sm font-medium hover:bg-violet-600 disabled:opacity-50 transition-colors"
+                                >
+                                    {savingNotes ? 'Menyimpan...' : 'Simpan Catatan'}
+                                </button>
+                            </div>
 
                             {/* Order Info */}
                             <div className="grid grid-cols-2 gap-4">
@@ -589,7 +677,55 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                                     </div>
 
                                     {order.dp_desain_verified ? (
-                                        <p className="text-lg font-bold text-emerald-400">{formatCurrency(order.dp_desain_amount)}</p>
+                                        editingDP === 'dp_desain' ? (
+                                            <div className="flex gap-2">
+                                                <div className="flex-1 relative">
+                                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">Rp</span>
+                                                    <input
+                                                        type="number"
+                                                        value={editDPAmount}
+                                                        onChange={(e) => setEditDPAmount(e.target.value)}
+                                                        className="w-full pl-10 pr-4 py-2 rounded-lg bg-white border border-amber-300 text-slate-900 focus:outline-none focus:border-amber-500"
+                                                        autoFocus
+                                                    />
+                                                </div>
+                                                <button
+                                                    onClick={async () => {
+                                                        const amount = parseInt(editDPAmount) || 0
+                                                        if (amount < 0) { toast.warning('Nominal tidak boleh negatif'); return }
+                                                        setSavingCorrection(true)
+                                                        try {
+                                                            const result = await correctDPPayment(order.id, 'dp_desain', amount)
+                                                            if (result.success) { toast.success(result.message); setEditingDP(null); router.refresh(); onClose() }
+                                                            else { toast.error(result.message) }
+                                                        } catch { toast.error('Gagal koreksi') } finally { setSavingCorrection(false) }
+                                                    }}
+                                                    disabled={savingCorrection}
+                                                    className="px-3 py-2 rounded-lg bg-amber-500 text-white text-sm font-medium hover:bg-amber-600 disabled:opacity-50"
+                                                >
+                                                    {savingCorrection ? '...' : 'Simpan'}
+                                                </button>
+                                                <button
+                                                    onClick={() => setEditingDP(null)}
+                                                    className="px-3 py-2 rounded-lg bg-slate-200 text-slate-700 text-sm font-medium hover:bg-slate-300"
+                                                >
+                                                    Batal
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center gap-2">
+                                                <p className="text-lg font-bold text-emerald-400">{formatCurrency(order.dp_desain_amount)}</p>
+                                                <button
+                                                    onClick={() => { setEditingDP('dp_desain'); setEditDPAmount(String(order.dp_desain_amount)) }}
+                                                    className="p-1 rounded-md hover:bg-slate-200 text-slate-400 hover:text-slate-700 transition-colors"
+                                                    title="Koreksi nominal"
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                        )
                                     ) : (
                                         <div className="flex gap-2">
                                             <div className="flex-1 relative">
@@ -636,7 +772,55 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                                     </div>
 
                                     {order.dp_produksi_verified ? (
-                                        <p className="text-lg font-bold text-emerald-400">{formatCurrency(order.dp_produksi_amount)}</p>
+                                        editingDP === 'dp_produksi' ? (
+                                            <div className="flex gap-2">
+                                                <div className="flex-1 relative">
+                                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">Rp</span>
+                                                    <input
+                                                        type="number"
+                                                        value={editDPAmount}
+                                                        onChange={(e) => setEditDPAmount(e.target.value)}
+                                                        className="w-full pl-10 pr-4 py-2 rounded-lg bg-white border border-amber-300 text-slate-900 focus:outline-none focus:border-amber-500"
+                                                        autoFocus
+                                                    />
+                                                </div>
+                                                <button
+                                                    onClick={async () => {
+                                                        const amount = parseInt(editDPAmount) || 0
+                                                        if (amount < 0) { toast.warning('Nominal tidak boleh negatif'); return }
+                                                        setSavingCorrection(true)
+                                                        try {
+                                                            const result = await correctDPPayment(order.id, 'dp_produksi', amount)
+                                                            if (result.success) { toast.success(result.message); setEditingDP(null); router.refresh(); onClose() }
+                                                            else { toast.error(result.message) }
+                                                        } catch { toast.error('Gagal koreksi') } finally { setSavingCorrection(false) }
+                                                    }}
+                                                    disabled={savingCorrection}
+                                                    className="px-3 py-2 rounded-lg bg-amber-500 text-white text-sm font-medium hover:bg-amber-600 disabled:opacity-50"
+                                                >
+                                                    {savingCorrection ? '...' : 'Simpan'}
+                                                </button>
+                                                <button
+                                                    onClick={() => setEditingDP(null)}
+                                                    className="px-3 py-2 rounded-lg bg-slate-200 text-slate-700 text-sm font-medium hover:bg-slate-300"
+                                                >
+                                                    Batal
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center gap-2">
+                                                <p className="text-lg font-bold text-emerald-400">{formatCurrency(order.dp_produksi_amount)}</p>
+                                                <button
+                                                    onClick={() => { setEditingDP('dp_produksi'); setEditDPAmount(String(order.dp_produksi_amount)) }}
+                                                    className="p-1 rounded-md hover:bg-slate-200 text-slate-400 hover:text-slate-700 transition-colors"
+                                                    title="Koreksi nominal"
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                        )
                                     ) : (
                                         <div className="flex gap-2">
                                             <div className="flex-1 relative">
@@ -683,7 +867,55 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                                     </div>
 
                                     {order.pelunasan_verified ? (
-                                        <p className="text-lg font-bold text-emerald-400">{formatCurrency(order.pelunasan_amount)}</p>
+                                        editingDP === 'pelunasan' ? (
+                                            <div className="flex gap-2">
+                                                <div className="flex-1 relative">
+                                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">Rp</span>
+                                                    <input
+                                                        type="number"
+                                                        value={editDPAmount}
+                                                        onChange={(e) => setEditDPAmount(e.target.value)}
+                                                        className="w-full pl-10 pr-4 py-2 rounded-lg bg-white border border-amber-300 text-slate-900 focus:outline-none focus:border-amber-500"
+                                                        autoFocus
+                                                    />
+                                                </div>
+                                                <button
+                                                    onClick={async () => {
+                                                        const amount = parseInt(editDPAmount) || 0
+                                                        if (amount < 0) { toast.warning('Nominal tidak boleh negatif'); return }
+                                                        setSavingCorrection(true)
+                                                        try {
+                                                            const result = await correctDPPayment(order.id, 'pelunasan', amount)
+                                                            if (result.success) { toast.success(result.message); setEditingDP(null); router.refresh(); onClose() }
+                                                            else { toast.error(result.message) }
+                                                        } catch { toast.error('Gagal koreksi') } finally { setSavingCorrection(false) }
+                                                    }}
+                                                    disabled={savingCorrection}
+                                                    className="px-3 py-2 rounded-lg bg-amber-500 text-white text-sm font-medium hover:bg-amber-600 disabled:opacity-50"
+                                                >
+                                                    {savingCorrection ? '...' : 'Simpan'}
+                                                </button>
+                                                <button
+                                                    onClick={() => setEditingDP(null)}
+                                                    className="px-3 py-2 rounded-lg bg-slate-200 text-slate-700 text-sm font-medium hover:bg-slate-300"
+                                                >
+                                                    Batal
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center gap-2">
+                                                <p className="text-lg font-bold text-emerald-400">{formatCurrency(order.pelunasan_amount)}</p>
+                                                <button
+                                                    onClick={() => { setEditingDP('pelunasan'); setEditDPAmount(String(order.pelunasan_amount)) }}
+                                                    className="p-1 rounded-md hover:bg-slate-200 text-slate-400 hover:text-slate-700 transition-colors"
+                                                    title="Koreksi nominal"
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                        )
                                     ) : (
                                         <div className="flex gap-2">
                                             <div className="flex-1 relative">
@@ -1450,6 +1682,45 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                     </div>
                 </div>
             )}
+
+            {/* Archive Confirmation Dialog */}
+            {showArchiveConfirm && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl p-6 max-w-md mx-4 shadow-xl">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center">
+                                <svg className="w-6 h-6 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-bold text-slate-900">Arsipkan Order?</h3>
+                                <p className="text-sm text-slate-500">{order.customer?.name}</p>
+                            </div>
+                        </div>
+                        <p className="text-slate-600 mb-6">
+                            Order ini akan dipindahkan ke <strong>Riwayat Order</strong>. Anda dapat mengembalikannya kapan saja dari halaman riwayat.
+                        </p>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setShowArchiveConfirm(false)}
+                                disabled={archiving}
+                                className="flex-1 px-4 py-2 rounded-lg border border-slate-300 text-slate-700 font-medium hover:bg-slate-50 disabled:opacity-50"
+                            >
+                                Batal
+                            </button>
+                            <button
+                                onClick={handleArchiveOrder}
+                                disabled={archiving}
+                                className="flex-1 px-4 py-2 rounded-lg bg-amber-500 text-white font-medium hover:bg-amber-600 disabled:opacity-50"
+                            >
+                                {archiving ? 'Mengarsip...' : 'Ya, Arsipkan'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div >
     )
 }
+

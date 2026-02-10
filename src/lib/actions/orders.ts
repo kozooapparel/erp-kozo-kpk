@@ -107,6 +107,105 @@ export async function verifyDPPayment(
 }
 
 /**
+ * Correct DP payment amount after verification (for admin input errors)
+ * Also updates the related kuitansi if one exists
+ */
+export async function correctDPPayment(
+    orderId: string,
+    type: 'dp_desain' | 'dp_produksi' | 'pelunasan',
+    newAmount: number
+): Promise<{ success: boolean; message: string }> {
+    const supabase = await createClient()
+
+    try {
+        if (newAmount < 0) {
+            return { success: false, message: 'Nominal tidak boleh negatif' }
+        }
+
+        // Get order
+        const { data: order, error: orderError } = await supabase
+            .from('orders')
+            .select('*')
+            .eq('id', orderId)
+            .single()
+
+        if (orderError || !order) {
+            throw new Error('Order not found')
+        }
+
+        const oldAmount = order[`${type}_amount`] || 0
+
+        // Update order amount
+        const { error: updateError } = await supabase
+            .from('orders')
+            .update({ [`${type}_amount`]: newAmount })
+            .eq('id', orderId)
+
+        if (updateError) throw updateError
+
+        // Find and update related kuitansi
+        const { data: invoices } = await supabase
+            .from('invoices')
+            .select('id')
+            .eq('order_id', orderId)
+            .order('created_at', { ascending: false })
+            .limit(1)
+
+        const invoice = invoices?.[0]
+        let kuitansiUpdated = false
+
+        if (invoice) {
+            // Match kuitansi by invoice_id and keterangan pattern
+            const keteranganPattern = type === 'dp_desain'
+                ? '%Pembayaran DP Desain%'
+                : type === 'dp_produksi'
+                    ? '%Pembayaran DP Produksi%'
+                    : '%Pembayaran Pelunasan%'
+
+            // Find kuitansi with matching amount and keterangan
+            const { data: kuitansiList } = await supabase
+                .from('kuitansi')
+                .select('id, jumlah')
+                .eq('invoice_id', invoice.id)
+                .like('keterangan', keteranganPattern)
+                .eq('jumlah', oldAmount)
+                .limit(1)
+
+            const kuitansi = kuitansiList?.[0]
+
+            if (kuitansi) {
+                const { error: kuitansiUpdateError } = await supabase
+                    .from('kuitansi')
+                    .update({ jumlah: newAmount })
+                    .eq('id', kuitansi.id)
+
+                if (!kuitansiUpdateError) {
+                    kuitansiUpdated = true
+                }
+            }
+        }
+
+        revalidatePath('/')
+        revalidatePath('/kuitansi')
+        revalidatePath('/invoices')
+
+        return {
+            success: true,
+            message: kuitansiUpdated
+                ? `Nominal ${type === 'dp_desain' ? 'DP Desain' : type === 'dp_produksi' ? 'DP Produksi' : 'Pelunasan'} berhasil dikoreksi (kuitansi ikut diupdate)`
+                : `Nominal ${type === 'dp_desain' ? 'DP Desain' : type === 'dp_produksi' ? 'DP Produksi' : 'Pelunasan'} berhasil dikoreksi`
+        }
+
+    } catch (err) {
+        console.error('Correct DP error:', err)
+        return {
+            success: false,
+            message: err instanceof Error ? err.message : 'Gagal koreksi nominal DP'
+        }
+    }
+}
+
+/**
  * Generate SPK number for an order
  */
 export async function generateSPKNumber(orderId: string): Promise<{ success: boolean; spkNumber?: string; message: string }> {
@@ -326,3 +425,161 @@ export async function deleteOrder(orderId: string): Promise<{ success: boolean; 
         }
     }
 }
+
+/**
+ * Update design notes for an order
+ */
+export async function updateDesignNotes(
+    orderId: string,
+    notes: string
+): Promise<{ success: boolean; message: string }> {
+    const supabase = await createClient()
+
+    try {
+        const { error } = await supabase
+            .from('orders')
+            .update({ design_notes: notes || null })
+            .eq('id', orderId)
+
+        if (error) throw error
+
+        revalidatePath('/')
+        revalidatePath('/dashboard')
+
+        return {
+            success: true,
+            message: 'Catatan desain berhasil disimpan'
+        }
+    } catch (err) {
+        console.error('Update design notes error:', err)
+        return {
+            success: false,
+            message: err instanceof Error ? err.message : 'Gagal menyimpan catatan'
+        }
+    }
+}
+
+/**
+ * Archive an order (move to history)
+ * Only orders at 'pengiriman' stage with tracking_number and shipped_at can be archived
+ */
+export async function archiveOrder(orderId: string): Promise<{ success: boolean; message: string }> {
+    const supabase = await createClient()
+
+    try {
+        // Get order to validate
+        const { data: order, error: orderError } = await supabase
+            .from('orders')
+            .select('id, stage, tracking_number, shipped_at, is_archived')
+            .eq('id', orderId)
+            .single()
+
+        if (orderError || !order) {
+            throw new Error('Order tidak ditemukan')
+        }
+
+        // Validate order is at pengiriman stage
+        if (order.stage !== 'pengiriman') {
+            return {
+                success: false,
+                message: 'Order hanya bisa diarsip di tahap Pengiriman'
+            }
+        }
+
+        // Validate tracking number is filled
+        if (!order.tracking_number || !order.shipped_at) {
+            return {
+                success: false,
+                message: 'Isi nomor resi dan tanggal kirim terlebih dahulu'
+            }
+        }
+
+        // Check if already archived
+        if (order.is_archived) {
+            return {
+                success: false,
+                message: 'Order sudah diarsip'
+            }
+        }
+
+        // Update order to archived
+        const { error: updateError } = await supabase
+            .from('orders')
+            .update({
+                is_archived: true,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', orderId)
+
+        if (updateError) throw updateError
+
+        revalidatePath('/')
+        revalidatePath('/dashboard')
+        revalidatePath('/orders/history')
+
+        return {
+            success: true,
+            message: 'Order berhasil diarsip ke Riwayat Order'
+        }
+    } catch (err) {
+        console.error('Archive order error:', err)
+        return {
+            success: false,
+            message: err instanceof Error ? err.message : 'Gagal mengarsip order'
+        }
+    }
+}
+
+/**
+ * Unarchive an order (restore to Kanban)
+ */
+export async function unarchiveOrder(orderId: string): Promise<{ success: boolean; message: string }> {
+    const supabase = await createClient()
+
+    try {
+        // Get order to validate
+        const { data: order, error: orderError } = await supabase
+            .from('orders')
+            .select('id, is_archived')
+            .eq('id', orderId)
+            .single()
+
+        if (orderError || !order) {
+            throw new Error('Order tidak ditemukan')
+        }
+
+        if (!order.is_archived) {
+            return {
+                success: false,
+                message: 'Order tidak dalam status arsip'
+            }
+        }
+
+        // Update order to unarchived
+        const { error: updateError } = await supabase
+            .from('orders')
+            .update({
+                is_archived: false,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', orderId)
+
+        if (updateError) throw updateError
+
+        revalidatePath('/')
+        revalidatePath('/dashboard')
+        revalidatePath('/orders/history')
+
+        return {
+            success: true,
+            message: 'Order berhasil dikembalikan ke Kanban'
+        }
+    } catch (err) {
+        console.error('Unarchive order error:', err)
+        return {
+            success: false,
+            message: err instanceof Error ? err.message : 'Gagal mengembalikan order'
+        }
+    }
+}
+

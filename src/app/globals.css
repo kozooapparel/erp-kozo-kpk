@@ -117,3 +117,19 @@ body {
   scrollbar-width: thin;
   scrollbar-color: #94a3b8 #e2e8f0;
 }
+
+/* ============================================
+   PLACEHOLDER STYLES
+   ============================================ */
+
+/* Subtle placeholder - for a non-intrusive hint */
+.placeholder-subtle::placeholder {
+  color: #cbd5e1; /* slate-300 */
+  opacity: 0.85;
+}
+
+/* Alternative for darker backgrounds */
+.placeholder-subtle-dark::placeholder {
+  color: #94a3b8; /* slate-400 */
+  opacity: 0.75;
+}

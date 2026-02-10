@@ -33,7 +33,7 @@ export default function SearchBar({ onSearch, placeholder = 'Cari customer atau 
                 value={query}
                 onChange={handleChange}
                 placeholder={placeholder}
-                className="w-full pl-10 pr-10 py-3 rounded-xl bg-white border border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-400 transition-all shadow-sm"
+                className="w-full pl-10 pr-10 py-3 rounded-xl bg-white border border-slate-200 text-slate-900 placeholder-subtle focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-400 transition-all shadow-sm"
             />
             {query && (
                 <button

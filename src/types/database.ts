@@ -171,6 +171,10 @@ export type Database = {
                     production_specs: ProductionSpecs | null
                     // Brand
                     brand_id: string | null
+                    // Design notes
+                    design_notes: string | null
+                    // Archive
+                    is_archived: boolean
                 }
                 Insert: {
                     id?: string
@@ -208,6 +212,10 @@ export type Database = {
                     production_specs?: ProductionSpecs | null
                     // Brand
                     brand_id?: string | null
+                    // Design notes
+                    design_notes?: string | null
+                    // Archive
+                    is_archived?: boolean
                 }
                 Update: {
                     id?: string
@@ -252,6 +260,10 @@ export type Database = {
                     production_specs?: ProductionSpecs | null
                     // Brand
                     brand_id?: string | null
+                    // Design notes
+                    design_notes?: string | null
+                    // Archive
+                    is_archived?: boolean
                 }
             }
             profiles: {

@@ -208,8 +208,8 @@ export default function SPKEditor({
                     type="text"
                     value={namaPOValue}
                     onChange={(e) => setNamaPOValue(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Contoh: TWINNER TSAR, PB.SOTTE, BATIK..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder-subtle"
+                    placeholder="TWINNER TSAR, PB.SOTTE..."
                 />
             </div>
 
@@ -266,8 +266,8 @@ export default function SPKEditor({
                             type="text"
                             value={specs.kerah || ''}
                             onChange={(e) => setSpecs(prev => ({ ...prev, kerah: e.target.value }))}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                            placeholder="V NECK, Polo, dll"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 placeholder-subtle"
+                            placeholder="V NECK, Polo"
                         />
                     </div>
                     <div>
@@ -276,8 +276,8 @@ export default function SPKEditor({
                             type="text"
                             value={specs.bahan || ''}
                             onChange={(e) => setSpecs(prev => ({ ...prev, bahan: e.target.value }))}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                            placeholder="MILANO PREMIUM, EMBOSS, dll"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 placeholder-subtle"
+                            placeholder="MILANO PREMIUM"
                         />
                     </div>
                     <div>
@@ -286,8 +286,8 @@ export default function SPKEditor({
                             type="text"
                             value={specs.bahan_celana || ''}
                             onChange={(e) => setSpecs(prev => ({ ...prev, bahan_celana: e.target.value }))}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                            placeholder="Jika ada"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 placeholder-subtle"
+                            placeholder="Opsional"
                         />
                     </div>
                     <div>
@@ -296,7 +296,7 @@ export default function SPKEditor({
                             type="text"
                             value={specs.kategori || ''}
                             onChange={(e) => setSpecs(prev => ({ ...prev, kategori: e.target.value }))}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 placeholder-subtle"
                             placeholder="PANJANG & PENDEK"
                         />
                     </div>
@@ -306,8 +306,8 @@ export default function SPKEditor({
                             type="text"
                             value={specs.bis || ''}
                             onChange={(e) => setSpecs(prev => ({ ...prev, bis: e.target.value }))}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                            placeholder="BRAND SENDIRI, POLOSIN"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 placeholder-subtle"
+                            placeholder="BRAND SENDIRI"
                         />
                     </div>
                     <div>
@@ -316,7 +316,7 @@ export default function SPKEditor({
                             type="text"
                             value={specs.autentic || ''}
                             onChange={(e) => setSpecs(prev => ({ ...prev, autentic: e.target.value }))}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 placeholder-subtle"
                             placeholder="BRAND SENDIRI"
                         />
                     </div>
@@ -326,7 +326,7 @@ export default function SPKEditor({
                             type="text"
                             value={specs.penjahit || ''}
                             onChange={(e) => setSpecs(prev => ({ ...prev, penjahit: e.target.value }))}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 placeholder-subtle"
                             placeholder="Nama penjahit"
                         />
                     </div>
@@ -367,8 +367,8 @@ export default function SPKEditor({
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                     rows={4}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"
-                    placeholder="Catatan khusus untuk produksi..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 resize-none placeholder-subtle"
+                    placeholder="Catatan produksi..."
                 />
             </div>
 
@@ -755,8 +755,8 @@ function SectionEditor({
                         type="text"
                         value={section.notes || ''}
                         onChange={(e) => onUpdate({ notes: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                        placeholder="Catatan khusus untuk section ini..."
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm placeholder-subtle"
+                        placeholder="Catatan section..."
                     />
                 </div>
             </div>
