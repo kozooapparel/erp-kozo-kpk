@@ -567,6 +567,21 @@ export default function InvoiceForm({
                                         </p>
                                     )}
                                 </div>
+                                {/* Payment Info - Only show on edit mode with existing payments */}
+                                {isEdit && invoice && invoice.total_dibayar > 0 && (
+                                    <div className="pt-3 border-t border-dashed border-slate-300 space-y-2">
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-emerald-600 font-medium">Dibayar</span>
+                                            <span className="font-semibold text-emerald-600">-{formatCurrency(invoice.total_dibayar)}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-sm font-bold text-slate-700">Sisa Tagihan</span>
+                                            <span className={`text-lg font-bold ${invoice.sisa_tagihan > 0 ? 'text-red-500' : 'text-emerald-600'}`}>
+                                                {formatCurrency(invoice.sisa_tagihan)}
+                                            </span>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>

@@ -252,11 +252,25 @@ export function InvoicePDFDocument({ invoice, companyInfo, bankInfo, brandInfo }
                         <Text style={styles.totalLabel}>TOTAL</Text>
                         <Text style={[styles.totalValue, { color: '#059669' }]}>{formatCurrency(invoice.total)}</Text>
                     </View>
+                    {invoice.total_dibayar > 0 && (
+                        <>
+                            <View style={[styles.totalRow, { marginTop: 8 }]}>
+                                <Text style={styles.totalLabel}>Dibayar</Text>
+                                <Text style={[styles.totalValue, { color: '#059669' }]}>-{formatCurrency(invoice.total_dibayar)}</Text>
+                            </View>
+                            <View style={[styles.totalRow, { borderTopWidth: 1, borderTopColor: '#e2e8f0', paddingTop: 6, marginTop: 4 }]}>
+                                <Text style={[styles.totalLabel, { fontWeight: 'bold' }]}>Sisa Tagihan</Text>
+                                <Text style={[styles.totalValue, { color: invoice.sisa_tagihan > 0 ? '#dc2626' : '#059669', fontSize: 13, fontWeight: 'bold' }]}>
+                                    {formatCurrency(invoice.sisa_tagihan)}
+                                </Text>
+                            </View>
+                        </>
+                    )}
                 </View>
 
                 {/* Terbilang */}
                 <View style={styles.terbilang}>
-                    <Text>Terbilang: {terbilang(invoice.total)}</Text>
+                    <Text>Terbilang: {terbilang(invoice.total_dibayar > 0 ? invoice.sisa_tagihan : invoice.total)}</Text>
                 </View>
 
                 {/* Bank Info */}
