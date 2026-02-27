@@ -63,8 +63,27 @@ export default function SPKList({ orders, brands }: SPKListProps) {
         })
     }
 
+    // Summary stats
+    const totalQty = filteredOrders.reduce((sum, o) => sum + (o.total_quantity || 0), 0)
+    const draftCount = filteredOrders.filter(o => !o.spk_number).length
+
     return (
         <div className="space-y-4">
+            {/* Summary Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                    <p className="text-sm text-slate-500">Total SPK</p>
+                    <p className="text-2xl font-bold text-slate-900">{filteredOrders.length}</p>
+                </div>
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                    <p className="text-sm text-slate-500">Total Quantity</p>
+                    <p className="text-2xl font-bold text-blue-600">{totalQty.toLocaleString('id-ID')} pcs</p>
+                </div>
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                    <p className="text-sm text-slate-500">Draft SPK</p>
+                    <p className="text-2xl font-bold text-amber-500">{draftCount}</p>
+                </div>
+            </div>
             {/* Filters */}
             <div className="flex flex-col sm:flex-row gap-3">
                 {/* Search */}
@@ -161,6 +180,11 @@ export default function SPKList({ orders, brands }: SPKListProps) {
                                             }`}>
                                             {STAGE_LABELS[order.stage]}
                                         </span>
+                                        {(order as any).brand?.code && (
+                                            <span className="px-1.5 py-0.5 text-[10px] font-medium bg-slate-100 text-slate-600 rounded">
+                                                {(order as any).brand.code}
+                                            </span>
+                                        )}
                                     </div>
                                     <p className="text-slate-900 font-medium">{order.customer?.name}</p>
                                     <div className="flex items-center gap-4 mt-2 text-sm text-slate-500">

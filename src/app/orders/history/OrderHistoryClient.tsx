@@ -12,8 +12,15 @@ interface ArchivedOrder extends Order {
     brand?: Brand | null
 }
 
+interface BrandItem {
+    id: string
+    code: string
+    name: string
+}
+
 interface OrderHistoryClientProps {
     orders: ArchivedOrder[]
+    brands: BrandItem[]
 }
 
 type SortOption = 'date_desc' | 'date_asc' | 'customer_asc' | 'customer_desc'
@@ -33,16 +40,20 @@ const MONTHS = [
     { value: 11, label: 'Desember' },
 ]
 
-export default function OrderHistoryClient({ orders }: OrderHistoryClientProps) {
+export default function OrderHistoryClient({ orders, brands }: OrderHistoryClientProps) {
     const router = useRouter()
     const [searchQuery, setSearchQuery] = useState('')
     const [restoring, setRestoring] = useState<string | null>(null)
+    const [selectedDetail, setSelectedDetail] = useState<string | null>(null)
 
     // Filter states
     const currentDate = new Date()
     const [selectedMonth, setSelectedMonth] = useState<number | 'all'>('all')
     const [selectedYear, setSelectedYear] = useState<number | 'all'>('all')
+    const [brandFilter, setBrandFilter] = useState<string>('all')
     const [sortBy, setSortBy] = useState<SortOption>('date_desc')
+    const [currentPage, setCurrentPage] = useState(1)
+    const ITEMS_PER_PAGE = 20
 
     // Get unique years from orders
     const availableYears = useMemo(() => {
@@ -52,7 +63,6 @@ export default function OrderHistoryClient({ orders }: OrderHistoryClientProps) 
                 years.add(new Date(order.shipped_at).getFullYear())
             }
         })
-        // Add current year if not in list
         years.add(currentDate.getFullYear())
         return Array.from(years).sort((a, b) => b - a)
     }, [orders, currentDate])
@@ -69,6 +79,9 @@ export default function OrderHistoryClient({ orders }: OrderHistoryClientProps) 
                 order.spk_number?.toLowerCase().includes(query)
 
             if (!matchesSearch) return false
+
+            // Brand filter
+            if (brandFilter !== 'all' && order.brand_id !== brandFilter) return false
 
             // Month/Year filter
             if (selectedMonth !== 'all' || selectedYear !== 'all') {
@@ -103,7 +116,20 @@ export default function OrderHistoryClient({ orders }: OrderHistoryClientProps) 
         })
 
         return result
-    }, [orders, searchQuery, selectedMonth, selectedYear, sortBy])
+    }, [orders, searchQuery, selectedMonth, selectedYear, brandFilter, sortBy])
+
+    // Pagination
+    const totalPages = Math.ceil(filteredOrders.length / ITEMS_PER_PAGE)
+    const paginatedOrders = filteredOrders.slice(
+        (currentPage - 1) * ITEMS_PER_PAGE,
+        currentPage * ITEMS_PER_PAGE
+    )
+
+    // Summary stats (reactive to filters)
+    const totalQty = filteredOrders.reduce((sum, o) => sum + (o.total_quantity || 0), 0)
+    const totalRevenue = filteredOrders.reduce((sum, o) =>
+        sum + (o.dp_desain_amount || 0) + (o.dp_produksi_amount || 0) + (o.pelunasan_amount || 0)
+        , 0)
 
     const handleRestore = async (orderId: string) => {
         if (restoring) return
@@ -141,11 +167,13 @@ export default function OrderHistoryClient({ orders }: OrderHistoryClientProps) 
     const clearFilters = () => {
         setSelectedMonth('all')
         setSelectedYear('all')
+        setBrandFilter('all')
         setSearchQuery('')
         setSortBy('date_desc')
+        setCurrentPage(1)
     }
 
-    const hasActiveFilters = selectedMonth !== 'all' || selectedYear !== 'all' || searchQuery !== ''
+    const hasActiveFilters = selectedMonth !== 'all' || selectedYear !== 'all' || searchQuery !== '' || brandFilter !== 'all'
 
     return (
         <div className="space-y-6">
@@ -177,58 +205,98 @@ export default function OrderHistoryClient({ orders }: OrderHistoryClientProps) 
                         type="text"
                         placeholder="Cari customer, PO, resi..."
                         value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
+                        onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1) }}
                         className="pl-10 pr-4 py-2.5 w-full sm:w-80 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
                     />
                 </div>
             </div>
 
-            {/* Filters Row */}
-            <div className="flex flex-wrap items-center gap-3">
-                {/* Month Filter */}
-                <div className="flex items-center gap-2">
-                    <label className="text-sm text-slate-500">Bulan:</label>
-                    <select
-                        value={selectedMonth === 'all' ? 'all' : selectedMonth}
-                        onChange={(e) => setSelectedMonth(e.target.value === 'all' ? 'all' : parseInt(e.target.value))}
-                        className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent bg-white"
-                    >
-                        <option value="all">Semua</option>
-                        {MONTHS.map(month => (
-                            <option key={month.value} value={month.value}>{month.label}</option>
-                        ))}
-                    </select>
+            {/* Summary Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                    <p className="text-sm text-slate-500">Total Order Selesai</p>
+                    <p className="text-2xl font-bold text-slate-900">{filteredOrders.length}</p>
                 </div>
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                    <p className="text-sm text-slate-500">Total Quantity</p>
+                    <p className="text-2xl font-bold text-blue-600">{totalQty.toLocaleString('id-ID')} pcs</p>
+                </div>
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                    <p className="text-sm text-slate-500">Total Dibayar</p>
+                    <p className="text-2xl font-bold text-emerald-600">{formatCurrency(totalRevenue)}</p>
+                </div>
+            </div>
 
-                {/* Year Filter */}
-                <div className="flex items-center gap-2">
-                    <label className="text-sm text-slate-500">Tahun:</label>
-                    <select
-                        value={selectedYear === 'all' ? 'all' : selectedYear}
-                        onChange={(e) => setSelectedYear(e.target.value === 'all' ? 'all' : parseInt(e.target.value))}
-                        className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent bg-white"
+            {/* Filters Row — compact, no labels */}
+            <div className="flex flex-wrap items-center gap-2">
+                <select
+                    value={selectedMonth === 'all' ? 'all' : selectedMonth}
+                    onChange={(e) => { setSelectedMonth(e.target.value === 'all' ? 'all' : parseInt(e.target.value)); setCurrentPage(1) }}
+                    className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 bg-white cursor-pointer"
+                >
+                    <option value="all">Semua Bulan</option>
+                    {MONTHS.map(month => (
+                        <option key={month.value} value={month.value}>{month.label}</option>
+                    ))}
+                </select>
+
+                <select
+                    value={selectedYear === 'all' ? 'all' : selectedYear}
+                    onChange={(e) => { setSelectedYear(e.target.value === 'all' ? 'all' : parseInt(e.target.value)); setCurrentPage(1) }}
+                    className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 bg-white cursor-pointer"
+                >
+                    <option value="all">Semua Tahun</option>
+                    {availableYears.map(year => (
+                        <option key={year} value={year}>{year}</option>
+                    ))}
+                </select>
+
+                {/* Brand Filter */}
+                <div className="relative flex items-center">
+                    <svg
+                        className={`absolute left-2.5 w-4 h-4 pointer-events-none transition-colors ${brandFilter !== 'all' ? 'text-white' : 'text-slate-500'}`}
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
                     >
-                        <option value="all">Semua</option>
-                        {availableYears.map(year => (
-                            <option key={year} value={year}>{year}</option>
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" />
+                    </svg>
+                    <select
+                        value={brandFilter}
+                        onChange={(e) => { setBrandFilter(e.target.value); setCurrentPage(1) }}
+                        className={`pl-8 pr-8 py-2 text-sm rounded-lg border focus:outline-none focus:ring-2 focus:ring-red-500/20 transition-all appearance-none cursor-pointer ${brandFilter !== 'all'
+                            ? 'bg-slate-700 text-white border-slate-700 font-semibold'
+                            : 'bg-white text-slate-700 border-slate-200'
+                            }`}
+                    >
+                        <option value="all" className="bg-white text-slate-700">Semua Brand</option>
+                        {brands.map(brand => (
+                            <option key={brand.id} value={brand.id} className="bg-white text-slate-700">
+                                {brand.name}
+                            </option>
                         ))}
                     </select>
+                    <svg
+                        className={`absolute right-2 w-4 h-4 pointer-events-none transition-colors ${brandFilter !== 'all' ? 'text-white' : 'text-slate-400'}`}
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                    >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
                 </div>
 
                 {/* Sort */}
-                <div className="flex items-center gap-2">
-                    <label className="text-sm text-slate-500">Urutkan:</label>
-                    <select
-                        value={sortBy}
-                        onChange={(e) => setSortBy(e.target.value as SortOption)}
-                        className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent bg-white"
-                    >
-                        <option value="date_desc">Tanggal (Terbaru)</option>
-                        <option value="date_asc">Tanggal (Terlama)</option>
-                        <option value="customer_asc">Customer (A-Z)</option>
-                        <option value="customer_desc">Customer (Z-A)</option>
-                    </select>
-                </div>
+                <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as SortOption)}
+                    className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 bg-white cursor-pointer"
+                >
+                    <option value="date_desc">Terbaru</option>
+                    <option value="date_asc">Terlama</option>
+                    <option value="customer_asc">Customer A-Z</option>
+                    <option value="customer_desc">Customer Z-A</option>
+                </select>
 
                 {/* Clear Filters */}
                 {hasActiveFilters && (
@@ -236,7 +304,7 @@ export default function OrderHistoryClient({ orders }: OrderHistoryClientProps) 
                         onClick={clearFilters}
                         className="px-3 py-2 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
                     >
-                        Reset Filter
+                        Reset
                     </button>
                 )}
             </div>
@@ -279,40 +347,47 @@ export default function OrderHistoryClient({ orders }: OrderHistoryClientProps) 
                     {/* Desktop Table */}
                     <div className="hidden md:block overflow-x-auto">
                         <table className="w-full">
-                            <thead className="bg-slate-50 border-b border-slate-200">
+                            <thead className="bg-red-600 text-white">
                                 <tr>
-                                    <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-6 py-4">
+                                    <th className="text-left text-xs font-semibold uppercase tracking-wider px-6 py-4">
                                         Customer
                                     </th>
-                                    <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-6 py-4">
+                                    <th className="text-left text-xs font-semibold uppercase tracking-wider px-6 py-4">
                                         Order
                                     </th>
-                                    <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-6 py-4">
+                                    <th className="text-left text-xs font-semibold uppercase tracking-wider px-6 py-4">
                                         Tanggal Kirim
                                     </th>
-                                    <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-6 py-4">
+                                    <th className="text-left text-xs font-semibold uppercase tracking-wider px-6 py-4">
                                         No. Resi
                                     </th>
-                                    <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-6 py-4">
-                                        Total
+                                    <th className="text-left text-xs font-semibold uppercase tracking-wider px-6 py-4">
+                                        Total Dibayar
                                     </th>
-                                    <th className="text-center text-xs font-semibold text-slate-500 uppercase tracking-wider px-6 py-4">
+                                    <th className="text-center text-xs font-semibold uppercase tracking-wider px-6 py-4">
                                         Aksi
                                     </th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
-                                {filteredOrders.map((order) => (
+                                {paginatedOrders.map((order) => (
                                     <tr key={order.id} className="hover:bg-slate-50 transition-colors">
                                         <td className="px-6 py-4">
-                                            <div className="font-medium text-slate-900">
-                                                {order.customer?.name || '-'}
-                                            </div>
-                                            {order.brand && (
-                                                <div className="text-xs text-slate-500 mt-0.5">
-                                                    {order.brand.name}
+                                            <button
+                                                onClick={() => setSelectedDetail(selectedDetail === order.id ? null : order.id)}
+                                                className="text-left hover:text-red-600 transition-colors"
+                                            >
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-medium text-slate-900 hover:text-red-600">
+                                                        {order.customer?.name || '-'}
+                                                    </span>
+                                                    {order.brand && (
+                                                        <span className="px-1.5 py-0.5 text-[10px] font-medium bg-slate-100 text-slate-600 rounded">
+                                                            {order.brand.code || order.brand.name}
+                                                        </span>
+                                                    )}
                                                 </div>
-                                            )}
+                                            </button>
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="text-sm text-slate-900">
@@ -338,23 +413,36 @@ export default function OrderHistoryClient({ orders }: OrderHistoryClientProps) 
                                             )}
                                         </td>
                                         <td className="px-6 py-4 text-center">
-                                            <button
-                                                onClick={() => handleRestore(order.id)}
-                                                disabled={restoring === order.id}
-                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors disabled:opacity-50"
-                                            >
-                                                {restoring === order.id ? (
-                                                    <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
-                                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                                    </svg>
-                                                ) : (
+                                            <div className="flex items-center justify-center gap-2">
+                                                <button
+                                                    onClick={() => setSelectedDetail(selectedDetail === order.id ? null : order.id)}
+                                                    className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+                                                    title="Detail"
+                                                >
                                                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                                                     </svg>
-                                                )}
-                                                Kembalikan
-                                            </button>
+                                                    Detail
+                                                </button>
+                                                <button
+                                                    onClick={() => handleRestore(order.id)}
+                                                    disabled={restoring === order.id}
+                                                    className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors disabled:opacity-50"
+                                                >
+                                                    {restoring === order.id ? (
+                                                        <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                        </svg>
+                                                    ) : (
+                                                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                                                        </svg>
+                                                    )}
+                                                    Kembalikan
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}
@@ -362,39 +450,137 @@ export default function OrderHistoryClient({ orders }: OrderHistoryClientProps) 
                         </table>
                     </div>
 
+                    {/* Expandable Detail Row (inline) */}
+                    {selectedDetail && (() => {
+                        const order = filteredOrders.find(o => o.id === selectedDetail)
+                        if (!order) return null
+                        return (
+                            <div className="hidden md:block border-t border-slate-200 bg-slate-50 px-6 py-4">
+                                <div className="flex items-center justify-between mb-3">
+                                    <h4 className="font-semibold text-slate-900">Detail Order — {order.customer?.name}</h4>
+                                    <button onClick={() => setSelectedDetail(null)} className="text-slate-400 hover:text-slate-600">
+                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </button>
+                                </div>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                                    <div>
+                                        <span className="text-slate-500">SPK Number</span>
+                                        <p className="font-medium text-slate-900 font-mono">{order.spk_number || '-'}</p>
+                                    </div>
+                                    <div>
+                                        <span className="text-slate-500">PO Name</span>
+                                        <p className="font-medium text-slate-900">{order.nama_po || '-'}</p>
+                                    </div>
+                                    <div>
+                                        <span className="text-slate-500">Brand</span>
+                                        <p className="font-medium text-slate-900">{order.brand?.name || '-'}</p>
+                                    </div>
+                                    <div>
+                                        <span className="text-slate-500">Quantity</span>
+                                        <p className="font-medium text-slate-900">{order.total_quantity} pcs</p>
+                                    </div>
+                                    <div>
+                                        <span className="text-slate-500">DP Desain</span>
+                                        <p className="font-medium text-slate-900">{formatCurrency(order.dp_desain_amount || 0)}</p>
+                                    </div>
+                                    <div>
+                                        <span className="text-slate-500">DP Produksi</span>
+                                        <p className="font-medium text-slate-900">{formatCurrency(order.dp_produksi_amount || 0)}</p>
+                                    </div>
+                                    <div>
+                                        <span className="text-slate-500">Pelunasan</span>
+                                        <p className="font-medium text-slate-900">{formatCurrency(order.pelunasan_amount || 0)}</p>
+                                    </div>
+                                    <div>
+                                        <span className="text-slate-500">Tanggal Kirim</span>
+                                        <p className="font-medium text-slate-900">{formatDate(order.shipped_at)}</p>
+                                    </div>
+                                    <div>
+                                        <span className="text-slate-500">No. Resi</span>
+                                        <p className="font-medium text-slate-900 font-mono">{order.tracking_number || '-'}</p>
+                                    </div>
+                                    <div>
+                                        <span className="text-slate-500">Dibuat Oleh</span>
+                                        <p className="font-medium text-slate-900">{order.creator?.full_name || '-'}</p>
+                                    </div>
+                                    <div>
+                                        <span className="text-slate-500">Deadline</span>
+                                        <p className="font-medium text-slate-900">{formatDate(order.deadline)}</p>
+                                    </div>
+                                    <div>
+                                        <span className="text-slate-500">Catatan</span>
+                                        <p className="font-medium text-slate-900">{order.production_notes || '-'}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        )
+                    })()}
+
                     {/* Mobile Cards */}
                     <div className="md:hidden divide-y divide-slate-100">
-                        {filteredOrders.map((order) => (
+                        {paginatedOrders.map((order) => (
                             <div key={order.id} className="p-4 space-y-3">
                                 <div className="flex items-start justify-between">
                                     <div>
-                                        <div className="font-medium text-slate-900">
-                                            {order.customer?.name || '-'}
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-medium text-slate-900">
+                                                {order.customer?.name || '-'}
+                                            </span>
+                                            {order.brand && (
+                                                <span className="px-1.5 py-0.5 text-[10px] font-medium bg-slate-100 text-slate-600 rounded">
+                                                    {order.brand.code || order.brand.name}
+                                                </span>
+                                            )}
                                         </div>
-                                        {order.brand && (
-                                            <div className="text-xs text-slate-500">
-                                                {order.brand.name}
-                                            </div>
+                                    </div>
+                                    <div className="flex gap-1">
+                                        <button
+                                            onClick={() => setSelectedDetail(selectedDetail === order.id ? null : order.id)}
+                                            className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+                                        >
+                                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                            </svg>
+                                        </button>
+                                        <button
+                                            onClick={() => handleRestore(order.id)}
+                                            disabled={restoring === order.id}
+                                            className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors disabled:opacity-50"
+                                        >
+                                            {restoring === order.id ? (
+                                                <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                </svg>
+                                            ) : (
+                                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                                                </svg>
+                                            )}
+                                            Kembalikan
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Mobile detail panel */}
+                                {selectedDetail === order.id && (
+                                    <div className="bg-slate-50 rounded-lg p-3 text-sm space-y-2">
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <div><span className="text-slate-400 text-xs">SPK</span><p className="text-slate-700 font-mono">{order.spk_number || '-'}</p></div>
+                                            <div><span className="text-slate-400 text-xs">PO</span><p className="text-slate-700">{order.nama_po || '-'}</p></div>
+                                            <div><span className="text-slate-400 text-xs">DP Desain</span><p className="text-slate-700">{formatCurrency(order.dp_desain_amount || 0)}</p></div>
+                                            <div><span className="text-slate-400 text-xs">DP Produksi</span><p className="text-slate-700">{formatCurrency(order.dp_produksi_amount || 0)}</p></div>
+                                            <div><span className="text-slate-400 text-xs">Pelunasan</span><p className="text-slate-700">{formatCurrency(order.pelunasan_amount || 0)}</p></div>
+                                            <div><span className="text-slate-400 text-xs">Dibuat Oleh</span><p className="text-slate-700">{order.creator?.full_name || '-'}</p></div>
+                                        </div>
+                                        {order.production_notes && (
+                                            <div><span className="text-slate-400 text-xs">Catatan</span><p className="text-slate-700">{order.production_notes}</p></div>
                                         )}
                                     </div>
-                                    <button
-                                        onClick={() => handleRestore(order.id)}
-                                        disabled={restoring === order.id}
-                                        className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors disabled:opacity-50"
-                                    >
-                                        {restoring === order.id ? (
-                                            <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
-                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                            </svg>
-                                        ) : (
-                                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-                                            </svg>
-                                        )}
-                                        Kembalikan
-                                    </button>
-                                </div>
+                                )}
 
                                 <div className="grid grid-cols-2 gap-3 text-sm">
                                     <div>
@@ -419,7 +605,7 @@ export default function OrderHistoryClient({ orders }: OrderHistoryClientProps) 
                                         </div>
                                     </div>
                                     <div>
-                                        <div className="text-xs text-slate-400">Total</div>
+                                        <div className="text-xs text-slate-400">Total Dibayar</div>
                                         <div className="font-medium text-slate-900">
                                             {formatCurrency(
                                                 (order.dp_desain_amount || 0) +
@@ -431,6 +617,43 @@ export default function OrderHistoryClient({ orders }: OrderHistoryClientProps) 
                                 </div>
                             </div>
                         ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+                <div className="flex items-center justify-between">
+                    <p className="text-sm text-slate-500">
+                        Menampilkan {(currentPage - 1) * ITEMS_PER_PAGE + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, filteredOrders.length)} dari {filteredOrders.length} order
+                    </p>
+                    <div className="flex items-center gap-1">
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                            disabled={currentPage === 1}
+                            className="px-3 py-1.5 text-sm rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        >
+                            ← Prev
+                        </button>
+                        {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                            <button
+                                key={page}
+                                onClick={() => setCurrentPage(page)}
+                                className={`w-8 h-8 text-sm rounded-lg transition-colors ${page === currentPage
+                                    ? 'bg-red-500 text-white font-semibold'
+                                    : 'hover:bg-slate-100 text-slate-600'
+                                    }`}
+                            >
+                                {page}
+                            </button>
+                        ))}
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                            disabled={currentPage === totalPages}
+                            className="px-3 py-1.5 text-sm rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        >
+                            Next →
+                        </button>
                     </div>
                 </div>
             )}

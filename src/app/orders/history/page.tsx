@@ -35,9 +35,16 @@ export default async function OrderHistoryPage() {
         console.error('Error fetching archived orders:', error)
     }
 
+    // Fetch active brands for filter
+    const { data: brands } = await supabase
+        .from('brands')
+        .select('id, code, name')
+        .eq('is_active', true)
+        .order('name', { ascending: true })
+
     return (
         <DashboardLayout user={profile}>
-            <OrderHistoryClient orders={orders || []} />
+            <OrderHistoryClient orders={orders || []} brands={brands || []} />
         </DashboardLayout>
     )
 }

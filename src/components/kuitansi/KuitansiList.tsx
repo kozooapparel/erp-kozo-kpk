@@ -24,14 +24,24 @@ export default function KuitansiList({ kuitansiList, brands }: KuitansiListProps
     const [loading, setLoading] = useState<string | null>(null)
     const [search, setSearch] = useState('')
     const [brandFilter, setBrandFilter] = useState<string>('all')
+    const [statusFilter, setStatusFilter] = useState<'all' | 'BELUM_LUNAS' | 'SUDAH_LUNAS'>('all')
+    const [currentPage, setCurrentPage] = useState(1)
+    const ITEMS_PER_PAGE = 20
 
     const filteredList = kuitansiList.filter(k => {
         const matchSearch = search === '' ||
             k.invoice?.no_invoice.toLowerCase().includes(search.toLowerCase()) ||
             k.invoice?.customer?.name.toLowerCase().includes(search.toLowerCase())
         const matchBrand = brandFilter === 'all' || (k.invoice as any)?.brand?.id === brandFilter
-        return matchSearch && matchBrand
+        const matchStatus = statusFilter === 'all' || k.invoice?.status_pembayaran === statusFilter
+        return matchSearch && matchBrand && matchStatus
     })
+
+    const totalPages = Math.ceil(filteredList.length / ITEMS_PER_PAGE)
+    const paginatedList = filteredList.slice(
+        (currentPage - 1) * ITEMS_PER_PAGE,
+        currentPage * ITEMS_PER_PAGE
+    )
 
     const handleDelete = async (id: string) => {
         if (!confirm('Hapus kuitansi ini? Status pembayaran invoice akan diupdate.')) return
@@ -59,49 +69,80 @@ export default function KuitansiList({ kuitansiList, brands }: KuitansiListProps
                 <p className="text-sm text-emerald-100 mt-1">{filteredList.length} kuitansi</p>
             </div>
 
-            {/* Search & Brand Filter */}
-            <div className="flex gap-4">
+            {/* Search & Filters */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                 <input
                     type="text"
                     value={search}
-                    onChange={(e) => setSearch(e.target.value)}
+                    onChange={(e) => { setSearch(e.target.value); setCurrentPage(1) }}
                     placeholder="Cari no invoice atau customer..."
                     className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
                 />
 
-                {/* Brand Filter Dropdown */}
-                <div className="relative flex items-center">
-                    <svg
-                        className={`absolute left-2.5 w-4 h-4 pointer-events-none transition-colors ${brandFilter !== 'all' ? 'text-white' : 'text-slate-500'}`}
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                    >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" />
-                    </svg>
-                    <select
-                        value={brandFilter}
-                        onChange={(e) => setBrandFilter(e.target.value)}
-                        className={`pl-8 pr-8 py-2 text-sm rounded-lg border focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 transition-all appearance-none cursor-pointer ${brandFilter !== 'all'
-                            ? 'bg-slate-700 text-white border-slate-700 font-semibold'
-                            : 'bg-white text-slate-700 border-slate-200'
+                <div className="flex items-center gap-2 overflow-x-auto pb-1 -mb-1">
+                    {/* Status Filter */}
+                    <button
+                        onClick={() => { setStatusFilter('all'); setCurrentPage(1) }}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${statusFilter === 'all'
+                            ? 'bg-slate-900 text-white'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                             }`}
                     >
-                        <option value="all" className="bg-white text-slate-700">Semua Brand</option>
-                        {brands.map(brand => (
-                            <option key={brand.id} value={brand.id} className="bg-white text-slate-700">
-                                {brand.name}
-                            </option>
-                        ))}
-                    </select>
-                    <svg
-                        className={`absolute right-2 w-4 h-4 pointer-events-none transition-colors ${brandFilter !== 'all' ? 'text-white' : 'text-slate-400'}`}
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
+                        Semua
+                    </button>
+                    <button
+                        onClick={() => { setStatusFilter('BELUM_LUNAS'); setCurrentPage(1) }}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${statusFilter === 'BELUM_LUNAS'
+                            ? 'bg-orange-500 text-white'
+                            : 'bg-orange-50 text-orange-600 hover:bg-orange-100'
+                            }`}
                     >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
+                        Inv. Belum Lunas
+                    </button>
+                    <button
+                        onClick={() => { setStatusFilter('SUDAH_LUNAS'); setCurrentPage(1) }}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${statusFilter === 'SUDAH_LUNAS'
+                            ? 'bg-emerald-500 text-white'
+                            : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
+                            }`}
+                    >
+                        Inv. Lunas
+                    </button>
+
+                    {/* Brand Filter Dropdown */}
+                    <div className="relative flex items-center">
+                        <svg
+                            className={`absolute left-2.5 w-4 h-4 pointer-events-none transition-colors ${brandFilter !== 'all' ? 'text-white' : 'text-slate-500'}`}
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                        >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" />
+                        </svg>
+                        <select
+                            value={brandFilter}
+                            onChange={(e) => { setBrandFilter(e.target.value); setCurrentPage(1) }}
+                            className={`pl-8 pr-8 py-2 text-sm rounded-lg border focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 transition-all appearance-none cursor-pointer ${brandFilter !== 'all'
+                                ? 'bg-slate-700 text-white border-slate-700 font-semibold'
+                                : 'bg-white text-slate-700 border-slate-200'
+                                }`}
+                        >
+                            <option value="all" className="bg-white text-slate-700">Semua Brand</option>
+                            {brands.map(brand => (
+                                <option key={brand.id} value={brand.id} className="bg-white text-slate-700">
+                                    {brand.name}
+                                </option>
+                            ))}
+                        </select>
+                        <svg
+                            className={`absolute right-2 w-4 h-4 pointer-events-none transition-colors ${brandFilter !== 'all' ? 'text-white' : 'text-slate-400'}`}
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                        >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </div>
                 </div>
             </div>
 
@@ -128,10 +169,10 @@ export default function KuitansiList({ kuitansiList, brands }: KuitansiListProps
                                     </td>
                                 </tr>
                             ) : (
-                                filteredList.map((kuitansi, index) => (
+                                paginatedList.map((kuitansi, index) => (
                                     <tr key={kuitansi.id} className="hover:bg-slate-50">
                                         <td className="px-6 py-4 text-sm text-slate-600">
-                                            {index + 1}
+                                            {(currentPage - 1) * ITEMS_PER_PAGE + index + 1}
                                         </td>
                                         <td className="px-6 py-4 text-sm text-slate-600">
                                             {formatDateShort(kuitansi.tanggal)}
@@ -180,6 +221,43 @@ export default function KuitansiList({ kuitansiList, brands }: KuitansiListProps
                     </table>
                 </div>
             </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+                <div className="flex items-center justify-between">
+                    <p className="text-sm text-slate-500">
+                        Menampilkan {(currentPage - 1) * ITEMS_PER_PAGE + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, filteredList.length)} dari {filteredList.length} kuitansi
+                    </p>
+                    <div className="flex items-center gap-1">
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                            disabled={currentPage === 1}
+                            className="px-3 py-1.5 text-sm rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        >
+                            ← Prev
+                        </button>
+                        {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                            <button
+                                key={page}
+                                onClick={() => setCurrentPage(page)}
+                                className={`w-8 h-8 text-sm rounded-lg transition-colors ${page === currentPage
+                                    ? 'bg-emerald-500 text-white font-semibold'
+                                    : 'hover:bg-slate-100 text-slate-600'
+                                    }`}
+                            >
+                                {page}
+                            </button>
+                        ))}
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                            disabled={currentPage === totalPages}
+                            className="px-3 py-1.5 text-sm rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        >
+                            Next →
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

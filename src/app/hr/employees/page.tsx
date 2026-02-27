@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import DashboardLayout from '@/components/layout/DashboardLayout'
+import EmployeeListClient from '@/components/hr/EmployeeListClient'
 
 interface Employee {
     id: string
@@ -125,60 +126,8 @@ export default async function EmployeesPage() {
                     </div>
                 </div>
 
-                {/* Employee List */}
-                <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm">
-                    <h2 className="text-xl font-semibold text-slate-900 mb-4">Daftar Karyawan</h2>
-
-                    {activeEmployees.length > 0 ? (
-                        <div className="space-y-3">
-                            {activeEmployees.map((employee: Employee) => (
-                                <Link
-                                    key={employee.id}
-                                    href={`/hr/employees/${employee.id}`}
-                                    className="block p-4 rounded-xl bg-slate-50 border border-slate-200 hover:border-red-300 hover:shadow-md transition-all group"
-                                >
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center text-lg font-bold text-white flex-shrink-0">
-                                                {employee.full_name.charAt(0).toUpperCase()}
-                                            </div>
-                                            <div>
-                                                <div className="flex items-center gap-2">
-                                                    <p className="font-semibold text-slate-900 group-hover:text-red-600 transition-colors">
-                                                        {employee.full_name}
-                                                    </p>
-                                                    <span className="px-2 py-0.5 rounded-md bg-slate-200 text-xs font-medium text-slate-600">
-                                                        {employee.nik}
-                                                    </span>
-                                                </div>
-                                                <p className="text-sm text-slate-500">
-                                                    {employee.position} • {employee.department}
-                                                </p>
-                                                <p className="text-xs text-slate-400 mt-0.5">
-                                                    Bergabung {formatDate(employee.join_date)}
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <div className="text-right">
-                                            <p className="text-sm text-slate-500">Gaji Harian</p>
-                                            <p className="text-lg font-bold text-slate-900">
-                                                {formatCurrency(employee.daily_rate)}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </Link>
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="text-center py-12">
-                            <svg className="w-16 h-16 mx-auto text-slate-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-                            </svg>
-                            <p className="text-slate-500">Belum ada karyawan</p>
-                            <p className="text-sm text-slate-400 mt-1">Klik "Tambah Karyawan" untuk mulai</p>
-                        </div>
-                    )}
-                </div>
+                {/* Employee List with Search & Filter */}
+                <EmployeeListClient employees={activeEmployees} />
 
                 {/* Inactive Employees */}
                 {inactiveEmployees.length > 0 && (

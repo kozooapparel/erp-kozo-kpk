@@ -26,6 +26,8 @@ export default function InvoiceList({ invoices, brands }: InvoiceListProps) {
     const [filter, setFilter] = useState<'all' | 'BELUM_LUNAS' | 'SUDAH_LUNAS'>('all')
     const [search, setSearch] = useState('')
     const [brandFilter, setBrandFilter] = useState<string>('all')
+    const [currentPage, setCurrentPage] = useState(1)
+    const ITEMS_PER_PAGE = 20
 
     const filteredInvoices = invoices.filter(inv => {
         const matchStatus = filter === 'all' || inv.status_pembayaran === filter
@@ -35,6 +37,26 @@ export default function InvoiceList({ invoices, brands }: InvoiceListProps) {
         const matchBrand = brandFilter === 'all' || (inv as any).brand?.id === brandFilter
         return matchStatus && matchSearch && matchBrand
     })
+
+    const totalPages = Math.ceil(filteredInvoices.length / ITEMS_PER_PAGE)
+    const paginatedInvoices = filteredInvoices.slice(
+        (currentPage - 1) * ITEMS_PER_PAGE,
+        currentPage * ITEMS_PER_PAGE
+    )
+
+    // Reset page when filters change
+    const handleFilterChange = (newFilter: typeof filter) => {
+        setFilter(newFilter)
+        setCurrentPage(1)
+    }
+    const handleSearchChange = (value: string) => {
+        setSearch(value)
+        setCurrentPage(1)
+    }
+    const handleBrandChange = (value: string) => {
+        setBrandFilter(value)
+        setCurrentPage(1)
+    }
 
     const handleDelete = async (id: string) => {
         if (!confirm('Hapus invoice ini? Semua data terkait akan dihapus.')) return
@@ -74,20 +96,20 @@ export default function InvoiceList({ invoices, brands }: InvoiceListProps) {
             </div>
 
             {/* Filters */}
-            <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                 <div className="flex-1">
                     <input
                         type="text"
                         value={search}
-                        onChange={(e) => setSearch(e.target.value)}
+                        onChange={(e) => handleSearchChange(e.target.value)}
                         placeholder="Cari no invoice atau customer..."
                         className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500/50"
                     />
                 </div>
-                <div className="flex gap-2">
+                <div className="flex items-center gap-2 overflow-x-auto pb-1 -mb-1">
                     <button
-                        onClick={() => setFilter('all')}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filter === 'all'
+                        onClick={() => handleFilterChange('all')}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${filter === 'all'
                             ? 'bg-slate-900 text-white'
                             : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                             }`}
@@ -95,8 +117,8 @@ export default function InvoiceList({ invoices, brands }: InvoiceListProps) {
                         Semua
                     </button>
                     <button
-                        onClick={() => setFilter('BELUM_LUNAS')}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filter === 'BELUM_LUNAS'
+                        onClick={() => handleFilterChange('BELUM_LUNAS')}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${filter === 'BELUM_LUNAS'
                             ? 'bg-orange-500 text-white'
                             : 'bg-orange-50 text-orange-600 hover:bg-orange-100'
                             }`}
@@ -104,49 +126,49 @@ export default function InvoiceList({ invoices, brands }: InvoiceListProps) {
                         Belum Lunas
                     </button>
                     <button
-                        onClick={() => setFilter('SUDAH_LUNAS')}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filter === 'SUDAH_LUNAS'
+                        onClick={() => handleFilterChange('SUDAH_LUNAS')}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${filter === 'SUDAH_LUNAS'
                             ? 'bg-emerald-500 text-white'
                             : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
                             }`}
                     >
                         Lunas
                     </button>
-                </div>
 
-                {/* Brand Filter Dropdown */}
-                <div className="relative flex items-center">
-                    <svg
-                        className={`absolute left-2.5 w-4 h-4 pointer-events-none transition-colors ${brandFilter !== 'all' ? 'text-white' : 'text-slate-500'}`}
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                    >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" />
-                    </svg>
-                    <select
-                        value={brandFilter}
-                        onChange={(e) => setBrandFilter(e.target.value)}
-                        className={`pl-8 pr-8 py-2 text-sm rounded-lg border focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400 transition-all appearance-none cursor-pointer ${brandFilter !== 'all'
-                            ? 'bg-slate-700 text-white border-slate-700 font-semibold'
-                            : 'bg-white text-slate-700 border-slate-200'
-                            }`}
-                    >
-                        <option value="all" className="bg-white text-slate-700">Semua Brand</option>
-                        {brands.map(brand => (
-                            <option key={brand.id} value={brand.id} className="bg-white text-slate-700">
-                                {brand.name}
-                            </option>
-                        ))}
-                    </select>
-                    <svg
-                        className={`absolute right-2 w-4 h-4 pointer-events-none transition-colors ${brandFilter !== 'all' ? 'text-white' : 'text-slate-400'}`}
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                    >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
+                    {/* Brand Filter Dropdown */}
+                    <div className="relative flex items-center">
+                        <svg
+                            className={`absolute left-2.5 w-4 h-4 pointer-events-none transition-colors ${brandFilter !== 'all' ? 'text-white' : 'text-slate-500'}`}
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                        >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" />
+                        </svg>
+                        <select
+                            value={brandFilter}
+                            onChange={(e) => handleBrandChange(e.target.value)}
+                            className={`pl-8 pr-8 py-2 text-sm rounded-lg border focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400 transition-all appearance-none cursor-pointer ${brandFilter !== 'all'
+                                ? 'bg-slate-700 text-white border-slate-700 font-semibold'
+                                : 'bg-white text-slate-700 border-slate-200'
+                                }`}
+                        >
+                            <option value="all" className="bg-white text-slate-700">Semua Brand</option>
+                            {brands.map(brand => (
+                                <option key={brand.id} value={brand.id} className="bg-white text-slate-700">
+                                    {brand.name}
+                                </option>
+                            ))}
+                        </select>
+                        <svg
+                            className={`absolute right-2 w-4 h-4 pointer-events-none transition-colors ${brandFilter !== 'all' ? 'text-white' : 'text-slate-400'}`}
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                        >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </div>
                 </div>
             </div>
 
@@ -154,16 +176,16 @@ export default function InvoiceList({ invoices, brands }: InvoiceListProps) {
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full">
-                        <thead className="bg-slate-50">
+                        <thead className="bg-orange-600 text-white">
                             <tr>
-                                <th className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider px-6 py-3">No Invoice</th>
-                                <th className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider px-6 py-3">Tanggal</th>
-                                <th className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider px-6 py-3">Customer</th>
-                                <th className="text-right text-xs font-medium text-slate-500 uppercase tracking-wider px-6 py-3">Total</th>
-                                <th className="text-right text-xs font-medium text-slate-500 uppercase tracking-wider px-6 py-3">Dibayar</th>
-                                <th className="text-right text-xs font-medium text-slate-500 uppercase tracking-wider px-6 py-3">Sisa</th>
-                                <th className="text-center text-xs font-medium text-slate-500 uppercase tracking-wider px-6 py-3">Status</th>
-                                <th className="text-center text-xs font-medium text-slate-500 uppercase tracking-wider px-6 py-3">Aksi</th>
+                                <th className="text-left text-xs font-medium uppercase tracking-wider px-6 py-3">No Invoice</th>
+                                <th className="text-left text-xs font-medium uppercase tracking-wider px-6 py-3">Tanggal</th>
+                                <th className="text-left text-xs font-medium uppercase tracking-wider px-6 py-3">Customer</th>
+                                <th className="text-right text-xs font-medium uppercase tracking-wider px-6 py-3">Total</th>
+                                <th className="text-right text-xs font-medium uppercase tracking-wider px-6 py-3">Dibayar</th>
+                                <th className="text-right text-xs font-medium uppercase tracking-wider px-6 py-3">Sisa</th>
+                                <th className="text-center text-xs font-medium uppercase tracking-wider px-6 py-3">Status</th>
+                                <th className="text-center text-xs font-medium uppercase tracking-wider px-6 py-3">Aksi</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
@@ -174,7 +196,7 @@ export default function InvoiceList({ invoices, brands }: InvoiceListProps) {
                                     </td>
                                 </tr>
                             ) : (
-                                filteredInvoices.map((invoice) => (
+                                paginatedInvoices.map((invoice) => (
                                     <tr key={invoice.id} className="hover:bg-slate-50">
                                         <td className="px-6 py-4 text-sm font-medium text-slate-900">
                                             <Link href={`/invoices/${invoice.id}`} className="hover:text-orange-500">
@@ -245,6 +267,43 @@ export default function InvoiceList({ invoices, brands }: InvoiceListProps) {
                     </table>
                 </div>
             </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+                <div className="flex items-center justify-between">
+                    <p className="text-sm text-slate-500">
+                        Menampilkan {(currentPage - 1) * ITEMS_PER_PAGE + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, filteredInvoices.length)} dari {filteredInvoices.length} invoice
+                    </p>
+                    <div className="flex items-center gap-1">
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                            disabled={currentPage === 1}
+                            className="px-3 py-1.5 text-sm rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        >
+                            ← Prev
+                        </button>
+                        {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                            <button
+                                key={page}
+                                onClick={() => setCurrentPage(page)}
+                                className={`w-8 h-8 text-sm rounded-lg transition-colors ${page === currentPage
+                                    ? 'bg-orange-500 text-white font-semibold'
+                                    : 'hover:bg-slate-100 text-slate-600'
+                                    }`}
+                            >
+                                {page}
+                            </button>
+                        ))}
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                            disabled={currentPage === totalPages}
+                            className="px-3 py-1.5 text-sm rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        >
+                            Next →
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }
