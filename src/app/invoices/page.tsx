@@ -22,6 +22,13 @@ export default async function InvoicesPage() {
     // Fetch invoices
     const invoices = await getInvoiceList()
 
+    // Fetch active brands for filter dropdown
+    const { data: brands } = await supabase
+        .from('brands')
+        .select('id, code, name')
+        .eq('is_active', true)
+        .order('name', { ascending: true })
+
     return (
         <DashboardLayout user={profile}>
             <div className="space-y-6">
@@ -51,7 +58,7 @@ export default async function InvoicesPage() {
                 </div>
 
                 {/* Invoice List */}
-                <InvoiceList invoices={invoices} />
+                <InvoiceList invoices={invoices} brands={brands || []} />
             </div>
         </DashboardLayout>
     )

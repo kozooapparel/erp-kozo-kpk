@@ -8,20 +8,29 @@ import { formatCurrency, formatDateShort } from '@/lib/utils/format'
 import KuitansiDownloadButton from './KuitansiDownloadButton'
 import { toast } from 'sonner'
 
-interface KuitansiListProps {
-    kuitansiList: KuitansiWithInvoice[]
+interface BrandItem {
+    id: string
+    code: string
+    name: string
 }
 
-export default function KuitansiList({ kuitansiList }: KuitansiListProps) {
+interface KuitansiListProps {
+    kuitansiList: KuitansiWithInvoice[]
+    brands: BrandItem[]
+}
+
+export default function KuitansiList({ kuitansiList, brands }: KuitansiListProps) {
     const router = useRouter()
     const [loading, setLoading] = useState<string | null>(null)
     const [search, setSearch] = useState('')
+    const [brandFilter, setBrandFilter] = useState<string>('all')
 
     const filteredList = kuitansiList.filter(k => {
         const matchSearch = search === '' ||
             k.invoice?.no_invoice.toLowerCase().includes(search.toLowerCase()) ||
             k.invoice?.customer?.name.toLowerCase().includes(search.toLowerCase())
-        return matchSearch
+        const matchBrand = brandFilter === 'all' || (k.invoice as any)?.brand?.id === brandFilter
+        return matchSearch && matchBrand
     })
 
     const handleDelete = async (id: string) => {
@@ -50,7 +59,7 @@ export default function KuitansiList({ kuitansiList }: KuitansiListProps) {
                 <p className="text-sm text-emerald-100 mt-1">{filteredList.length} kuitansi</p>
             </div>
 
-            {/* Search */}
+            {/* Search & Brand Filter */}
             <div className="flex gap-4">
                 <input
                     type="text"
@@ -59,6 +68,41 @@ export default function KuitansiList({ kuitansiList }: KuitansiListProps) {
                     placeholder="Cari no invoice atau customer..."
                     className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
                 />
+
+                {/* Brand Filter Dropdown */}
+                <div className="relative flex items-center">
+                    <svg
+                        className={`absolute left-2.5 w-4 h-4 pointer-events-none transition-colors ${brandFilter !== 'all' ? 'text-white' : 'text-slate-500'}`}
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                    >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" />
+                    </svg>
+                    <select
+                        value={brandFilter}
+                        onChange={(e) => setBrandFilter(e.target.value)}
+                        className={`pl-8 pr-8 py-2 text-sm rounded-lg border focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 transition-all appearance-none cursor-pointer ${brandFilter !== 'all'
+                            ? 'bg-slate-700 text-white border-slate-700 font-semibold'
+                            : 'bg-white text-slate-700 border-slate-200'
+                            }`}
+                    >
+                        <option value="all" className="bg-white text-slate-700">Semua Brand</option>
+                        {brands.map(brand => (
+                            <option key={brand.id} value={brand.id} className="bg-white text-slate-700">
+                                {brand.name}
+                            </option>
+                        ))}
+                    </select>
+                    <svg
+                        className={`absolute right-2 w-4 h-4 pointer-events-none transition-colors ${brandFilter !== 'all' ? 'text-white' : 'text-slate-400'}`}
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                    >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                </div>
             </div>
 
             {/* Table */}

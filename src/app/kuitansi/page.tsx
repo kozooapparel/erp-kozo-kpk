@@ -35,6 +35,13 @@ export default async function KuitansiPage({
         getKuitansiList()
     ])
 
+    // Fetch active brands for filter dropdown
+    const { data: brands } = await supabase
+        .from('brands')
+        .select('id, code, name')
+        .eq('is_active', true)
+        .order('name', { ascending: true })
+
     return (
         <DashboardLayout user={profile}>
             <div className="space-y-6">
@@ -81,7 +88,7 @@ export default async function KuitansiPage({
                         prefilledInvoiceId={prefilledInvoiceId}
                     />
                 ) : (
-                    <KuitansiList kuitansiList={kuitansiList} />
+                    <KuitansiList kuitansiList={kuitansiList} brands={brands || []} />
                 )}
             </div>
         </DashboardLayout>

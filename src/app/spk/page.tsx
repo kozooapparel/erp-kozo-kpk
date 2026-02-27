@@ -27,6 +27,13 @@ export default async function SPKPage() {
         `)
         .order('created_at', { ascending: false })
 
+    // Fetch active brands for filter dropdown
+    const { data: brands } = await supabase
+        .from('brands')
+        .select('id, code, name')
+        .eq('is_active', true)
+        .order('name', { ascending: true })
+
     // Filter to only include orders with valid SPK data:
     // 1. Has spk_number (already in production queue or beyond), OR
     // 2. Has spk_sections with data, OR
@@ -61,7 +68,7 @@ export default async function SPKPage() {
                 </div>
 
                 {/* SPK List */}
-                <SPKList orders={orders || []} />
+                <SPKList orders={orders || []} brands={brands || []} />
             </div>
         </DashboardLayout>
     )

@@ -8,13 +8,21 @@ interface OrderWithCustomer extends Order {
     customer: Customer
 }
 
-interface SPKListProps {
-    orders: OrderWithCustomer[]
+interface BrandItem {
+    id: string
+    code: string
+    name: string
 }
 
-export default function SPKList({ orders }: SPKListProps) {
+interface SPKListProps {
+    orders: OrderWithCustomer[]
+    brands: BrandItem[]
+}
+
+export default function SPKList({ orders, brands }: SPKListProps) {
     const [filter, setFilter] = useState<string>('all')
     const [search, setSearch] = useState('')
+    const [brandFilter, setBrandFilter] = useState<string>('all')
 
     // Production stages for filtering (include dp_produksi since SPK can be filled there)
     const productionStages: OrderStage[] = [
@@ -30,6 +38,9 @@ export default function SPKList({ orders }: SPKListProps) {
     const filteredOrders = orders.filter(order => {
         // Stage filter
         if (filter !== 'all' && order.stage !== filter) return false
+
+        // Brand filter
+        if (brandFilter !== 'all' && order.brand_id !== brandFilter) return false
 
         // Search filter
         if (search) {
@@ -81,6 +92,41 @@ export default function SPKList({ orders }: SPKListProps) {
                         <option key={stage} value={stage}>{STAGE_LABELS[stage]}</option>
                     ))}
                 </select>
+
+                {/* Brand Filter Dropdown */}
+                <div className="relative flex items-center">
+                    <svg
+                        className={`absolute left-2.5 w-4 h-4 pointer-events-none transition-colors ${brandFilter !== 'all' ? 'text-white' : 'text-slate-500'}`}
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                    >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" />
+                    </svg>
+                    <select
+                        value={brandFilter}
+                        onChange={(e) => setBrandFilter(e.target.value)}
+                        className={`pl-8 pr-8 py-2 text-sm rounded-lg border focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all appearance-none cursor-pointer ${brandFilter !== 'all'
+                            ? 'bg-slate-700 text-white border-slate-700 font-semibold'
+                            : 'bg-white text-slate-700 border-slate-200'
+                            }`}
+                    >
+                        <option value="all" className="bg-white text-slate-700">Semua Brand</option>
+                        {brands.map(brand => (
+                            <option key={brand.id} value={brand.id} className="bg-white text-slate-700">
+                                {brand.name}
+                            </option>
+                        ))}
+                    </select>
+                    <svg
+                        className={`absolute right-2 w-4 h-4 pointer-events-none transition-colors ${brandFilter !== 'all' ? 'text-white' : 'text-slate-400'}`}
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                    >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                </div>
             </div>
 
             {/* SPK Cards */}
