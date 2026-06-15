@@ -52,18 +52,18 @@ const styles = StyleSheet.create({
     },
     // Main content
     mainContainer: {
-        flexDirection: 'row',
+        flexDirection: 'column',
         flex: 1,
         marginTop: 5,
     },
-    leftColumn: {
-        width: '55%',
-        paddingRight: 10,
-        borderRight: '1px solid #e0e0e0',
+    topSection: {
+        width: '100%',
+        marginBottom: 10,
     },
-    rightColumn: {
-        width: '45%',
-        paddingLeft: 10,
+    bottomSection: {
+        width: '100%',
+        borderTop: '1px solid #e0e0e0',
+        paddingTop: 10,
     },
     // Mockup section
     mockupContainer: {
@@ -75,8 +75,8 @@ const styles = StyleSheet.create({
         gap: 5,
     },
     mockupImage: {
-        width: 280,
-        height: 340,
+        width: '100%',
+        maxHeight: 500,
         objectFit: 'contain',
         border: '1px solid #e0e0e0',
     },
@@ -423,10 +423,10 @@ export default function SPKPDF({ order, brand, deadline }: SPKPDFProps) {
                     <Text style={styles.headerValue}>{formatDate(deadline || order.deadline)}</Text>
                 </View>
 
-                {/* Main Content - 2 Column Layout */}
+                {/* Main Content - Stacked Layout */}
                 <View style={styles.mainContainer}>
-                    {/* Left Column - Mockups */}
-                    <View style={styles.leftColumn}>
+                    {/* Top Section - Mockups (Full Width) */}
+                    <View style={styles.topSection}>
                         {sections.length > 0 ? (
                             sections.map((section, idx) => (
                                 <View key={section.id || idx} style={styles.mockupContainer}>
@@ -443,78 +443,23 @@ export default function SPKPDF({ order, brand, deadline }: SPKPDFProps) {
                             // Fallback to old mockup/layout URLs
                             <View style={styles.mockupContainer}>
                                 {order.mockup_url && (
-                                    <Image src={order.mockup_url} style={[styles.mockupImage, { width: 150, height: 180 }]} />
+                                    <Image src={order.mockup_url} style={styles.mockupImage} />
                                 )}
                                 {order.layout_url && (
-                                    <Image src={order.layout_url} style={[styles.mockupImage, { width: 150, height: 180, marginTop: 10 }]} />
+                                    <Image src={order.layout_url} style={[styles.mockupImage, { marginTop: 10 }]} />
                                 )}
                             </View>
                         )}
-
-                        {/* Collar and Production Specs at bottom left */}
-                        <View style={styles.kerahContainer}>
-                            {specs?.kerah_image_url && (
-                                <Image src={specs.kerah_image_url} style={styles.kerahImage} />
-                            )}
-                            <View style={styles.kerahInfo}>
-                                <Text style={styles.sizeLabel}>KERAH</Text>
-                                <Text style={{ fontSize: 8, marginTop: 2 }}>{specs?.kerah || '-'}</Text>
-                            </View>
-                        </View>
-
-                        {/* Production Specs Table */}
-                        <View style={{ marginTop: 10 }}>
-                            <View style={styles.specsRow}>
-                                <Text style={styles.specsLabel}>BAHAN:</Text>
-                                <Text style={styles.specsValue}>{specs?.bahan || ''}</Text>
-                            </View>
-                            <View style={styles.specsRow}>
-                                <Text style={styles.specsLabel}>BAHAN CELANA:</Text>
-                                <Text style={styles.specsValue}>{specs?.bahan_celana || ''}</Text>
-                            </View>
-                            <View style={styles.specsRow}>
-                                <Text style={styles.specsLabel}>KATEGORI:</Text>
-                                <Text style={styles.specsValue}>{specs?.kategori || ''}</Text>
-                            </View>
-                            <View style={styles.specsRow}>
-                                <Text style={styles.specsLabel}>BIS:</Text>
-                                <Text style={styles.specsValue}>{specs?.bis || ''}</Text>
-                            </View>
-                            <View style={styles.specsRow}>
-                                <Text style={styles.specsLabel}>AUTENTIC:</Text>
-                                <Text style={styles.specsValue}>{specs?.autentic || ''}</Text>
-                            </View>
-                            <View style={styles.specsRow}>
-                                <Text style={styles.specsLabel}>PENJAHIT:</Text>
-                                <Text style={styles.specsValue}>{specs?.penjahit || ''}</Text>
-                            </View>
-                        </View>
-
-                        {/* Checklist */}
-                        <View style={styles.checklistContainer}>
-                            <Text style={styles.checklistTitle}>WAJIB DIISI!</Text>
-                            <View style={styles.checklistRow}>
-                                <Text style={styles.checklistLabel}>ATASAN</Text>
-                                <View style={styles.checklistBox}>
-                                    {specs?.need_atasan && <Text style={{ textAlign: 'center', fontSize: 10 }}>✓</Text>}
-                                </View>
-                            </View>
-                            <View style={styles.checklistRow}>
-                                <Text style={styles.checklistLabel}>CELANA</Text>
-                                <View style={styles.checklistBox}>
-                                    {specs?.need_celana && <Text style={{ textAlign: 'center', fontSize: 10 }}>✓</Text>}
-                                </View>
-                            </View>
-                        </View>
                     </View>
 
-                    {/* Right Column - Size List */}
-                    <View style={styles.rightColumn}>
+                    {/* Bottom Section - Size List (Full Width) */}
+                    <View style={styles.bottomSection}>
+                        <Text style={styles.sectionTitle}>LIST UKURAN</Text>
                         {sections.length > 0 ? (
                             sections.map((section, idx) => (
                                 <View key={section.id || idx}>
                                     {sections.length > 1 && (
-                                        <Text style={styles.sectionTitle}>{section.title}</Text>
+                                        <Text style={[styles.sectionTitle, { marginTop: 5 }]}>{section.title}</Text>
                                     )}
                                     {renderSectionContent(section)}
 
@@ -545,14 +490,78 @@ export default function SPKPDF({ order, brand, deadline }: SPKPDFProps) {
                                 )}
                             </>
                         )}
+                    </View>
 
-                        {/* Catatan Section on right */}
-                        {order.production_notes && (
-                            <View style={[styles.notesContainer, { marginTop: 'auto' }]}>
-                                <Text style={styles.notesTitle}>Catatan</Text>
-                                <Text style={styles.notesText}>{order.production_notes}</Text>
+                    {/* Production Info Section (Full Width, 2-column row) */}
+                    <View style={{ flexDirection: 'row', marginTop: 10, borderTop: '1px solid #e0e0e0', paddingTop: 10 }}>
+                        {/* Left - Specs */}
+                        <View style={{ flex: 1, paddingRight: 10 }}>
+                            {/* Collar */}
+                            <View style={styles.kerahContainer}>
+                                {specs?.kerah_image_url && (
+                                    <Image src={specs.kerah_image_url} style={styles.kerahImage} />
+                                )}
+                                <View style={styles.kerahInfo}>
+                                    <Text style={styles.sizeLabel}>KERAH</Text>
+                                    <Text style={{ fontSize: 8, marginTop: 2 }}>{specs?.kerah || '-'}</Text>
+                                </View>
                             </View>
-                        )}
+
+                            {/* Production Specs */}
+                            <View style={{ marginTop: 10 }}>
+                                <View style={styles.specsRow}>
+                                    <Text style={styles.specsLabel}>BAHAN:</Text>
+                                    <Text style={styles.specsValue}>{specs?.bahan || ''}</Text>
+                                </View>
+                                <View style={styles.specsRow}>
+                                    <Text style={styles.specsLabel}>BAHAN CELANA:</Text>
+                                    <Text style={styles.specsValue}>{specs?.bahan_celana || ''}</Text>
+                                </View>
+                                <View style={styles.specsRow}>
+                                    <Text style={styles.specsLabel}>KATEGORI:</Text>
+                                    <Text style={styles.specsValue}>{specs?.kategori || ''}</Text>
+                                </View>
+                                <View style={styles.specsRow}>
+                                    <Text style={styles.specsLabel}>BIS:</Text>
+                                    <Text style={styles.specsValue}>{specs?.bis || ''}</Text>
+                                </View>
+                                <View style={styles.specsRow}>
+                                    <Text style={styles.specsLabel}>AUTENTIC:</Text>
+                                    <Text style={styles.specsValue}>{specs?.autentic || ''}</Text>
+                                </View>
+                                <View style={styles.specsRow}>
+                                    <Text style={styles.specsLabel}>PENJAHIT:</Text>
+                                    <Text style={styles.specsValue}>{specs?.penjahit || ''}</Text>
+                                </View>
+                            </View>
+                        </View>
+
+                        {/* Right - Checklist & Notes */}
+                        <View style={{ flex: 1, paddingLeft: 10 }}>
+                            <View style={styles.checklistContainer}>
+                                <Text style={styles.checklistTitle}>WAJIB DIISI!</Text>
+                                <View style={styles.checklistRow}>
+                                    <Text style={styles.checklistLabel}>ATASAN</Text>
+                                    <View style={styles.checklistBox}>
+                                        {specs?.need_atasan && <Text style={{ textAlign: 'center', fontSize: 10 }}>✓</Text>}
+                                    </View>
+                                </View>
+                                <View style={styles.checklistRow}>
+                                    <Text style={styles.checklistLabel}>CELANA</Text>
+                                    <View style={styles.checklistBox}>
+                                        {specs?.need_celana && <Text style={{ textAlign: 'center', fontSize: 10 }}>✓</Text>}
+                                    </View>
+                                </View>
+                            </View>
+
+                            {/* Catatan */}
+                            {order.production_notes && (
+                                <View style={[styles.notesContainer, { marginTop: 10 }]}>
+                                    <Text style={styles.notesTitle}>Catatan</Text>
+                                    <Text style={styles.notesText}>{order.production_notes}</Text>
+                                </View>
+                            )}
+                        </View>
                     </View>
                 </View>
 
