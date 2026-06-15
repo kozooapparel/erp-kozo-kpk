@@ -61,7 +61,7 @@ const styles = StyleSheet.create({
         marginBottom: 10,
     },
     bottomSection: {
-        width: '100%',
+        width: 250,
         borderTop: '1px solid #e0e0e0',
         paddingTop: 10,
     },
