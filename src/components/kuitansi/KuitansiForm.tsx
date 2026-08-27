@@ -135,7 +135,7 @@ export default function KuitansiForm({ unpaidInvoices, prefilledInvoiceId }: Kui
                                 />
                             )}
                             <h2 className="text-lg font-bold text-cyan-400">
-                                {selectedInvoice?.brand?.company_name || 'KOZO KPK'}
+                                {selectedInvoice?.brand?.company_name || 'RAIDWEAR'}
                             </h2>
                             {selectedInvoice?.brand?.address && (
                                 <p className="text-xs text-slate-300 max-w-[180px] mt-1">

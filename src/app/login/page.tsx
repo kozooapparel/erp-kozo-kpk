@@ -236,7 +236,7 @@ export default function LoginPage() {
                             </svg>
                         </div>
                         <h1 className="text-4xl font-bold text-white mb-2 tracking-tight">
-                            Kozo KPK
+                            Raidwear
                         </h1>
                         <p className="text-emerald-300/70 text-sm tracking-widest uppercase">
                             Jersey Convection Management

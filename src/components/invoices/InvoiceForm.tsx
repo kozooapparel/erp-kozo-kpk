@@ -340,7 +340,7 @@ export default function InvoiceForm({
                                 />
                             )}
                             <h2 className="text-xl font-bold text-orange-500">
-                                {brandInfo?.name || companyInfo?.name || 'KOZO KPK'}
+                                {brandInfo?.name || companyInfo?.name || 'RAIDWEAR'}
                             </h2>
                             <p className="text-xs text-slate-500 max-w-[200px] mt-1 leading-relaxed">
                                 {brandInfo?.address || companyInfo?.address}

@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Kozo KPK - ERP Konveksi",
-  description: "ERP System untuk Kozo KPK Jersey Convection",
+  title: "Raidwear - ERP Konveksi",
+  description: "ERP System untuk Raidwear Jersey Convection",
 };
 
 export default function RootLayout({

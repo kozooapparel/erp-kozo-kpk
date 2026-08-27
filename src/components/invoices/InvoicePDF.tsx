@@ -164,7 +164,7 @@ export function InvoicePDFDocument({ invoice, companyInfo, bankInfo, brandInfo }
     jatuhTempo.setDate(jatuhTempo.getDate() + (invoice.termin_pembayaran || 16))
 
     // Use brand info if available, fallback to company info
-    const displayName = brandInfo?.name || companyInfo?.name || 'KOZO KPK'
+    const displayName = brandInfo?.name || companyInfo?.name || 'RAIDWEAR'
     const displayAddress = brandInfo?.address || companyInfo?.address || ''
 
     return (

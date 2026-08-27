@@ -302,7 +302,7 @@ export function SlipGajiPrint({ entry, period, companyName = 'Kozo KPK' }: SlipG
 export function PrintAllSlips({
     entries,
     period,
-    companyName = 'Kozo KPK'
+    companyName = 'Raidwear'
 }: {
     entries: PayrollEntry[]
     period: SlipGajiPrintProps['period']

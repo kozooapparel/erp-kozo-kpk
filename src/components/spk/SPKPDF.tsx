@@ -572,7 +572,7 @@ export default function SPKPDF({ order, brand, deadline }: SPKPDFProps) {
                         {brand?.logo_url && (
                             <Image src={brand.logo_url} style={{ width: 20, height: 20, objectFit: 'contain' }} />
                         )}
-                        <Text>{brand?.company_name || 'Kozo KPK'}</Text>
+                        <Text>{brand?.company_name || 'Raidwear'}</Text>
                     </View>
                 </View>
             </Page>

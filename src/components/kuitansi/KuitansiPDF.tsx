@@ -147,7 +147,7 @@ interface KuitansiPDFProps {
 
 export function KuitansiPDFDocument({ kuitansi, companyInfo }: KuitansiPDFProps) {
     // Get brand info from invoice, fallback to company info
-    const displayName = kuitansi.invoice?.brand?.company_name || companyInfo?.name || 'KOZO KPK'
+    const displayName = kuitansi.invoice?.brand?.company_name || companyInfo?.name || 'RAIDWEAR'
     const displayAddress = kuitansi.invoice?.brand?.address || companyInfo?.address || ''
     return (
         <Document>
