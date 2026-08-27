@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fingerprint Simulator - Kozo KPK</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 600px;
+            width: 100%;
+            padding: 40px;
+        }
+        h1 {
+            color: #1a202c;
+            font-size: 28px;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        .subtitle {
+            text-align: center;
+            color: #718096;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        .device-mockup {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+            text-align: center;
+            color: white;
+        }
+        .device-mockup h2 {
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+        .device-mockup p {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            color: #2d3748;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        input, select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        .btn-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 30px;
+        }
+        button {
+            padding: 14px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .btn-check-in {
+            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+            color: white;
+        }
+        .btn-check-in:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(72, 187, 120, 0.3);
+        }
+        .btn-check-out {
+            background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%);
+            color: white;
+        }
+        .btn-check-out:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(237, 137, 54, 0.3);
+        }
+        .response {
+            margin-top: 20px;
+            padding: 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            display: none;
+        }
+        .response.success {
+            background: #f0fff4;
+            border: 1px solid #9ae6b4;
+            color: #22543d;
+            display: block;
+        }
+        .response.error {
+            background: #fff5f5;
+            border: 1px solid #fc8181;
+            color: #742a2a;
+            display: block;
+        }
+        .info-box {
+            background: #ebf8ff;
+            border: 1px solid #90cdf4;
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 20px;
+            font-size: 13px;
+            color: #2c5282;
+        }
+        .info-box strong {
+            display: block;
+            margin-bottom: 8px;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+        }
+        .loading.active {
+            display: block;
+        }
+        .spinner {
+            border: 3px solid #e2e8f0;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🖐️ Fingerprint Simulator</h1>
+        <p class="subtitle">Test API Absensi Tanpa Mesin Fisik</p>
+
+        <div class="device-mockup">
+            <h2>BioFinger AT-301W (Simulated)</h2>
+            <p>IP: 192.168.1.100 | SN: TEST-001</p>
+        </div>
+
+        <form id="attendanceForm">
+            <div class="form-group">
+                <label for="nik">NIK Karyawan</label>
+                <input type="text" id="nik" required placeholder="Contoh: EMP001" value="EMP999">
+                <small style="color: #718096; font-size: 12px; margin-top: 4px; display: block;">
+                    NIK harus sudah terdaftar di database
+                </small>
+            </div>
+
+            <div class="form-group">
+                <label for="timestamp">Waktu Scan</label>
+                <input type="datetime-local" id="timestamp" required>
+            </div>
+
+            <div class="form-group">
+                <label for="scanType">Jenis Scan</label>
+                <select id="scanType">
+                    <option value="auto">Auto (Deteksi Check-In/Out)</option>
+                    <option value="check_in">Force Check-In</option>
+                    <option value="check_out">Force Check-Out</option>
+                </select>
+            </div>
+
+            <div class="btn-group">
+                <button type="button" class="btn-check-in" onclick="simulateScan('check_in')">
+                    <span>🟢</span> Check In
+                </button>
+                <button type="button" class="btn-check-out" onclick="simulateScan('check_out')">
+                    <span>🟠</span> Check Out
+                </button>
+            </div>
+        </form>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p style="margin-top: 10px; color: #718096;">Sending to server...</p>
+        </div>
+
+        <div class="response" id="response"></div>
+
+        <div class="info-box">
+            <strong>ℹ️ Cara Pakai:</strong>
+            1. Pastikan server dev running (<code>npm run dev</code>)<br>
+            2. Masukkan NIK karyawan yang sudah terdaftar<br>
+            3. Pilih waktu scan (default = sekarang)<br>
+            4. Klik "Check In" untuk masuk atau "Check Out" untuk pulang<br>
+            5. Cek di <a href="http://localhost:3000/hr/attendance" target="_blank">/hr/attendance</a>
+        </div>
+    </div>
+
+    <script>
+        // Set default timestamp to now
+        const now = new Date();
+        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+        document.getElementById('timestamp').value = now.toISOString().slice(0, 16);
+
+        async function simulateScan(type) {
+            const nik = document.getElementById('nik').value;
+            const timestamp = document.getElementById('timestamp').value;
+            const scanType = document.getElementById('scanType').value;
+
+            if (!nik || !timestamp) {
+                alert('NIK dan timestamp harus diisi!');
+                return;
+            }
+
+            // Show loading
+            document.getElementById('loading').classList.add('active');
+            document.getElementById('response').style.display = 'none';
+
+            // Prepare payload (simulate BioFinger format)
+            const payload = {
+                nik: nik,
+                timestamp: new Date(timestamp).toISOString(),
+                scan_type: scanType === 'auto' ? type : scanType,
+                device_sn: 'TEST-001',
+                device_ip: '192.168.1.100'
+            };
+
+            try {
+                const response = await fetch('http://localhost:3000/api/attendance/push', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+
+                // Hide loading
+                document.getElementById('loading').classList.remove('active');
+
+                // Show response
+                const responseDiv = document.getElementById('response');
+                if (response.ok) {
+                    responseDiv.className = 'response success';
+                    responseDiv.innerHTML = `
+                        <strong>✅ Sukses!</strong><br>
+                        ${data.message}<br>
+                        <small>NIK: ${nik} | Type: ${type.toUpperCase()}</small>
+                    `;
+                } else {
+                    responseDiv.className = 'response error';
+                    responseDiv.innerHTML = `
+                        <strong>❌ Error!</strong><br>
+                        ${data.error || 'Unknown error'}<br>
+                        <small>Status: ${response.status}</small>
+                    `;
+                }
+            } catch (error) {
+                // Hide loading
+                document.getElementById('loading').classList.remove('active');
+
+                // Show error
+                const responseDiv = document.getElementById('response');
+                responseDiv.className = 'response error';
+                responseDiv.innerHTML = `
+                    <strong>❌ Connection Error!</strong><br>
+                    ${error.message}<br>
+                    <small>Pastikan server dev running di http://localhost:3000</small>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>
