@@ -280,7 +280,7 @@ export default function LoginPage() {
                                             onChange={(e) => setEmail(e.target.value)}
                                             required
                                             className="w-full pl-12 pr-4 py-3.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500/40 transition-all duration-300 hover:bg-white/[0.08]"
-                                            placeholder="admin@kozo.com"
+                                            placeholder="admin@raidwear.com"
                                         />
                                     </div>
                                 </div>

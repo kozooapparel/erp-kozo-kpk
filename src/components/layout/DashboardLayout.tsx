@@ -185,8 +185,8 @@ export default function DashboardLayout({ user, children }: DashboardLayoutProps
                         </div>
                         <div className={`overflow-hidden flex-1 transition-all duration-200 ease-in-out ${isExpanded ? 'opacity-100 w-auto translate-x-0' : 'opacity-0 w-0 -translate-x-2'}`}>
                             <h1 className="text-base font-semibold text-slate-900 whitespace-nowrap">
-                                Kozo <span className="text-brand">KPK</span>
-                            </h1>
+                                    Raidwear
+                                </h1>
                             <p className="text-xs text-slate-500 whitespace-nowrap">Jersey Convection</p>
                         </div>
                         {/* Mobile Close Button */}
