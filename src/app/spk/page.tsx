@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import DashboardLayout from '@/components/layout/DashboardLayout'
 import SPKList from '@/components/spk/SPKList'
+import { PageHeader } from '@/components/ui/ds'
 
 export default async function SPKPage() {
     const supabase = await createClient()
@@ -61,11 +62,10 @@ export default async function SPKPage() {
     return (
         <DashboardLayout user={profile}>
             <div className="space-y-6">
-                {/* Header */}
-                <div>
-                    <h1 className="text-2xl font-bold text-slate-900">Surat Perintah Kerja</h1>
-                    <p className="text-slate-500">Daftar SPK untuk produksi</p>
-                </div>
+                <PageHeader
+                    title="Surat Perintah Kerja"
+                    description="Daftar SPK untuk produksi"
+                />
 
                 {/* SPK List */}
                 <SPKList orders={orders || []} brands={brands || []} />

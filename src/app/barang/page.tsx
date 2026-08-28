@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { BarangList } from '@/components/barang'
 import DashboardLayout from '@/components/layout/DashboardLayout'
+import { PageHeader } from '@/components/ui/ds'
 
 export default async function BarangPage() {
     const supabase = await createClient()
@@ -20,11 +21,10 @@ export default async function BarangPage() {
     return (
         <DashboardLayout user={profile}>
             <div className="space-y-6">
-                {/* Header */}
-                <div>
-                    <h1 className="text-2xl font-bold text-slate-900">Master Barang</h1>
-                    <p className="text-slate-500">Kelola produk dan harga tier</p>
-                </div>
+                <PageHeader
+                    title="Master Barang"
+                    description="Kelola produk dan harga tier"
+                />
 
                 {/* Barang List */}
                 <BarangList />

@@ -8,6 +8,7 @@ import AddCustomerModal from './AddCustomerModal'
 import CustomerDetailModal from './CustomerDetailModal'
 import EditCustomerModal from './EditCustomerModal'
 import { deleteCustomer } from '@/lib/actions/customers'
+import { PageHeader, EmptyState, DefaultEmptyIcon, StatCard } from '@/components/ui/ds'
 
 interface CustomerWithStats {
     id: string
@@ -23,6 +24,78 @@ interface CustomerListProps {
     customers: CustomerWithStats[]
 }
 
+// Icons
+const Icon = {
+    Plus: (p: { className?: string }) => (
+        <svg className={p.className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+        </svg>
+    ),
+    ArrowLeft: (p: { className?: string }) => (
+        <svg className={p.className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+        </svg>
+    ),
+    Phone: (p: { className?: string }) => (
+        <svg className={p.className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" />
+        </svg>
+    ),
+    ShoppingBag: (p: { className?: string }) => (
+        <svg className={p.className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+        </svg>
+    ),
+    Eye: (p: { className?: string }) => (
+        <svg className={p.className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+    ),
+    Pencil: (p: { className?: string }) => (
+        <svg className={p.className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+        </svg>
+    ),
+    Trash: (p: { className?: string }) => (
+        <svg className={p.className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+        </svg>
+    ),
+    Whatsapp: (p: { className?: string }) => (
+        <svg className={p.className} viewBox="0 0 24 24" fill="currentColor">
+            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+        </svg>
+    ),
+    X: (p: { className?: string }) => (
+        <svg className={p.className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.7}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+    ),
+}
+
+type TierTone = 'default' | 'info' | 'success' | 'warning' | 'brand'
+
+interface TierInfo {
+    label: string
+    tone: TierTone
+}
+
+const getCustomerTier = (orderCount: number): TierInfo => {
+    if (orderCount >= 10) return { label: 'VIP', tone: 'warning' }
+    if (orderCount >= 5) return { label: 'Loyal', tone: 'brand' }
+    if (orderCount >= 2) return { label: 'Repeat', tone: 'info' }
+    return { label: 'New', tone: 'success' }
+}
+
+const toneToBadge: Record<TierTone, string> = {
+    default: 'badge-neutral',
+    info: 'badge-info',
+    success: 'badge-success',
+    warning: 'badge-warning',
+    brand: 'badge-brand',
+}
+
 export default function CustomerList({ customers }: CustomerListProps) {
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [selectedCustomer, setSelectedCustomer] = useState<CustomerWithStats | null>(null)
@@ -35,7 +108,7 @@ export default function CustomerList({ customers }: CustomerListProps) {
     // Detect mobile viewport
     useEffect(() => {
         const checkMobile = () => {
-            setIsMobile(window.innerWidth < 768)
+            setIsMobile(window.innerWidth < 1024)
         }
         checkMobile()
         window.addEventListener('resize', checkMobile)
@@ -48,13 +121,6 @@ export default function CustomerList({ customers }: CustomerListProps) {
             currency: 'IDR',
             minimumFractionDigits: 0,
         }).format(value)
-    }
-
-    const getCustomerTier = (orderCount: number) => {
-        if (orderCount >= 10) return { label: 'VIP', color: 'bg-amber-500', icon: '👑' }
-        if (orderCount >= 5) return { label: 'Loyal', color: 'bg-purple-500', icon: '💎' }
-        if (orderCount >= 2) return { label: 'Repeat', color: 'bg-blue-500', icon: '🔄' }
-        return { label: 'New', color: 'bg-emerald-500', icon: '✨' }
     }
 
     // Handle delete customer
@@ -84,66 +150,83 @@ export default function CustomerList({ customers }: CustomerListProps) {
 
     return (
         <div className="space-y-6">
-            {/* Back Button */}
-            <Link
-                href="/dashboard"
-                className="inline-flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors"
-            >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                </svg>
-                Kembali ke Dashboard
-            </Link>
-
-            {/* Header */}
-            <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-bold text-slate-900">Daftar Customer</h1>
-                <button
-                    onClick={() => setIsModalOpen(true)}
-                    className="flex items-center gap-2 px-5 py-3 rounded-xl bg-red-500 text-white font-semibold hover:bg-red-600 transition-all transform hover:scale-105 shadow-lg shadow-red-500/25"
+            <div className="space-y-4">
+                <Link
+                    href="/dashboard"
+                    className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-900 transition-colors"
                 >
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-                    </svg>
-                    Tambah Customer
-                </button>
+                    <Icon.ArrowLeft className="w-4 h-4" />
+                    Kembali ke Dashboard
+                </Link>
+
+                <PageHeader
+                    title="Daftar Customer"
+                    description="Kelola data customer dan lihat ringkasan order"
+                    actions={
+                        <button
+                            onClick={() => setIsModalOpen(true)}
+                            className="btn-primary"
+                        >
+                            <Icon.Plus className="w-4 h-4" />
+                            <span className="hidden sm:inline">Tambah Customer</span>
+                            <span className="sm:hidden">Tambah</span>
+                        </button>
+                    }
+                />
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-sm">
-                    <p className="text-xs text-slate-500">Total Customer</p>
-                    <p className="text-2xl font-bold text-slate-900">{totalCustomers}</p>
-                </div>
-                <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-sm">
-                    <p className="text-xs text-slate-500">Total Revenue</p>
-                    <p className="text-2xl font-bold text-emerald-600">{formatCurrency(totalRevenue)}</p>
-                </div>
-                <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-sm">
-                    <p className="text-xs text-slate-500">VIP Customers</p>
-                    <p className="text-2xl font-bold text-amber-600">{vipCount}</p>
-                </div>
-                <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-sm">
-                    <p className="text-xs text-slate-500">Repeat Customers</p>
-                    <p className="text-2xl font-bold text-blue-600">{repeatCount}</p>
-                </div>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+                <StatCard
+                    label="Total Customer"
+                    value={totalCustomers}
+                    tone="default"
+                />
+                <StatCard
+                    label="Total Revenue"
+                    value={formatCurrency(totalRevenue)}
+                    tone="success"
+                />
+                <StatCard
+                    label="VIP Customers"
+                    value={vipCount}
+                    tone="warning"
+                />
+                <StatCard
+                    label="Repeat Customers"
+                    value={repeatCount}
+                    tone="info"
+                />
             </div>
 
             {/* Customer List - Responsive */}
-            {isMobile ? (
+            {customers.length === 0 ? (
+                <div className="surface">
+                    <EmptyState
+                        icon={<DefaultEmptyIcon />}
+                        title="Belum ada customer"
+                        description="Tambahkan customer pertama Anda untuk mulai mengelola data"
+                        action={
+                            <button onClick={() => setIsModalOpen(true)} className="btn-primary">
+                                <Icon.Plus className="w-4 h-4" />
+                                Tambah Customer
+                            </button>
+                        }
+                    />
+                </div>
+            ) : isMobile ? (
                 // Mobile: Card Layout
                 <div className="space-y-3">
-                    {customers.map((customer, index) => {
+                    {customers.map((customer) => {
                         const tier = getCustomerTier(customer.order_count)
                         return (
                             <div
                                 key={customer.id}
-                                className={`p-4 rounded-2xl bg-white border shadow-sm transition-all hover:shadow-md ${index === 0 ? 'border-amber-200 bg-amber-50/50' : 'border-slate-200'
-                                    }`}
+                                className="surface surface-hover p-4"
                             >
                                 {/* Header: Avatar, Name, Tier Badge */}
                                 <div className="flex items-center gap-3 mb-3">
-                                    <div className="w-12 h-12 rounded-full bg-brand-gradient flex items-center justify-center text-lg font-bold text-white flex-shrink-0">
+                                    <div className="w-11 h-11 rounded-full bg-brand-gradient flex items-center justify-center text-base font-bold text-white flex-shrink-0">
                                         {customer.name.charAt(0).toUpperCase()}
                                     </div>
                                     <div className="flex-1 min-w-0">
@@ -153,37 +236,26 @@ export default function CustomerList({ customers }: CustomerListProps) {
                                         >
                                             {customer.name}
                                         </button>
-                                        <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold text-white ${tier.color} mt-1`}>
-                                            {tier.icon} {tier.label}
+                                        <span className={`badge ${toneToBadge[tier.tone]} mt-1.5`}>
+                                            {tier.label}
                                         </span>
                                     </div>
                                 </div>
 
                                 {/* Info Grid */}
-                                <div className="grid grid-cols-2 gap-3 mb-3">
-                                    <div className="flex items-center gap-2 text-sm text-slate-600">
-                                        <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                                        </svg>
+                                <div className="grid grid-cols-2 gap-3 mb-3 text-sm">
+                                    <div className="flex items-center gap-2 text-slate-600">
+                                        <Icon.Phone className="w-4 h-4 text-slate-400" />
                                         {customer.phone}
                                     </div>
-                                    <div className="flex items-center gap-2 text-sm text-slate-600">
-                                        <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                                        </svg>
+                                    <div className="flex items-center gap-2 text-slate-600">
+                                        <Icon.ShoppingBag className="w-4 h-4 text-slate-400" />
                                         {customer.order_count} orders
                                     </div>
-                                    <div className="flex items-center gap-2 text-sm text-slate-600">
-                                        <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                                        </svg>
-                                        {customer.total_quantity} pcs
-                                    </div>
-                                    <div className="flex items-center gap-2 text-sm font-semibold text-emerald-600">
-                                        <svg className="w-4 h-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                        </svg>
-                                        {formatCurrency(customer.total_revenue)}
+                                    <div className="flex items-center gap-2 text-slate-600 col-span-2">
+                                        <span className="text-mono text-slate-900 font-medium">{customer.total_quantity} pcs</span>
+                                        <span className="text-slate-300">•</span>
+                                        <span className="text-mono font-semibold text-emerald-600">{formatCurrency(customer.total_revenue)}</span>
                                     </div>
                                 </div>
 
@@ -191,66 +263,60 @@ export default function CustomerList({ customers }: CustomerListProps) {
                                 <div className="flex gap-2 pt-3 border-t border-slate-100">
                                     <button
                                         onClick={() => setSelectedCustomer(customer)}
-                                        className="flex-1 py-2 px-3 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium text-center transition-colors"
+                                        className="flex-1 btn-secondary"
                                     >
                                         Lihat Detail
                                     </button>
                                     <button
                                         onClick={() => setDeleteConfirmId(customer.id)}
-                                        className="py-2 px-3 rounded-lg bg-red-100 hover:bg-red-200 text-red-600 text-sm font-medium transition-colors"
+                                        className="btn-icon btn-ghost text-red-600 hover:bg-red-50"
                                         title="Hapus"
+                                        aria-label="Hapus customer"
                                     >
-                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                        </svg>
+                                        <Icon.Trash className="w-4 h-4" />
                                     </button>
                                     <a
                                         href={`https://wa.me/${customer.phone.replace(/^0/, '62')}`}
                                         target="_blank"
-                                        className="py-2 px-4 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-medium flex items-center gap-2 transition-colors"
+                                        rel="noopener noreferrer"
+                                        className="btn-icon bg-emerald-500 hover:bg-emerald-600 text-white"
+                                        title="Chat WhatsApp"
+                                        aria-label="Chat WhatsApp"
                                     >
-                                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-                                        </svg>
-                                        WhatsApp
+                                        <Icon.Whatsapp className="w-4 h-4" />
                                     </a>
                                 </div>
                             </div>
                         )
                     })}
-
-                    {customers.length === 0 && (
-                        <p className="text-center text-slate-400 py-8">Belum ada customer</p>
-                    )}
                 </div>
             ) : (
                 // Desktop: Table Layout
-                <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm">
+                <div className="surface overflow-hidden">
                     <div className="overflow-x-auto">
                         <table className="w-full">
                             <thead>
-                                <tr className="border-b border-slate-200">
-                                    <th className="text-left py-3 px-4 text-sm font-medium text-slate-500">Customer</th>
-                                    <th className="text-left py-3 px-4 text-sm font-medium text-slate-500">No. HP</th>
-                                    <th className="text-center py-3 px-4 text-sm font-medium text-slate-500">Orders</th>
-                                    <th className="text-center py-3 px-4 text-sm font-medium text-slate-500">Qty</th>
-                                    <th className="text-right py-3 px-4 text-sm font-medium text-slate-500">Revenue</th>
-                                    <th className="text-center py-3 px-4 text-sm font-medium text-slate-500">Status</th>
-                                    <th className="text-center py-3 px-4 text-sm font-medium text-slate-500">Action</th>
+                                <tr className="bg-slate-50/80 border-b border-slate-200/70">
+                                    <th className="text-left text-xs font-semibold uppercase tracking-wider text-slate-500 px-4 py-3">Customer</th>
+                                    <th className="text-left text-xs font-semibold uppercase tracking-wider text-slate-500 px-4 py-3">No. HP</th>
+                                    <th className="text-center text-xs font-semibold uppercase tracking-wider text-slate-500 px-4 py-3">Orders</th>
+                                    <th className="text-center text-xs font-semibold uppercase tracking-wider text-slate-500 px-4 py-3">Qty</th>
+                                    <th className="text-right text-xs font-semibold uppercase tracking-wider text-slate-500 px-4 py-3">Revenue</th>
+                                    <th className="text-center text-xs font-semibold uppercase tracking-wider text-slate-500 px-4 py-3">Status</th>
+                                    <th className="text-right text-xs font-semibold uppercase tracking-wider text-slate-500 px-4 py-3">Aksi</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                {customers.map((customer, index) => {
+                            <tbody className="divide-y divide-slate-100">
+                                {customers.map((customer) => {
                                     const tier = getCustomerTier(customer.order_count)
                                     return (
                                         <tr
                                             key={customer.id}
-                                            className={`border-b border-slate-100 hover:bg-slate-50 transition-colors ${index === 0 ? 'bg-amber-50' : ''
-                                                }`}
+                                            className="hover:bg-slate-50/60 transition-colors"
                                         >
-                                            <td className="py-3 px-4">
+                                            <td className="px-4 py-3">
                                                 <button onClick={() => setSelectedCustomer(customer)} className="flex items-center gap-3 group text-left">
-                                                    <div className="w-10 h-10 rounded-full bg-brand-gradient flex items-center justify-center text-sm font-bold text-white">
+                                                    <div className="w-9 h-9 rounded-full bg-brand-gradient flex items-center justify-center text-sm font-bold text-white">
                                                         {customer.name.charAt(0).toUpperCase()}
                                                     </div>
                                                     <span className="font-medium text-slate-900 group-hover:text-red-600 transition-colors">
@@ -258,56 +324,52 @@ export default function CustomerList({ customers }: CustomerListProps) {
                                                     </span>
                                                 </button>
                                             </td>
-                                            <td className="py-3 px-4 text-slate-500">{customer.phone}</td>
-                                            <td className="py-3 px-4 text-center font-medium text-slate-900">{customer.order_count}</td>
-                                            <td className="py-3 px-4 text-center text-slate-500">{customer.total_quantity} pcs</td>
-                                            <td className="py-3 px-4 text-right font-medium text-emerald-600">
+                                            <td className="px-4 py-3 text-slate-600 text-mono text-sm">{customer.phone}</td>
+                                            <td className="px-4 py-3 text-center font-medium text-slate-900 text-mono">{customer.order_count}</td>
+                                            <td className="px-4 py-3 text-center text-slate-600 text-mono">{customer.total_quantity} pcs</td>
+                                            <td className="px-4 py-3 text-right font-medium text-emerald-600 text-mono">
                                                 {formatCurrency(customer.total_revenue)}
                                             </td>
-                                            <td className="py-3 px-4 text-center">
-                                                <span className={`px-2 py-1 rounded-full text-xs font-semibold text-white ${tier.color}`}>
-                                                    {tier.icon} {tier.label}
+                                            <td className="px-4 py-3 text-center">
+                                                <span className={`badge ${toneToBadge[tier.tone]}`}>
+                                                    {tier.label}
                                                 </span>
                                             </td>
-                                            <td className="py-3 px-4 text-center">
-                                                <div className="flex items-center justify-center gap-2">
+                                            <td className="px-4 py-3 text-right">
+                                                <div className="flex items-center justify-end gap-1">
                                                     <button
                                                         onClick={() => setSelectedCustomer(customer)}
-                                                        className="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 transition-colors"
+                                                        className="btn-icon btn-ghost"
                                                         title="Lihat Detail"
+                                                        aria-label="Lihat detail"
                                                     >
-                                                        <svg className="w-4 h-4 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                                        </svg>
+                                                        <Icon.Eye className="w-4 h-4" />
                                                     </button>
                                                     <button
                                                         onClick={() => setEditingCustomer(customer)}
-                                                        className="p-2 rounded-lg bg-amber-100 hover:bg-amber-200 transition-colors"
+                                                        className="btn-icon btn-ghost"
                                                         title="Edit Customer"
+                                                        aria-label="Edit customer"
                                                     >
-                                                        <svg className="w-4 h-4 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                                        </svg>
+                                                        <Icon.Pencil className="w-4 h-4" />
                                                     </button>
                                                     <button
                                                         onClick={() => setDeleteConfirmId(customer.id)}
-                                                        className="p-2 rounded-lg bg-red-100 hover:bg-red-200 transition-colors"
+                                                        className="btn-icon btn-ghost text-red-600 hover:!bg-red-50"
                                                         title="Hapus Customer"
+                                                        aria-label="Hapus customer"
                                                     >
-                                                        <svg className="w-4 h-4 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                        </svg>
+                                                        <Icon.Trash className="w-4 h-4" />
                                                     </button>
                                                     <a
                                                         href={`https://wa.me/${customer.phone.replace(/^0/, '62')}`}
                                                         target="_blank"
-                                                        className="p-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 transition-colors"
+                                                        rel="noopener noreferrer"
+                                                        className="btn-icon bg-emerald-500 hover:bg-emerald-600 text-white"
                                                         title="Chat WhatsApp"
+                                                        aria-label="Chat WhatsApp"
                                                     >
-                                                        <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor">
-                                                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-                                                        </svg>
+                                                        <Icon.Whatsapp className="w-4 h-4" />
                                                     </a>
                                                 </div>
                                             </td>
@@ -317,10 +379,6 @@ export default function CustomerList({ customers }: CustomerListProps) {
                             </tbody>
                         </table>
                     </div>
-
-                    {customers.length === 0 && (
-                        <p className="text-center text-slate-400 py-8">Belum ada customer</p>
-                    )}
                 </div>
             )}
 
@@ -350,30 +408,33 @@ export default function CustomerList({ customers }: CustomerListProps) {
 
             {/* Delete Confirmation Dialog */}
             {deleteConfirmId && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center">
-                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setDeleteConfirmId(null)} />
-                    <div className="relative bg-white rounded-2xl p-6 max-w-sm mx-4 shadow-2xl">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div
+                        className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
+                        onClick={() => !deleting && setDeleteConfirmId(null)}
+                        aria-hidden="true"
+                    />
+                    <div className="relative bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-scaleIn">
                         <div className="text-center">
-                            <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
-                                <svg className="w-6 h-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                </svg>
+                            <div className="w-12 h-12 rounded-2xl bg-red-50 border border-red-100 flex items-center justify-center mx-auto mb-4">
+                                <Icon.Trash className="w-6 h-6 text-red-600" />
                             </div>
-                            <h3 className="text-lg font-bold text-slate-900 mb-2">Hapus Customer?</h3>
+                            <h3 className="text-h3 text-slate-900 mb-2">Hapus Customer?</h3>
                             <p className="text-sm text-slate-500 mb-6">
                                 Customer yang memiliki order tidak bisa dihapus. Pastikan tidak ada order terkait.
                             </p>
                             <div className="flex gap-3">
                                 <button
                                     onClick={() => setDeleteConfirmId(null)}
-                                    className="flex-1 px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium transition-colors"
+                                    disabled={deleting}
+                                    className="flex-1 btn-secondary"
                                 >
                                     Batal
                                 </button>
                                 <button
                                     onClick={() => handleDeleteCustomer(deleteConfirmId)}
                                     disabled={deleting}
-                                    className="flex-1 px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium transition-colors disabled:opacity-50"
+                                    className="flex-1 btn-danger"
                                 >
                                     {deleting ? 'Menghapus...' : 'Hapus'}
                                 </button>
@@ -385,4 +446,3 @@ export default function CustomerList({ customers }: CustomerListProps) {
         </div>
     )
 }
-

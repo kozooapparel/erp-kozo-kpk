@@ -8,12 +8,54 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import CurrencyInput from '@/components/ui/CurrencyInput'
 import NumberInput from '@/components/ui/NumberInput'
+import { StatCard, EmptyState, DefaultEmptyIcon } from '@/components/ui/ds'
 
 interface HargaTierInput {
     id: string
     min_qty: number
     max_qty: number | null
     harga: number
+}
+
+const Icon = {
+    Plus: (props: React.SVGProps<SVGSVGElement>) => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" {...props}>
+            <path d="M12 5v14M5 12h14" />
+        </svg>
+    ),
+    Pencil: (props: React.SVGProps<SVGSVGElement>) => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" {...props}>
+            <path d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+        </svg>
+    ),
+    Trash: (props: React.SVGProps<SVGSVGElement>) => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" {...props}>
+            <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+        </svg>
+    ),
+    Calculator: (props: React.SVGProps<SVGSVGElement>) => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" {...props}>
+            <rect x="4" y="3" width="16" height="18" rx="2" />
+            <path d="M8 7h8M8 11h2M12 11h2M16 11h0M8 15h2M12 15h2M16 15h0M8 19h8" />
+        </svg>
+    ),
+    Cube: (props: React.SVGProps<SVGSVGElement>) => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" {...props}>
+            <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z" />
+            <path d="M3.27 6.96L12 12.01l8.73-5.05M12 22.08V12" />
+        </svg>
+    ),
+    Tag: (props: React.SVGProps<SVGSVGElement>) => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" {...props}>
+            <path d="M20.59 13.41L13.42 20.58a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z" />
+            <circle cx="7" cy="7" r="1.5" fill="currentColor" />
+        </svg>
+    ),
+    Money: (props: React.SVGProps<SVGSVGElement>) => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" {...props}>
+            <path d="M12 1v22M17 5H9.5a3.5 3.5 0 100 7h5a3.5 3.5 0 110 7H6" />
+        </svg>
+    ),
 }
 
 export default function BarangList() {
@@ -53,7 +95,6 @@ export default function BarangList() {
         setNamaBarang('')
         setSatuan('PCS')
         setHargaSatuan(0)
-
         setKategori('')
         setHargaTiers([])
         setShowModal(true)
@@ -157,76 +198,127 @@ export default function BarangList() {
         }
     }
 
+    // Stats
+    const stats = {
+        total: barangList.length,
+        withCategories: barangList.filter(b => b.kategori).length,
+        avgPrice: barangList.length > 0
+            ? barangList.reduce((sum, b) => sum + b.harga_satuan, 0) / barangList.length
+            : 0,
+    }
+
     return (
         <>
-            {/* Header */}
-            <div className="flex items-center justify-between mb-6">
-                <div>
-                    <p className="text-slate-500">{barangList.length} produk aktif</p>
-                </div>
+            {/* Stat cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <StatCard
+                    label="Total Produk"
+                    value={<span className="text-mono">{stats.total}</span>}
+                    icon={<Icon.Cube className="w-4 h-4" />}
+                    tone="brand"
+                    helper="produk aktif"
+                />
+                <StatCard
+                    label="Terkategori"
+                    value={<span className="text-mono">{stats.withCategories}</span>}
+                    icon={<Icon.Tag className="w-4 h-4" />}
+                    tone="info"
+                    helper="memiliki kategori"
+                />
+                <StatCard
+                    label="Rata-rata Harga"
+                    value={<span className="text-mono">{formatCurrency(stats.avgPrice)}</span>}
+                    icon={<Icon.Money className="w-4 h-4" />}
+                    tone="success"
+                    helper="harga satuan"
+                />
+            </div>
+
+            {/* Action bar */}
+            <div className="surface p-3 flex items-center justify-between gap-3">
+                <p className="text-caption">
+                    {barangList.length} produk terdaftar
+                </p>
                 <button
                     onClick={openCreateModal}
-                    className="px-4 py-2 bg-gradient-to-r from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+                    className="btn-primary"
                 >
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
-                    Tambah Barang
+                    <Icon.Plus className="w-4 h-4" />
+                    <span className="hidden sm:inline">Tambah Barang</span>
+                    <span className="sm:hidden">Tambah</span>
                 </button>
             </div>
 
             {/* Table */}
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="surface overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full">
-                        <thead className="bg-slate-50">
+                        <thead className="bg-slate-50/80 border-b border-slate-200/70">
                             <tr>
-                                <th className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider px-6 py-3">Nama Barang</th>
-                                <th className="text-center text-xs font-medium text-slate-500 uppercase tracking-wider px-6 py-3">Satuan</th>
-                                <th className="text-right text-xs font-medium text-slate-500 uppercase tracking-wider px-6 py-3">Harga Satuan</th>
-                                <th className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider px-6 py-3">Kategori</th>
-                                <th className="text-center text-xs font-medium text-slate-500 uppercase tracking-wider px-6 py-3">Aksi</th>
+                                <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">Nama Barang</th>
+                                <th className="text-center text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">Satuan</th>
+                                <th className="text-right text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">Harga Satuan</th>
+                                <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">Kategori</th>
+                                <th className="text-center text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">Aksi</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                             {loading ? (
                                 <tr>
-                                    <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
-                                        Loading...
+                                    <td colSpan={5} className="px-6 py-12 text-center text-caption">
+                                        Memuat data...
                                     </td>
                                 </tr>
                             ) : barangList.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
-                                        Belum ada barang. Klik "Tambah Barang" untuk menambahkan.
+                                    <td colSpan={5} className="p-0">
+                                        <EmptyState
+                                            icon={<DefaultEmptyIcon />}
+                                            title="Belum ada produk"
+                                            description="Tambahkan produk pertama Anda untuk mulai membuat invoice dan SPK."
+                                            action={
+                                                <button onClick={openCreateModal} className="btn-primary">
+                                                    <Icon.Plus className="w-4 h-4" />
+                                                    Tambah Barang
+                                                </button>
+                                            }
+                                        />
                                     </td>
                                 </tr>
                             ) : (
                                 barangList.map((barang) => (
-                                    <tr key={barang.id} className="hover:bg-slate-50">
-                                        <td className="px-6 py-4 text-sm font-medium text-slate-900">{barang.nama_barang}</td>
-                                        <td className="px-6 py-4 text-sm text-slate-600 text-center">{barang.satuan}</td>
-                                        <td className="px-6 py-4 text-sm text-slate-900 text-right font-medium">{formatCurrency(barang.harga_satuan)}</td>
-                                        <td className="px-6 py-4 text-sm text-slate-600">{barang.kategori || '-'}</td>
-                                        <td className="px-6 py-4 text-center">
-                                            <div className="flex items-center justify-center gap-2">
+                                    <tr key={barang.id} className="hover:bg-slate-50/60 transition-colors">
+                                        <td className="px-4 py-3 text-sm font-medium text-slate-900">{barang.nama_barang}</td>
+                                        <td className="px-4 py-3 text-sm text-slate-600 text-center">
+                                            <span className="badge badge-neutral">{barang.satuan}</span>
+                                        </td>
+                                        <td className="px-4 py-3 text-sm text-slate-900 text-right font-semibold text-mono">
+                                            {formatCurrency(barang.harga_satuan)}
+                                        </td>
+                                        <td className="px-4 py-3 text-sm text-slate-600">
+                                            {barang.kategori ? (
+                                                <span className="badge badge-info">{barang.kategori}</span>
+                                            ) : (
+                                                <span className="text-caption">—</span>
+                                            )}
+                                        </td>
+                                        <td className="px-4 py-3 text-center">
+                                            <div className="flex items-center justify-center gap-1">
                                                 <button
                                                     onClick={() => openEditModal(barang.id)}
-                                                    className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
+                                                    className="btn-icon"
                                                     title="Edit"
+                                                    aria-label={`Edit ${barang.nama_barang}`}
                                                 >
-                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                                    </svg>
+                                                    <Icon.Pencil className="w-4 h-4" />
                                                 </button>
                                                 <button
                                                     onClick={() => handleDelete(barang.id)}
-                                                    className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                    className="btn-icon text-red-500 hover:bg-red-50"
                                                     title="Hapus"
+                                                    aria-label={`Hapus ${barang.nama_barang}`}
                                                 >
-                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                    </svg>
+                                                    <Icon.Trash className="w-4 h-4" />
                                                 </button>
                                             </div>
                                         </td>
@@ -240,55 +332,58 @@ export default function BarangList() {
 
             {/* Modal */}
             {showModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-                    <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-                        <div className="p-6 border-b border-slate-200">
-                            <h2 className="text-xl font-bold text-slate-900">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-fadeIn">
+                    <div className="surface-elevated w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-scaleIn">
+                        <div className="p-6 border-b border-slate-200/70">
+                            <h2 className="text-h3 text-slate-900">
                                 {editingBarang ? 'Edit Barang' : 'Tambah Barang'}
                             </h2>
+                            <p className="text-caption mt-1">
+                                {editingBarang ? 'Perbarui data produk' : 'Tambahkan produk baru ke master barang'}
+                            </p>
                         </div>
 
                         <div className="p-6 space-y-4">
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Nama Barang *</label>
+                                <label className="label">Nama Barang *</label>
                                 <input
                                     type="text"
                                     value={namaBarang}
                                     onChange={(e) => setNamaBarang(e.target.value)}
-                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500/50"
+                                    className="input"
                                     placeholder="Contoh: Jersey Fullprint Premium 160/170 GMS"
                                 />
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1">Satuan</label>
+                                    <label className="label">Satuan</label>
                                     <input
                                         type="text"
                                         value={satuan}
                                         onChange={(e) => setSatuan(e.target.value)}
-                                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500/50"
+                                        className="input"
                                         placeholder="PCS"
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1">Harga Satuan Default</label>
+                                    <label className="label">Harga Satuan Default</label>
                                     <CurrencyInput
                                         value={hargaSatuan}
                                         onChange={setHargaSatuan}
                                         placeholder="0"
-                                        className="!rounded-lg !py-2"
+                                        className="!py-2"
                                     />
                                 </div>
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Kategori (opsional)</label>
+                                <label className="label">Kategori (opsional)</label>
                                 <input
                                     type="text"
                                     value={kategori}
                                     onChange={(e) => setKategori(e.target.value)}
-                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500/50"
+                                    className="input"
                                     placeholder="Contoh: Jersey, Kaos, Hoodie"
                                 />
                             </div>
@@ -296,33 +391,29 @@ export default function BarangList() {
                             {/* Harga Tier */}
                             <div>
                                 <div className="flex items-center justify-between mb-3">
-                                    <label className="text-sm font-medium text-slate-700">Harga Tier (berdasarkan quantity)</label>
+                                    <label className="label !mb-0">Harga Tier (berdasarkan quantity)</label>
                                     <button
                                         type="button"
                                         onClick={addTierRow}
-                                        className="px-3 py-1.5 bg-violet-50 text-violet-600 text-sm font-medium rounded-lg hover:bg-violet-100 transition-colors flex items-center gap-1"
+                                        className="btn-secondary btn-sm"
                                     >
-                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                                        </svg>
+                                        <Icon.Plus className="w-4 h-4" />
                                         Tambah Tier
                                     </button>
                                 </div>
 
                                 {hargaTiers.length === 0 ? (
-                                    <div className="text-center py-8 bg-slate-50 rounded-xl border-2 border-dashed border-slate-200">
-                                        <svg className="w-10 h-10 text-slate-300 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                                        </svg>
+                                    <div className="text-center py-8 surface">
+                                        <Icon.Calculator className="w-10 h-10 text-slate-300 mx-auto mb-2" />
                                         <p className="text-sm text-slate-500">Belum ada tier harga</p>
                                         <p className="text-xs text-slate-400 mt-1">Harga default akan digunakan untuk semua quantity</p>
                                     </div>
                                 ) : (
                                     <div className="space-y-2">
                                         {hargaTiers.map((tier, index) => (
-                                            <div key={tier.id} className="flex items-center gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200 group hover:border-violet-200 transition-colors">
+                                            <div key={tier.id} className="flex items-center gap-2 p-3 surface hover:border-brand-200 transition-colors">
                                                 {/* Tier Number */}
-                                                <span className="w-6 h-6 bg-violet-100 text-violet-600 rounded-full text-xs font-bold flex items-center justify-center flex-shrink-0">
+                                                <span className="w-6 h-6 bg-brand-50 text-brand-600 rounded-full text-xs font-bold flex items-center justify-center flex-shrink-0">
                                                     {index + 1}
                                                 </span>
 
@@ -332,7 +423,7 @@ export default function BarangList() {
                                                         value={tier.min_qty}
                                                         onChange={(val) => updateTier(index, 'min_qty', val)}
                                                         placeholder="1"
-                                                        className="!w-16 !py-1.5 !px-2 !rounded-lg text-center text-sm"
+                                                        className="!w-16 !py-1.5 !px-2 text-center text-sm"
                                                     />
                                                     <span className="text-slate-400 font-medium">-</span>
                                                     <NumberInput
@@ -340,13 +431,13 @@ export default function BarangList() {
                                                         onChange={(val) => updateTier(index, 'max_qty', val === 0 ? null : val)}
                                                         placeholder="∞"
                                                         allowEmpty
-                                                        className="!w-16 !py-1.5 !px-2 !rounded-lg text-center text-sm"
+                                                        className="!w-16 !py-1.5 !px-2 text-center text-sm"
                                                     />
                                                     <span className="text-sm text-slate-500 font-medium">pcs</span>
                                                 </div>
 
                                                 {/* Equals Sign */}
-                                                <span className="text-violet-500 font-bold text-lg">=</span>
+                                                <span className="text-brand-500 font-bold text-lg">=</span>
 
                                                 {/* Price */}
                                                 <div className="flex items-center gap-1 flex-1">
@@ -356,7 +447,7 @@ export default function BarangList() {
                                                         onChange={(val) => updateTier(index, 'harga', val)}
                                                         placeholder="0"
                                                         showPrefix={false}
-                                                        className="!py-1.5 !px-2 !rounded-lg text-sm font-semibold"
+                                                        className="!py-1.5 !px-2 text-sm font-semibold"
                                                     />
                                                 </div>
 
@@ -364,11 +455,10 @@ export default function BarangList() {
                                                 <button
                                                     type="button"
                                                     onClick={() => removeTierRow(index)}
-                                                    className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                    className="btn-icon text-slate-400 hover:text-red-500"
+                                                    aria-label="Hapus tier"
                                                 >
-                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                    </svg>
+                                                    <Icon.Trash className="w-4 h-4" />
                                                 </button>
                                             </div>
                                         ))}
@@ -377,16 +467,16 @@ export default function BarangList() {
                             </div>
                         </div>
 
-                        <div className="p-6 border-t border-slate-200 flex justify-end gap-3">
+                        <div className="p-6 border-t border-slate-200/70 flex justify-end gap-3">
                             <button
                                 onClick={closeModal}
-                                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium transition-colors"
+                                className="btn-secondary"
                             >
                                 Batal
                             </button>
                             <button
                                 onClick={handleSave}
-                                className="px-4 py-2 bg-violet-500 hover:bg-violet-600 text-white rounded-lg font-medium transition-colors"
+                                className="btn-primary"
                             >
                                 Simpan
                             </button>
