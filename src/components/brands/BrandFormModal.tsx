@@ -1,8 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Brand, BrandInsert, BrandUpdate } from '@/types/database'
 import { createBrand, updateBrand } from '@/lib/actions/brands'
+import { createClient } from '@/lib/supabase/client'
+import { resizeImageToSquare } from '@/lib/utils/image'
 import { useRouter } from 'next/navigation'
 
 interface BrandFormModalProps {
@@ -17,6 +19,10 @@ export default function BrandFormModal({ isOpen, onClose, brand }: BrandFormModa
 
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const [uploading, setUploading] = useState(false)
+    const fileInputRef = useRef<HTMLInputElement>(null)
+
+    const supabase = createClient()
 
     // Form state
     const [formData, setFormData] = useState({
@@ -83,6 +89,42 @@ export default function BrandFormModal({ isOpen, onClose, brand }: BrandFormModa
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target
         setFormData(prev => ({ ...prev, [name]: value }))
+    }
+
+    // Upload logo: resize to 180x180 (lightweight), then store in Supabase Storage
+    const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+        if (!file.type.startsWith('image/')) {
+            setError('File harus berupa gambar')
+            return
+        }
+
+        setUploading(true)
+        setError(null)
+        try {
+            // Resize to 180x180 so the stored file stays small
+            const resized = await resizeImageToSquare(file, 180)
+            const fileName = `logo-${Date.now()}.png`
+
+            const { error: uploadError } = await supabase.storage
+                .from('brand-logos')
+                .upload(fileName, resized, { upsert: true })
+
+            if (uploadError) throw uploadError
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('brand-logos')
+                .getPublicUrl(fileName)
+
+            setFormData(prev => ({ ...prev, logo_url: publicUrl }))
+        } catch (err) {
+            setError(err instanceof Error ? `Gagal upload logo: ${err.message}` : 'Gagal upload logo')
+        } finally {
+            setUploading(false)
+            // Allow selecting the same file again
+            if (fileInputRef.current) fileInputRef.current.value = ''
+        }
     }
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -191,16 +233,37 @@ export default function BrandFormModal({ isOpen, onClose, brand }: BrandFormModa
 
                         <div>
                             <label className="block text-sm font-medium text-slate-700 mb-1">
-                                URL Logo
+                                Logo
                             </label>
-                            <input
-                                type="url"
-                                name="logo_url"
-                                value={formData.logo_url}
-                                onChange={handleChange}
-                                placeholder="https://example.com/logo.png"
-                                className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                            />
+                            <div className="flex items-center gap-3">
+                                <input
+                                    type="url"
+                                    name="logo_url"
+                                    value={formData.logo_url}
+                                    onChange={handleChange}
+                                    placeholder="https://example.com/logo.png"
+                                    className="flex-1 px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                                />
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleLogoUpload}
+                                    className="hidden"
+                                    disabled={uploading}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    disabled={uploading}
+                                    className="shrink-0 px-4 py-2.5 rounded-xl bg-slate-800 text-white text-sm font-semibold hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {uploading ? 'Mengunggah...' : 'Upload'}
+                                </button>
+                            </div>
+                            <p className="text-xs text-slate-400 mt-1">
+                                Upload otomatis di-resize ke 180×180 px agar ringan
+                            </p>
                             {formData.logo_url && (
                                 <div className="mt-2 p-2 bg-slate-50 rounded-lg inline-block">
                                     <img
