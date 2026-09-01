@@ -39,6 +39,8 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
     const [savingNotes, setSavingNotes] = useState(false)
     const [archiving, setArchiving] = useState(false)
     const [showArchiveConfirm, setShowArchiveConfirm] = useState(false)
+    const [showDeleteMockupConfirm, setShowDeleteMockupConfirm] = useState(false)
+    const [deletingMockup, setDeletingMockup] = useState(false)
     const [editingDP, setEditingDP] = useState<'dp_desain' | 'dp_produksi' | 'pelunasan' | null>(null)
     const [editDPAmount, setEditDPAmount] = useState('')
     const [savingCorrection, setSavingCorrection] = useState(false)
@@ -72,6 +74,11 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
             setDesignNotes(order.design_notes || '')
         }
     }, [order?.design_notes])
+
+    // Tutup konfirmasi hapus saat pindah order
+    useEffect(() => {
+        setShowDeleteMockupConfirm(false)
+    }, [order?.id])
 
     // Determine if order is ready to move to next stage
     const getStageReadiness = (): boolean => {
@@ -177,6 +184,55 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
             toast.error(`Gagal upload desain: ${message}`, { id: toastId })
         } finally {
             setLoading(false)
+        }
+    }
+
+    // Handle hapus desain final — buang file dari storage lalu kosongkan mockup_url
+    const handleDeleteMockup = async () => {
+        if (!order.mockup_url) return
+
+        setDeletingMockup(true)
+        const toastId = toast.loading('Menghapus desain...')
+        try {
+            // Ambil path file dari public URL: .../object/public/order-assets/<path>
+            const marker = '/order-assets/'
+            const markerIndex = order.mockup_url.indexOf(marker)
+            const filePath = markerIndex !== -1
+                ? decodeURIComponent(order.mockup_url.slice(markerIndex + marker.length))
+                : null
+
+            // Kosongkan referensi di DB lebih dulu supaya UI tidak menunjuk file hilang
+            const { error: updateError } = await supabase
+                .from('orders')
+                .update({ mockup_url: null })
+                .eq('id', order.id)
+
+            if (updateError) {
+                console.error('Update error:', updateError)
+                toast.error(`Gagal menghapus: ${updateError.message}`, { id: toastId })
+                return
+            }
+
+            // File sisa tidak memblokir alur kerja, jadi kegagalan di sini hanya di-log
+            if (filePath) {
+                const { error: removeError } = await supabase.storage
+                    .from('order-assets')
+                    .remove([filePath])
+
+                if (removeError) {
+                    console.error('Storage remove error:', removeError)
+                }
+            }
+
+            toast.success('Desain berhasil dihapus', { id: toastId })
+            setShowDeleteMockupConfirm(false)
+            router.refresh()
+        } catch (err) {
+            console.error('Delete mockup error:', err)
+            const message = err instanceof Error ? err.message : 'Unknown error'
+            toast.error(`Gagal menghapus desain: ${message}`, { id: toastId })
+        } finally {
+            setDeletingMockup(false)
         }
     }
 
@@ -1363,19 +1419,67 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                                 </div>
                             )}
 
-                            {/* Mockup Upload for proses_desain */}
-                            {order.stage === 'proses_desain' && (
+                            {/* Upload desain: di stage proses_desain, atau di stage manapun bila desain sudah ada (agar salah upload bisa diperbaiki) */}
+                            {(order.stage === 'proses_desain' || order.mockup_url) && (
                                 <div className="p-4 rounded-xl bg-slate-50 space-y-3">
                                     <p className="text-sm font-medium text-slate-900">Upload Desain Final</p>
 
+                                    {order.stage !== 'proses_desain' && (
+                                        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                                            Order sudah lewat tahap desain. Mengganti atau menghapus desain di sini bisa berdampak ke produksi yang sedang berjalan.
+                                        </p>
+                                    )}
+
                                     {order.mockup_url && (
-                                        <div
-                                            className="relative w-full h-40 rounded-lg overflow-hidden bg-white cursor-zoom-in hover:opacity-95 transition-opacity"
-                                            onClick={() => setPreviewImage(order.mockup_url)}
-                                        >
-                                            <Image src={order.mockup_url} alt="Desain" fill className="object-contain" />
-                                            <div className="absolute top-2 right-2 px-2 py-1 rounded bg-emerald-500 text-slate-900 text-xs font-medium">
-                                                ✓ Uploaded
+                                        <div className="relative w-full h-40 rounded-lg overflow-hidden bg-white">
+                                            <div
+                                                className="absolute inset-0 cursor-zoom-in hover:opacity-95 transition-opacity"
+                                                onClick={() => setPreviewImage(order.mockup_url)}
+                                            >
+                                                <Image src={order.mockup_url} alt="Desain" fill className="object-contain" />
+                                            </div>
+                                            <div className="absolute top-2 right-2 flex items-center gap-2">
+                                                <span className="px-2 py-1 rounded bg-emerald-500 text-slate-900 text-xs font-medium">
+                                                    ✓ Uploaded
+                                                </span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowDeleteMockupConfirm(true)}
+                                                    disabled={deletingMockup || loading}
+                                                    title="Hapus desain"
+                                                    aria-label="Hapus desain"
+                                                    className="p-1.5 rounded bg-red-500 text-white hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {showDeleteMockupConfirm && (
+                                        <div className="p-3 rounded-lg bg-red-50 border border-red-200 space-y-3">
+                                            <p className="text-sm text-red-700">
+                                                Hapus desain final ini? File akan dihapus permanen dan order dianggap belum punya desain.
+                                            </p>
+                                            <div className="flex gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={handleDeleteMockup}
+                                                    disabled={deletingMockup}
+                                                    className="px-3 py-2 rounded-lg bg-red-500 text-white text-sm font-medium hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                                >
+                                                    {deletingMockup ? 'Menghapus...' : 'Ya, Hapus'}
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowDeleteMockupConfirm(false)}
+                                                    disabled={deletingMockup}
+                                                    className="px-3 py-2 rounded-lg bg-white border border-slate-300 text-slate-700 text-sm font-medium hover:bg-slate-50 disabled:opacity-50 transition-colors"
+                                                >
+                                                    Batal
+                                                </button>
                                             </div>
                                         </div>
                                     )}
