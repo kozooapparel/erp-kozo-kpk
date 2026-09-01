@@ -12,16 +12,21 @@ import type {
 } from '@/types/database'
 
 /**
- * Get all active barang
+ * Get active barang. Jika brandId diisi, hanya barang milik brand tersebut.
  */
-export async function getBarangList(): Promise<Barang[]> {
+export async function getBarangList(brandId?: string): Promise<Barang[]> {
     const supabase = await createClient()
 
-    const { data, error } = await supabase
+    let query = supabase
         .from('barang')
         .select('*')
         .eq('is_active', true)
-        .order('nama_barang', { ascending: true })
+
+    if (brandId) {
+        query = query.eq('brand_id', brandId)
+    }
+
+    const { data, error } = await query.order('nama_barang', { ascending: true })
 
     if (error) {
         console.error('Error fetching barang:', error)
@@ -211,14 +216,20 @@ export async function deleteBarang(id: string): Promise<boolean> {
 /**
  * Search barang by name
  */
-export async function searchBarang(query: string): Promise<Barang[]> {
+export async function searchBarang(query: string, brandId?: string): Promise<Barang[]> {
     const supabase = await createClient()
 
-    const { data, error } = await supabase
+    let builder = supabase
         .from('barang')
         .select('*')
         .eq('is_active', true)
         .ilike('nama_barang', `%${query}%`)
+
+    if (brandId) {
+        builder = builder.eq('brand_id', brandId)
+    }
+
+    const { data, error } = await builder
         .order('nama_barang', { ascending: true })
         .limit(10)
 

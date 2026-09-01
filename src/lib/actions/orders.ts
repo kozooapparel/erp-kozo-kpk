@@ -262,7 +262,7 @@ export async function generateSPKNumber(orderId: string): Promise<{ success: boo
         if (updateError) throw updateError
 
         revalidatePath('/')
-        revalidatePath('/spk')
+        revalidatePath('/form-order')
 
         return {
             success: true,
@@ -337,10 +337,17 @@ export async function moveOrderToNextStage(
 
         let spkGenerated = false
 
-        // Auto-generate SPK when entering antrean_produksi
-        if (nextStage === 'antrean_produksi' && !order.spk_number) {
+        // Auto-generate SPK when entering OR leaving antrean_produksi without one
+        // (covers orders that were dragged straight into the stage before SPK existed)
+        const needsSPK =
+            !order.spk_number &&
+            (nextStage === 'antrean_produksi' || currentStage === 'antrean_produksi')
+        if (needsSPK) {
             const result = await generateSPKNumber(orderId)
-            spkGenerated = result.success
+            if (!result.success) {
+                return { success: false, message: result.message }
+            }
+            spkGenerated = true
         }
 
         revalidatePath('/')

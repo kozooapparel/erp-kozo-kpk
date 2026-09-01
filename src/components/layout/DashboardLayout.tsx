@@ -147,7 +147,7 @@ export default function DashboardLayout({ user, children }: DashboardLayoutProps
     ]
 
     const produksiItems: NavItem[] = [
-        { href: '/spk', label: 'Daftar SPK', icon: Icon.SPK },
+        { href: '/form-order', label: 'Form Order', icon: Icon.SPK },
     ]
 
     const hrItems: NavItem[] = [

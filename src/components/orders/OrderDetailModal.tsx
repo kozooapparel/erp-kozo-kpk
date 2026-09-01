@@ -1,14 +1,15 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Order, Customer, STAGE_LABELS, STAGES_ORDER, OrderStage, GATEKEEPER_STAGES, SPKSection, ProductionSpecs } from '@/types/database'
+import { Order, Customer, STAGE_LABELS, STAGES_ORDER, OrderStage, GATEKEEPER_STAGES } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
 import { toast } from 'sonner'
-import { SPKEditor, SPKDownloadButton } from '@/components/spk'
-import { ImageDropzone } from '@/components/ui'
+import { FormOrderEditor, FormOrderDownloadButton } from '@/components/form-order'
+import { hasFormOrderData } from '@/lib/form-order'
+import { ImageDropzone, CurrencyInput } from '@/components/ui'
 import { verifyDPPayment, correctDPPayment, moveOrderToNextStage, deleteOrder, updateDesignNotes, archiveOrder } from '@/lib/actions/orders'
 
 interface OrderWithCustomer extends Order {
@@ -23,7 +24,7 @@ interface OrderDetailModalProps {
 
 export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetailModalProps) {
     const [loading, setLoading] = useState(false)
-    const [activeTab, setActiveTab] = useState<'detail' | 'payment' | 'stage' | 'spk'>('detail')
+    const [activeTab, setActiveTab] = useState<'detail' | 'payment' | 'stage' | 'form-order'>('detail')
     const [trackingNumber, setTrackingNumber] = useState('')
     const [paymentProofFile, setPaymentProofFile] = useState<File | null>(null)
     const [paymentProofPreview, setPaymentProofPreview] = useState<string | null>(null)
@@ -93,11 +94,9 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
             case 'proses_layout':
                 return order.layout_completed
             case 'dp_produksi':
-                // Must have: invoice + dp verified + SPK data filled
+                // Must have: invoice + dp verified + form order data filled
                 const hasInvoice = orderInvoice !== null
-                const hasSPK = (order.size_breakdown && Object.keys(order.size_breakdown).length > 0) ||
-                    (order.spk_sections && order.spk_sections.length > 0)
-                return !!(order.dp_produksi_verified && hasInvoice && hasSPK)
+                return !!(order.dp_produksi_verified && hasInvoice && hasFormOrderData(order))
             case 'antrean_produksi':
                 return order.production_ready
             case 'print_press':
@@ -323,9 +322,9 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
         const nextStage = getNextStage()
         if (!nextStage) return
 
-        // Validate SPK created before moving OUT of antrean_produksi
-        if (order.stage === 'antrean_produksi' && !order.spk_number) {
-            toast.warning('Buat SPK terlebih dahulu sebelum melanjutkan ke tahap produksi')
+        // Validate form order filled before moving OUT of antrean_produksi
+        if (order.stage === 'antrean_produksi' && !hasFormOrderData(order)) {
+            toast.warning('Buat Form Order terlebih dahulu sebelum melanjutkan ke tahap produksi')
             return
         }
 
@@ -488,18 +487,18 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                     >
                         Bayar
                     </button>
-                    {/* SPK tab - show at proses_layout and onwards */}
+                    {/* Form Order tab - show at proses_layout and onwards */}
                     {['proses_layout', 'dp_produksi', 'antrean_produksi', 'print_press', 'cutting_jahit', 'packing', 'pelunasan', 'pengiriman'].includes(order.stage) && (
                         <button
-                            onClick={() => setActiveTab('spk')}
-                            className={`flex-1 py-3 text-sm font-medium transition-colors ${activeTab === 'spk'
+                            onClick={() => setActiveTab('form-order')}
+                            className={`flex-1 py-3 text-sm font-medium transition-colors ${activeTab === 'form-order'
                                 ? isReady
                                     ? 'text-emerald-500 border-b-2 border-emerald-500'
                                     : 'text-red-500 border-b-2 border-red-500'
                                 : 'text-slate-500 hover:text-slate-900'
                                 }`}
                         >
-                            SPK
+                            Form Order
                         </button>
                     )}
                     {/* Stage tab - always show */}
@@ -669,9 +668,8 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                                         <p className="text-xs text-blue-600">Nomor SPK</p>
                                         <p className="font-mono font-bold text-blue-800">{order.spk_number}</p>
                                     </div>
-                                    <SPKDownloadButton
+                                    <FormOrderDownloadButton
                                         order={order}
-                                        deadline={orderInvoice?.deadline}
                                     />
                                 </div>
                             )}
@@ -781,14 +779,13 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                                     {order.dp_desain_verified ? (
                                         editingDP === 'dp_desain' ? (
                                             <div className="flex gap-2">
-                                                <div className="flex-1 relative">
-                                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">Rp</span>
-                                                    <input
-                                                        type="number"
-                                                        value={editDPAmount}
-                                                        onChange={(e) => setEditDPAmount(e.target.value)}
-                                                        className="w-full pl-10 pr-4 py-2 rounded-lg bg-white border border-amber-300 text-slate-900 focus:outline-none focus:border-amber-500"
+                                                <div className="flex-1">
+                                                    <CurrencyInput
+                                                        value={parseFloat(editDPAmount) || 0}
+                                                        onChange={(v) => setEditDPAmount(String(v))}
+                                                        showPrefix={false}
                                                         autoFocus
+                                                        className="!py-2 !pl-4 rounded-lg bg-white border-amber-300 focus:!ring-2 focus:!ring-amber-500/40"
                                                     />
                                                 </div>
                                                 <button
@@ -830,14 +827,12 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                                         )
                                     ) : (
                                         <div className="flex gap-2">
-                                            <div className="flex-1 relative">
-                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">Rp</span>
-                                                <input
-                                                    type="number"
-                                                    value={dpDesainAmount || order.dp_desain_amount || ''}
-                                                    onChange={(e) => setDpDesainAmount(e.target.value)}
+                                            <div className="flex-1">
+                                                <CurrencyInput
+                                                    value={parseInt(dpDesainAmount || String(order.dp_desain_amount || '0')) || 0}
+                                                    onChange={(v) => setDpDesainAmount(String(v))}
                                                     placeholder="0"
-                                                    className="w-full pl-10 pr-4 py-2 rounded-lg bg-white border border-slate-200 text-slate-900 placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                                                    className="!py-2"
                                                 />
                                             </div>
                                             <button
@@ -1232,14 +1227,13 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                                         </span>
                                     </div>
 
-                                    {/* SPK Status Row */}
+                                    {/* Form Order Status Row */}
                                     {(() => {
-                                        const hasSPK = (order.size_breakdown && Object.keys(order.size_breakdown).length > 0) ||
-                                            (order.spk_sections && order.spk_sections.length > 0)
+                                        const hasFormOrder = hasFormOrderData(order)
                                         return (
-                                            <div className={`p-3 rounded-lg flex items-center justify-between ${hasSPK ? 'bg-emerald-50 border border-emerald-200' : 'bg-orange-50 border border-orange-200'}`}>
+                                            <div className={`p-3 rounded-lg flex items-center justify-between ${hasFormOrder ? 'bg-emerald-50 border border-emerald-200' : 'bg-orange-50 border border-orange-200'}`}>
                                                 <div className="flex items-center gap-2">
-                                                    {hasSPK ? (
+                                                    {hasFormOrder ? (
                                                         <svg className="w-5 h-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                                         </svg>
@@ -1248,12 +1242,12 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                                                         </svg>
                                                     )}
-                                                    <span className={`font-medium ${hasSPK ? 'text-emerald-700' : 'text-orange-700'}`}>
-                                                        SPK Data
+                                                    <span className={`font-medium ${hasFormOrder ? 'text-emerald-700' : 'text-orange-700'}`}>
+                                                        Form Order
                                                     </span>
                                                 </div>
-                                                <span className={`text-xs font-medium px-2 py-1 rounded-full ${hasSPK ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'}`}>
-                                                    {hasSPK ? '✓ Sudah diisi' : 'Belum diisi'}
+                                                <span className={`text-xs font-medium px-2 py-1 rounded-full ${hasFormOrder ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'}`}>
+                                                    {hasFormOrder ? '✓ Sudah diisi' : 'Belum diisi'}
                                                 </span>
                                             </div>
                                         )
@@ -1261,14 +1255,12 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
 
                                     {/* Help text */}
                                     {(() => {
-                                        const hasSPKData = (order.size_breakdown && Object.keys(order.size_breakdown).length > 0) ||
-                                            (order.spk_sections && order.spk_sections.length > 0)
-                                        if (orderInvoice && order.dp_produksi_verified && hasSPKData) return null
+                                        if (orderInvoice && order.dp_produksi_verified && hasFormOrderData(order)) return null
                                         return (
                                             <p className="text-xs text-slate-500 text-center py-2">
                                                 {!orderInvoice ? 'Buat Invoice terlebih dahulu' :
                                                     !order.dp_produksi_verified ? 'Verifikasi DP di Tab Bayar' :
-                                                        'Isi SPK di Tab SPK untuk melanjutkan'}
+                                                        'Isi Form Order di Tab Form Order untuk melanjutkan'}
                                             </p>
                                         )
                                     })()}
@@ -1676,72 +1668,51 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                         </div>
                     )}
 
-                    {/* SPK Tab */}
-                    {activeTab === 'spk' && (
+                    {/* Form Order Tab */}
+                    {activeTab === 'form-order' && (
                         <div className="space-y-4">
-                            <SPKEditor
-                                orderId={order.id}
-                                namaPo={order.nama_po || null}
-                                sections={(order.spk_sections as SPKSection[]) || []}
-                                productionSpecs={(order.production_specs as ProductionSpecs) || null}
-                                productionNotes={order.production_notes}
+                            <FormOrderEditor
+                                order={order}
                                 onSave={async (data) => {
                                     try {
-                                        // Calculate total_quantity from all sections
-                                        let totalQuantity = 0
-                                        for (const section of data.spk_sections) {
-                                            // Format A: Simple size breakdown
-                                            if (section.size_breakdown && Object.keys(section.size_breakdown).length > 0) {
-                                                totalQuantity += Object.values(section.size_breakdown).reduce((sum, qty) => sum + qty, 0)
-                                            }
-                                            // Format B: Personalization list (count people)
-                                            else if (section.personalization_list && section.personalization_list.length > 0) {
-                                                totalQuantity += section.personalization_list.length
-                                            }
-                                            // Format C: Size rekap with keterangan
-                                            else if (section.size_rekap && section.size_rekap.length > 0) {
-                                                totalQuantity += section.size_rekap.reduce((sum, item) => sum + item.jumlah, 0)
-                                            }
+                                        const specs = data.production_specs
+                                        // Update total_quantity from jumlah_produksi
+                                        const totalQty = specs.jumlah_produksi || 0
+                                        const payload: Record<string, unknown> = {
+                                            production_specs: specs,
+                                            // Update total_quantity from form order
+                                            total_quantity: totalQty > 0 ? totalQty : order.total_quantity,
                                         }
+                                        // Jangan kirim null bila kolom nama_po tidak ada nilainya
+                                        if (order.nama_po) payload.nama_po = order.nama_po
 
                                         const { error } = await supabase
                                             .from('orders')
-                                            .update({
-                                                nama_po: data.nama_po,
-                                                spk_sections: data.spk_sections,
-                                                production_specs: data.production_specs,
-                                                production_notes: data.production_notes,
-                                                // Update total_quantity from SPK sections
-                                                total_quantity: totalQuantity > 0 ? totalQuantity : order.total_quantity,
-                                            })
+                                            .update(payload)
                                             .eq('id', order.id)
 
                                         if (error) throw error
-                                        toast.success('SPK data berhasil disimpan!')
+                                        toast.success('Form order berhasil disimpan!')
                                         onClose()
                                         router.refresh()
                                     } catch (err) {
-                                        console.error('Save SPK error:', err)
-                                        toast.error('Gagal menyimpan SPK data')
+                                        console.error('Save form order error:', err)
+                                        const message = err instanceof Error ? err.message : 'Kesalahan tidak diketahui'
+                                        toast.error(`Gagal menyimpan form order: ${message}`)
                                         throw err
                                     }
                                 }}
                                 isLoading={loading}
                             />
 
-                            {/* Print SPK Button */}
-                            {((order.spk_sections && (order.spk_sections as SPKSection[]).length > 0) ||
-                                (order.size_breakdown && Object.keys(order.size_breakdown).length > 0)) && (
-                                    <div className="pt-2 border-t border-slate-200">
-                                        <SPKDownloadButton
-                                            order={{
-                                                ...order,
-                                                customer: order.customer,
-                                            }}
-                                            deadline={order.deadline}
-                                        />
-                                    </div>
-                                )}
+                            {/* Print Form Order Button */}
+                            {hasFormOrderData(order) && (
+                                <div className="pt-2 border-t border-slate-200">
+                                    <FormOrderDownloadButton
+                                        order={order}
+                                    />
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>

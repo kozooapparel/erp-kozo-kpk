@@ -3,24 +3,45 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 
 interface NumberInputProps {
-    value: number | string
-    onChange: (value: number) => void
+    /** Controlled mode: pass `value` + `onChange` */
+    value?: number | string
+    /** Uncontrolled mode: pass `defaultValue` + optional `name` (for FormData) */
+    defaultValue?: number | string
+    onChange?: (value: number) => void
     placeholder?: string
     className?: string
     disabled?: boolean
     min?: number
     max?: number
     allowEmpty?: boolean
+    name?: string
+}
+
+// Raw digits (no thousand separators) from any value
+function toRawString(v: number | string | undefined | null): string {
+    if (v === undefined || v === null || v === '') return ''
+    const num = typeof v === 'string' ? parseFloat(v) || 0 : v || 0
+    return num > 0 ? String(Math.floor(num)) : ''
+}
+
+// Format raw digits with id-ID thousand separators (100000 -> "100.000")
+function formatDigits(digits: string): string {
+    if (!digits) return ''
+    const num = parseInt(digits, 10)
+    if (isNaN(num)) return ''
+    return num.toLocaleString('id-ID')
 }
 
 /**
  * Number Input Component with better UX
- * - Auto-selects on focus for easy editing
+ * - Live thousand separators (.) while typing
  * - No leading zeros
- * - Clean number handling
+ * - Auto-selects on focus for easy editing
+ * - Supports controlled (value/onChange) and uncontrolled (defaultValue/name) modes
  */
 export default function NumberInput({
     value,
+    defaultValue,
     onChange,
     placeholder = '0',
     className = '',
@@ -28,36 +49,41 @@ export default function NumberInput({
     min,
     max,
     allowEmpty = false,
+    name,
 }: NumberInputProps) {
     const inputRef = useRef<HTMLInputElement>(null)
-    const [displayValue, setDisplayValue] = useState('')
+    const isControlled = value !== undefined
+
+    const [rawValue, setRawValue] = useState<number>(() => {
+        const digits = toRawString(isControlled ? value : defaultValue)
+        return parseInt(digits) || 0
+    })
+    const [displayValue, setDisplayValue] = useState<string>(() => {
+        const digits = toRawString(isControlled ? value : defaultValue)
+        return digits ? formatDigits(digits) : (allowEmpty ? '' : '0')
+    })
     const [isFocused, setIsFocused] = useState(false)
+    const touchedRef = useRef(false)
 
-    // Parse string to number with constraints
-    const parseNumber = useCallback((str: string): number => {
-        if (!str && allowEmpty) return 0
-        const cleaned = str.replace(/[^\d-]/g, '')
-        const result = parseInt(cleaned) || 0
+    const applyConstraints = useCallback((num: number): number => {
+        if (min !== undefined && num < min) return min
+        if (max !== undefined && num > max) return max
+        return num
+    }, [min, max])
 
-        if (min !== undefined && result < min) return min
-        if (max !== undefined && result > max) return max
-
-        return result
-    }, [min, max, allowEmpty])
-
-    // Initialize display value from prop
+    // Sync with external value (controlled) or defaultValue (uncontrolled, if untouched)
     useEffect(() => {
-        if (!isFocused) {
-            const numValue = typeof value === 'string' ? parseFloat(value) || 0 : value || 0
-            setDisplayValue(numValue > 0 ? numValue.toString() : (allowEmpty ? '' : '0'))
-        }
-    }, [value, isFocused, allowEmpty])
+        if (isFocused) return
+        const source = isControlled ? value : (touchedRef.current ? undefined : defaultValue)
+        if (source === undefined) return
+        const digits = toRawString(source)
+        const num = parseInt(digits) || 0
+        setRawValue(num)
+        setDisplayValue(digits ? formatDigits(digits) : (allowEmpty ? '' : '0'))
+    }, [value, defaultValue, isControlled, isFocused, allowEmpty])
 
     const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
         setIsFocused(true)
-        const numValue = typeof value === 'string' ? parseFloat(value) || 0 : value || 0
-        setDisplayValue(numValue > 0 ? numValue.toString() : '')
-        // Select all text
         setTimeout(() => {
             e.target.select()
         }, 0)
@@ -65,21 +91,23 @@ export default function NumberInput({
 
     const handleBlur = () => {
         setIsFocused(false)
-        const numValue = parseNumber(displayValue)
-        setDisplayValue(numValue > 0 ? numValue.toString() : (allowEmpty ? '' : '0'))
-        onChange(numValue)
+        const clamped = applyConstraints(rawValue)
+        setRawValue(clamped)
+        setDisplayValue(clamped > 0 ? formatDigits(String(clamped)) : (allowEmpty ? '' : '0'))
+        onChange?.(clamped)
     }
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const inputValue = e.target.value
-        // Only allow digits
-        const cleaned = inputValue.replace(/[^\d]/g, '')
-        // Remove leading zeros
-        const noLeadingZeros = cleaned.replace(/^0+/, '') || (cleaned.length > 0 ? '0' : '')
-        setDisplayValue(noLeadingZeros)
+        touchedRef.current = true
+        // Only allow digits, remove leading zeros (keep single "0" for zero)
+        const cleaned = e.target.value.replace(/[^\d]/g, '').replace(/^0+(?=\d)/, '')
+        // Live thousand separator while typing
+        const formatted = formatDigits(cleaned)
+        setDisplayValue(formatted)
 
-        const numValue = parseInt(noLeadingZeros) || 0
-        onChange(numValue)
+        const num = applyConstraints(parseInt(cleaned) || 0)
+        setRawValue(num)
+        onChange?.(num)
     }
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -94,18 +122,23 @@ export default function NumberInput({
     }
 
     return (
-        <input
-            ref={inputRef}
-            type="text"
-            inputMode="numeric"
-            value={displayValue}
-            onChange={handleChange}
-            onFocus={handleFocus}
-            onBlur={handleBlur}
-            onKeyDown={handleKeyDown}
-            placeholder={placeholder}
-            disabled={disabled}
-            className={`w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 ${className}`}
-        />
+        <>
+            <input
+                ref={inputRef}
+                type="text"
+                inputMode="numeric"
+                value={displayValue}
+                onChange={handleChange}
+                onFocus={handleFocus}
+                onBlur={handleBlur}
+                onKeyDown={handleKeyDown}
+                placeholder={placeholder}
+                disabled={disabled}
+                className={`w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 ${className}`}
+            />
+            {name && (
+                <input type="hidden" name={name} value={rawValue} />
+            )}
+        </>
     )
 }

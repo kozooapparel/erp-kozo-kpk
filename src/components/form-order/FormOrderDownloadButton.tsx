@@ -3,36 +3,30 @@
 import { useState } from 'react'
 import { pdf } from '@react-pdf/renderer'
 import { Order, Customer, Brand } from '@/types/database'
-import SPKPDF from './SPKPDF'
+import FormOrderPDF from './FormOrderPDF'
 
 interface OrderWithCustomer extends Order {
     customer: Customer
     brand?: Brand | null
 }
 
-interface SPKDownloadButtonProps {
+interface FormOrderDownloadButtonProps {
     order: OrderWithCustomer
-    deadline?: string | null
 }
 
-export default function SPKDownloadButton({ order, deadline }: SPKDownloadButtonProps) {
+export default function FormOrderDownloadButton({ order }: FormOrderDownloadButtonProps) {
     const [loading, setLoading] = useState(false)
 
     const handleDownload = async () => {
         setLoading(true)
         try {
-            // Pass brand info to SPKPDF
             const blob = await pdf(
-                <SPKPDF
-                    order={order}
-                    brand={order.brand || undefined}
-                    deadline={deadline}
-                />
+                <FormOrderPDF order={order} brand={order.brand || undefined} />
             ).toBlob()
             const url = URL.createObjectURL(blob)
             const link = document.createElement('a')
             link.href = url
-            link.download = `SPK-${order.nama_po || order.spk_number || order.customer?.name || 'Draft'}.pdf`
+            link.download = `FormOrder-${order.nama_po || order.spk_number || order.customer?.name || 'Draft'}.pdf`
             document.body.appendChild(link)
             link.click()
             document.body.removeChild(link)
@@ -60,7 +54,7 @@ export default function SPKDownloadButton({ order, deadline }: SPKDownloadButton
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
             )}
-            {loading ? 'Loading...' : 'Print SPK'}
+            {loading ? 'Loading...' : 'Print Form Order'}
         </button>
     )
 }

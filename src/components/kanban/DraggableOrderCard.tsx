@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { Order, Customer, OrderStage } from '@/types/database'
+import { hasFormOrderData } from '@/lib/form-order'
 import { createClient } from '@/lib/supabase/client'
 import Image from 'next/image'
 

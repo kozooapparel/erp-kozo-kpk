@@ -11,6 +11,7 @@ import AddOrderModal from '../orders/AddOrderModal'
 import OrderDetailModal from '../orders/OrderDetailModal'
 import AddCustomerModal from '../customers/AddCustomerModal'
 import { createClient } from '@/lib/supabase/client'
+import { generateSPKNumber } from '@/lib/actions/orders'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 
@@ -292,7 +293,7 @@ export default function KanbanBoard({ orders, metrics, customers, admins, brands
         }
 
         try {
-            const { error, data } = await supabase
+            const { error } = await supabase
                 .from('orders')
                 .update({
                     stage: targetStage,
@@ -307,7 +308,16 @@ export default function KanbanBoard({ orders, metrics, customers, admins, brands
                 return
             }
 
-            console.log('Stage updated:', data)
+            // Auto-generate SPK when entering antrean_produksi via drag & drop
+            if (targetStage === 'antrean_produksi' && !order.spk_number) {
+                const spk = await generateSPKNumber(orderId)
+                if (spk.success) {
+                    toast.success(`Berhasil pindah stage! SPK ${spk.spkNumber} otomatis di-generate`)
+                } else {
+                    toast.warning('Pindah stage berhasil, tapi SPK gagal dibuat. Buka detail order untuk membuat SPK.')
+                }
+            }
+
             router.refresh()
         } catch (err) {
             console.error('Failed to update stage:', err)

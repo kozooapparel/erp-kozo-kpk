@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { BarangList } from '@/components/barang'
 import DashboardLayout from '@/components/layout/DashboardLayout'
 import { PageHeader } from '@/components/ui/ds'
+import { getBrands } from '@/lib/actions/brands'
 
 export default async function BarangPage() {
     const supabase = await createClient()
@@ -18,16 +19,18 @@ export default async function BarangPage() {
         .eq('id', user.id)
         .single()
 
+    const brands = await getBrands()
+
     return (
         <DashboardLayout user={profile}>
             <div className="space-y-6">
                 <PageHeader
                     title="Master Barang"
-                    description="Kelola produk dan harga tier"
+                    description="Kelola produk dan harga tier per brand"
                 />
 
                 {/* Barang List */}
-                <BarangList />
+                <BarangList brands={brands} />
             </div>
         </DashboardLayout>
     )

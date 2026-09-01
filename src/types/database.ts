@@ -296,6 +296,7 @@ export type Database = {
             barang: {
                 Row: {
                     id: string
+                    brand_id: string
                     nama_barang: string
                     satuan: string
                     harga_satuan: number
@@ -306,6 +307,7 @@ export type Database = {
                 }
                 Insert: {
                     id?: string
+                    brand_id: string
                     nama_barang: string
                     satuan?: string
                     harga_satuan?: number
@@ -316,6 +318,7 @@ export type Database = {
                 }
                 Update: {
                     id?: string
+                    brand_id?: string
                     nama_barang?: string
                     satuan?: string
                     harga_satuan?: number
@@ -701,8 +704,25 @@ export interface ProductionSpecs {
     bis?: string                 // "BRAND SENDIRI", "POLOSIN", etc.
     autentic?: string            // Authentic label
     penjahit?: string            // Tailor name
-    need_atasan: boolean         // Checkbox: needs top
-    need_celana: boolean         // Checkbox: needs pants
+    need_atasan?: boolean        // Checkbox: needs top
+    need_celana?: boolean        // Checkbox: needs pants
+
+    // ===== Form Order Produksi =====
+    // Detail Produk (isi manual)
+    jenis_produk?: string        // "Jersey", "Polo Shirt", etc.
+    jenis_bahan?: string         // "Milano Premium", "Drifit", etc.
+    pola_desain?: string         // Pola baju / desain
+    model_kerah?: string         // "O-Neck", "V-Neck", "Polo", etc.
+    model_lengan?: string        // "Pendek", "Panjang", "Tanpa Lengan"
+    jumlah_produksi?: number     // Jumlah produksi (pcs)
+
+    // Kebutuhan Produksi (isi manual)
+    kebutuhan_bahan_meter?: number
+    kebutuhan_bahan_kg?: number
+
+    // Gambar (paste / upload)
+    mockup_image_url?: string    // Mockup — kanan bawah
+    list_order_image_urls?: string[]  // List order — kanan atas, memanjang ke bawah
 }
 
 // Full SPK data structure

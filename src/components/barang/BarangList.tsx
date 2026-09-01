@@ -1,10 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Barang, BarangWithTiers } from '@/types/database'
+import { useState, useEffect, useCallback } from 'react'
+import { Barang, BarangWithTiers, Brand } from '@/types/database'
 import { getBarangList, createBarang, updateBarang, deleteBarang, getBarangById } from '@/lib/actions/barang'
 import { formatCurrency } from '@/lib/utils/format'
-import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import CurrencyInput from '@/components/ui/CurrencyInput'
 import NumberInput from '@/components/ui/NumberInput'
@@ -58,40 +57,53 @@ const Icon = {
     ),
 }
 
-export default function BarangList() {
-    const router = useRouter()
+interface BarangListProps {
+    brands: Brand[]
+}
+
+export default function BarangList({ brands }: BarangListProps) {
+    const [activeBrandId, setActiveBrandId] = useState<string>(brands[0]?.id || '')
     const [barangList, setBarangList] = useState<Barang[]>([])
     const [loading, setLoading] = useState(true)
     const [showModal, setShowModal] = useState(false)
     const [editingBarang, setEditingBarang] = useState<BarangWithTiers | null>(null)
 
     // Form state
+    const [formBrandId, setFormBrandId] = useState('')
     const [namaBarang, setNamaBarang] = useState('')
     const [satuan, setSatuan] = useState('PCS')
     const [hargaSatuan, setHargaSatuan] = useState(0)
     const [kategori, setKategori] = useState('')
     const [hargaTiers, setHargaTiers] = useState<HargaTierInput[]>([])
 
-    // Load barang list
-    useEffect(() => {
-        loadBarang()
-    }, [])
+    const activeBrand = brands.find(b => b.id === activeBrandId)
 
-    const loadBarang = async () => {
+    const loadBarang = useCallback(async () => {
+        if (!activeBrandId) {
+            setBarangList([])
+            setLoading(false)
+            return
+        }
         setLoading(true)
         try {
-            const data = await getBarangList()
+            const data = await getBarangList(activeBrandId)
             setBarangList(data)
         } catch (error) {
             console.error('Error loading barang:', error)
         } finally {
             setLoading(false)
         }
-    }
+    }, [activeBrandId])
+
+    // Load barang list per brand aktif
+    useEffect(() => {
+        loadBarang()
+    }, [loadBarang])
 
     // Open modal for create
     const openCreateModal = () => {
         setEditingBarang(null)
+        setFormBrandId(activeBrandId)
         setNamaBarang('')
         setSatuan('PCS')
         setHargaSatuan(0)
@@ -105,6 +117,7 @@ export default function BarangList() {
         const barang = await getBarangById(id)
         if (barang) {
             setEditingBarang(barang)
+            setFormBrandId(barang.brand_id)
             setNamaBarang(barang.nama_barang)
             setSatuan(barang.satuan)
             setHargaSatuan(barang.harga_satuan)
@@ -154,6 +167,11 @@ export default function BarangList() {
             return
         }
 
+        if (!formBrandId) {
+            toast.warning('Pilih brand terlebih dahulu')
+            return
+        }
+
         try {
             const tierData = hargaTiers.map(t => ({
                 min_qty: t.min_qty,
@@ -163,6 +181,7 @@ export default function BarangList() {
 
             if (editingBarang) {
                 await updateBarang(editingBarang.id, {
+                    brand_id: formBrandId,
                     nama_barang: namaBarang,
                     satuan,
                     harga_satuan: hargaSatuan,
@@ -170,6 +189,7 @@ export default function BarangList() {
                 }, tierData)
             } else {
                 await createBarang({
+                    brand_id: formBrandId,
                     nama_barang: namaBarang,
                     satuan,
                     harga_satuan: hargaSatuan,
@@ -209,6 +229,29 @@ export default function BarangList() {
 
     return (
         <>
+            {/* Brand tabs */}
+            <div className="surface p-2 flex flex-wrap gap-2">
+                {brands.map(brand => {
+                    const isActive = brand.id === activeBrandId
+                    return (
+                        <button
+                            key={brand.id}
+                            onClick={() => setActiveBrandId(brand.id)}
+                            aria-pressed={isActive}
+                            className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${isActive
+                                ? 'bg-slate-800 text-white'
+                                : 'text-slate-600 hover:bg-slate-100'
+                                }`}
+                        >
+                            {brand.name}
+                        </button>
+                    )
+                })}
+                {brands.length === 0 && (
+                    <p className="text-caption px-2 py-1">Belum ada brand aktif. Tambahkan brand dulu di menu Brands.</p>
+                )}
+            </div>
+
             {/* Stat cards */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <StatCard
@@ -216,7 +259,7 @@ export default function BarangList() {
                     value={<span className="text-mono">{stats.total}</span>}
                     icon={<Icon.Cube className="w-4 h-4" />}
                     tone="brand"
-                    helper="produk aktif"
+                    helper={activeBrand ? `produk ${activeBrand.name}` : 'produk aktif'}
                 />
                 <StatCard
                     label="Terkategori"
@@ -237,11 +280,12 @@ export default function BarangList() {
             {/* Action bar */}
             <div className="surface p-3 flex items-center justify-between gap-3">
                 <p className="text-caption">
-                    {barangList.length} produk terdaftar
+                    {barangList.length} produk terdaftar{activeBrand ? ` untuk ${activeBrand.name}` : ''}
                 </p>
                 <button
                     onClick={openCreateModal}
-                    className="btn-primary"
+                    disabled={brands.length === 0}
+                    className="btn-primary disabled:opacity-50"
                 >
                     <Icon.Plus className="w-4 h-4" />
                     <span className="hidden sm:inline">Tambah Barang</span>
@@ -275,7 +319,9 @@ export default function BarangList() {
                                         <EmptyState
                                             icon={<DefaultEmptyIcon />}
                                             title="Belum ada produk"
-                                            description="Tambahkan produk pertama Anda untuk mulai membuat invoice dan SPK."
+                                            description={activeBrand
+                                                ? `Belum ada produk untuk brand ${activeBrand.name}. Tambahkan produk pertama untuk brand ini.`
+                                                : 'Tambahkan produk pertama Anda untuk mulai membuat invoice dan SPK.'}
                                             action={
                                                 <button onClick={openCreateModal} className="btn-primary">
                                                     <Icon.Plus className="w-4 h-4" />
@@ -344,6 +390,21 @@ export default function BarangList() {
                         </div>
 
                         <div className="p-6 space-y-4">
+                            <div>
+                                <label className="label">Brand *</label>
+                                <select
+                                    value={formBrandId}
+                                    onChange={(e) => setFormBrandId(e.target.value)}
+                                    className="input"
+                                >
+                                    <option value="">Pilih Brand</option>
+                                    {brands.map(brand => (
+                                        <option key={brand.id} value={brand.id}>{brand.name}</option>
+                                    ))}
+                                </select>
+                                <p className="text-caption mt-1">Harga produk ini hanya berlaku untuk brand tersebut.</p>
+                            </div>
+
                             <div>
                                 <label className="label">Nama Barang *</label>
                                 <input

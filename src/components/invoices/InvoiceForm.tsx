@@ -83,8 +83,10 @@ export default function InvoiceForm({
     // Load lookup data
     useEffect(() => {
         async function loadData() {
+            const activeBrandId = selectedBrandId || prefilledBrandId
+
             const [barang, bank, company] = await Promise.all([
-                getBarangList(),
+                activeBrandId ? getBarangList(activeBrandId) : Promise.resolve([]),
                 getBankInfo(),
                 getCompanyInfo()
             ])
@@ -93,7 +95,6 @@ export default function InvoiceForm({
             setCompanyInfo(company)
 
             // Fetch brand info if brand is selected or prefilled
-            const activeBrandId = selectedBrandId || prefilledBrandId
             if (activeBrandId) {
                 const { createClient } = await import('@/lib/supabase/client')
                 const supabase = createClient()
@@ -129,6 +130,21 @@ export default function InvoiceForm({
 
     // Get selected customer
     const selectedCustomer = customers.find(c => c.id === customerId)
+
+    // Ganti brand: reset item agar harga brand lama tidak terbawa
+    const handleBrandSelect = (brandId: string) => {
+        if (brandId === selectedBrandId) return
+        setSelectedBrandId(brandId)
+        setItems([{
+            id: `item-${Date.now()}`,
+            barang_id: null,
+            deskripsi: '',
+            jumlah: 0,
+            satuan: 'PCS',
+            harga_satuan: 0,
+            sub_total: 0
+        }])
+    }
 
     // Add row
     const addRow = () => {
@@ -293,7 +309,7 @@ export default function InvoiceForm({
             {!prefilledBrandId && !isEdit && (
                 <BrandSelector
                     selectedBrandId={selectedBrandId}
-                    onSelect={setSelectedBrandId}
+                    onSelect={handleBrandSelect}
                     required={true}
                 />
             )}
@@ -446,9 +462,14 @@ export default function InvoiceForm({
                                             <select
                                                 value={item.barang_id || ''}
                                                 onChange={(e) => updateItem(index, 'barang_id', e.target.value || null)}
-                                                className="w-full px-2 py-1 border border-slate-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/50"
+                                                disabled={!selectedBrandId && !prefilledBrandId}
+                                                className="w-full px-2 py-1 border border-slate-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/50 disabled:bg-slate-100 disabled:cursor-not-allowed"
                                             >
-                                                <option value="">-- Pilih Barang atau Ketik Manual --</option>
+                                                <option value="">
+                                                    {(selectedBrandId || prefilledBrandId)
+                                                        ? '-- Pilih Barang atau Ketik Manual --'
+                                                        : '-- Pilih Brand dulu --'}
+                                                </option>
                                                 {barangList.map(barang => (
                                                     <option key={barang.id} value={barang.id}>
                                                         {barang.nama_barang}
