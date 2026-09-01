@@ -15,6 +15,7 @@ interface CurrencyInputProps {
     min?: number
     max?: number
     name?: string
+    autoFocus?: boolean
 }
 
 // Raw digits (no thousand separators) from any value
@@ -61,6 +62,7 @@ export default function CurrencyInput({
     min,
     max,
     name,
+    autoFocus,
 }: CurrencyInputProps) {
     const inputRef = useRef<HTMLInputElement>(null)
     const isControlled = value !== undefined
@@ -162,6 +164,7 @@ export default function CurrencyInput({
                 onKeyDown={handleKeyDown}
                 placeholder={placeholder}
                 disabled={disabled}
+                autoFocus={autoFocus}
                 className={`w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 ${showPrefix && !isFocused && displayValue ? 'pl-10' : ''} ${className}`}
             />
             {name && (
