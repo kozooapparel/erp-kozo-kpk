@@ -8,6 +8,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import { SPKEditor, SPKDownloadButton } from '@/components/spk'
+import { ImageDropzone } from '@/components/ui'
 import { verifyDPPayment, correctDPPayment, moveOrderToNextStage, deleteOrder, updateDesignNotes, archiveOrder } from '@/lib/actions/orders'
 
 interface OrderWithCustomer extends Order {
@@ -129,6 +130,51 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
             onClose()
         } catch (err) {
             console.error('Save tracking error:', err)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    // Handle upload desain final (mockup) — dipakai oleh klik, drag-drop, dan Ctrl+V
+    const handleMockupUpload = async (file: File) => {
+        setLoading(true)
+        const toastId = toast.loading('Mengupload desain...')
+        try {
+            const fileExt = (file.name.split('.').pop() || 'png').toLowerCase()
+            const filePath = `mockups/${order.id}/${Date.now()}.${fileExt}`
+
+            const { error: uploadError } = await supabase.storage
+                .from('order-assets')
+                .upload(filePath, file, { contentType: file.type, upsert: false })
+
+            if (uploadError) {
+                console.error('Storage error:', uploadError)
+                toast.error(`Gagal upload: ${uploadError.message}`, { id: toastId })
+                return
+            }
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('order-assets')
+                .getPublicUrl(filePath)
+
+            const { error: updateError } = await supabase
+                .from('orders')
+                .update({ mockup_url: publicUrl })
+                .eq('id', order.id)
+
+            if (updateError) {
+                console.error('Update error:', updateError)
+                toast.error(`Gagal update: ${updateError.message}`, { id: toastId })
+                return
+            }
+
+            toast.success('Desain berhasil diupload!', { id: toastId })
+            onClose()
+            router.refresh()
+        } catch (err) {
+            console.error('Upload error:', err)
+            const message = err instanceof Error ? err.message : 'Unknown error'
+            toast.error(`Gagal upload desain: ${message}`, { id: toastId })
         } finally {
             setLoading(false)
         }
@@ -971,17 +1017,14 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
 
                                 {/* Upload form */}
                                 <div className="space-y-2">
-                                    <input
-                                        type="file"
-                                        accept="image/*"
-                                        onChange={(e) => {
-                                            const file = e.target.files?.[0]
-                                            if (file) {
-                                                setPaymentProofFile(file)
-                                                setPaymentProofPreview(URL.createObjectURL(file))
-                                            }
+                                    <ImageDropzone
+                                        onFileSelect={(file) => {
+                                            setPaymentProofFile(file)
+                                            setPaymentProofPreview(URL.createObjectURL(file))
                                         }}
-                                        className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-slate-200 file:text-slate-900 hover:file:bg-slate-600"
+                                        onError={(message) => toast.error(message)}
+                                        disabled={uploadingProof}
+                                        label="Upload bukti pembayaran"
                                     />
 
                                     {paymentProofPreview && (
@@ -1337,53 +1380,11 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                                         </div>
                                     )}
 
-                                    <input
-                                        type="file"
-                                        accept="image/*"
-                                        onChange={async (e) => {
-                                            const file = e.target.files?.[0]
-                                            if (!file) return
-
-                                            setLoading(true)
-                                            try {
-                                                const fileExt = file.name.split('.').pop()
-                                                const filePath = `mockups/${order.id}/${Date.now()}.${fileExt}`
-
-                                                const { error: uploadError } = await supabase.storage
-                                                    .from('order-assets')
-                                                    .upload(filePath, file)
-
-                                                if (uploadError) {
-                                                    toast.error(`Gagal upload: ${uploadError.message}`)
-                                                    return
-                                                }
-
-                                                const { data: { publicUrl } } = supabase.storage
-                                                    .from('order-assets')
-                                                    .getPublicUrl(filePath)
-
-                                                const { error: updateError } = await supabase
-                                                    .from('orders')
-                                                    .update({ mockup_url: publicUrl })
-                                                    .eq('id', order.id)
-
-                                                if (updateError) {
-                                                    toast.error(`Gagal update: ${updateError.message}`)
-                                                    return
-                                                }
-
-                                                // Close modal and refresh to show changes in Kanban
-                                                toast.success('Desain berhasil diupload!')
-                                                onClose()
-                                                router.refresh()
-                                            } catch (err) {
-                                                console.error('Upload error:', err)
-                                                toast.error('Gagal upload desain')
-                                            } finally {
-                                                setLoading(false)
-                                            }
-                                        }}
-                                        className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-500 file:text-slate-900 hover:file:bg-blue-600"
+                                    <ImageDropzone
+                                        onFileSelect={handleMockupUpload}
+                                        onError={(message) => toast.error(message)}
+                                        disabled={loading}
+                                        label={order.mockup_url ? 'Ganti desain final' : 'Upload desain final'}
                                     />
                                 </div>
                             )}
