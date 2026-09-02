@@ -64,7 +64,7 @@ export async function verifyDPPayment(
                 const { data: { user } } = await supabase.auth.getUser()
 
                 const keterangan = type === 'dp_desain'
-                    ? 'Pembayaran DP Desain'
+                    ? 'Pembayaran Deposit Desain'
                     : type === 'dp_produksi'
                         ? 'Pembayaran DP Produksi'
                         : 'Pembayaran Pelunasan'
@@ -157,7 +157,7 @@ export async function correctDPPayment(
         if (invoice) {
             // Match kuitansi by invoice_id and keterangan pattern
             const keteranganPattern = type === 'dp_desain'
-                ? '%Pembayaran DP Desain%'
+                ? '%Pembayaran%Desain%'
                 : type === 'dp_produksi'
                     ? '%Pembayaran DP Produksi%'
                     : '%Pembayaran Pelunasan%'
@@ -192,8 +192,8 @@ export async function correctDPPayment(
         return {
             success: true,
             message: kuitansiUpdated
-                ? `Nominal ${type === 'dp_desain' ? 'DP Desain' : type === 'dp_produksi' ? 'DP Produksi' : 'Pelunasan'} berhasil dikoreksi (kuitansi ikut diupdate)`
-                : `Nominal ${type === 'dp_desain' ? 'DP Desain' : type === 'dp_produksi' ? 'DP Produksi' : 'Pelunasan'} berhasil dikoreksi`
+                ? `Nominal ${type === 'dp_desain' ? 'Deposit Desain' : type === 'dp_produksi' ? 'DP Produksi' : 'Pelunasan'} berhasil dikoreksi (kuitansi ikut diupdate)`
+                : `Nominal ${type === 'dp_desain' ? 'Deposit Desain' : type === 'dp_produksi' ? 'DP Produksi' : 'Pelunasan'} berhasil dikoreksi`
         }
 
     } catch (err) {

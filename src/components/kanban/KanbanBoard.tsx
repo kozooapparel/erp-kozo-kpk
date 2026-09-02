@@ -213,7 +213,7 @@ export default function KanbanBoard({ orders, metrics, customers, admins, brands
             switch (order.stage) {
                 case 'customer_dp_desain':
                     if (!order.dp_desain_verified) {
-                        return { allowed: false, reason: 'Selesaikan DP Desain terlebih dahulu' }
+                        return { allowed: false, reason: 'Selesaikan Deposit Desain terlebih dahulu' }
                     }
                     break
                 case 'proses_desain':

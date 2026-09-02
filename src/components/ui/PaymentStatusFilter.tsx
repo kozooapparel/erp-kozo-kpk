@@ -11,7 +11,7 @@ interface PaymentStatusFilterProps {
 const FILTER_OPTIONS: { value: PaymentFilter; label: string; activeColor: string }[] = [
     { value: 'all', label: 'Semua', activeColor: 'bg-slate-700 text-white' },
     { value: 'belum_bayar', label: 'Belum Bayar', activeColor: 'bg-red-500 text-white' },
-    { value: 'dp_desain', label: 'DP Desain', activeColor: 'bg-blue-500 text-white' },
+    { value: 'dp_desain', label: 'Deposit Desain', activeColor: 'bg-blue-500 text-white' },
     { value: 'dp_50', label: 'DP 50%', activeColor: 'bg-amber-500 text-white' },
     { value: 'lunas', label: 'Lunas', activeColor: 'bg-emerald-500 text-white' },
 ]

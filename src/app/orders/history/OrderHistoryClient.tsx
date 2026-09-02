@@ -515,7 +515,7 @@ export default function OrderHistoryClient({ orders, brands }: OrderHistoryClien
                                         <p className="font-medium text-slate-900 text-mono">{order.total_quantity} pcs</p>
                                     </div>
                                     <div>
-                                        <span className="text-caption text-slate-500">DP Desain</span>
+                                        <span className="text-caption text-slate-500">Deposit Desain</span>
                                         <p className="font-medium text-slate-900 text-mono">{formatCurrency(order.dp_desain_amount || 0)}</p>
                                     </div>
                                     <div>
@@ -597,7 +597,7 @@ export default function OrderHistoryClient({ orders, brands }: OrderHistoryClien
                                         <div className="grid grid-cols-2 gap-2">
                                             <div><span className="text-caption text-slate-400">SPK</span><p className="text-slate-700 text-mono">{order.spk_number || '-'}</p></div>
                                             <div><span className="text-caption text-slate-400">PO</span><p className="text-slate-700">{order.nama_po || '-'}</p></div>
-                                            <div><span className="text-caption text-slate-400">DP Desain</span><p className="text-slate-700 text-mono">{formatCurrency(order.dp_desain_amount || 0)}</p></div>
+                                            <div><span className="text-caption text-slate-400">Deposit Desain</span><p className="text-slate-700 text-mono">{formatCurrency(order.dp_desain_amount || 0)}</p></div>
                                             <div><span className="text-caption text-slate-400">DP Produksi</span><p className="text-slate-700 text-mono">{formatCurrency(order.dp_produksi_amount || 0)}</p></div>
                                             <div><span className="text-caption text-slate-400">Pelunasan</span><p className="text-slate-700 text-mono">{formatCurrency(order.pelunasan_amount || 0)}</p></div>
                                             <div><span className="text-caption text-slate-400">Dibuat Oleh</span><p className="text-slate-700">{order.creator?.full_name || '-'}</p></div>

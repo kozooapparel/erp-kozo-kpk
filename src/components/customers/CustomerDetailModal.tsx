@@ -89,7 +89,7 @@ export default function CustomerDetailModal({ customer, isOpen, onClose }: Custo
     const getPaymentStatus = (order: Order) => {
         if (order.pelunasan_verified) return { label: 'Lunas', color: 'bg-emerald-500' }
         if (order.dp_produksi_verified) return { label: 'DP 50%', color: 'bg-amber-500' }
-        if (order.dp_desain_verified) return { label: 'DP Desain', color: 'bg-blue-500' }
+        if (order.dp_desain_verified) return { label: 'Deposit Desain', color: 'bg-blue-500' }
         return { label: 'Belum Bayar', color: 'bg-red-500' }
     }
 

@@ -5,7 +5,7 @@ import { Trash2, Upload, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Customer, Brand, ProductionSpecs } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
-import { ImageDropzone } from '@/components/ui'
+import { ImageDropzone, NumberInput } from '@/components/ui'
 import { getDeadlineProduksi, formatTanggal, PRODUKSI_DURATION_DAYS } from '@/lib/form-order'
 
 interface OrderWithCustomer {
@@ -313,13 +313,12 @@ export default function FormOrderEditor({ order, onSave, isLoading = false }: Fo
                             </div>
                             <div>
                                 <label className={fieldLabel}>Jumlah Produksi (pcs)</label>
-                                <input
-                                    type="number"
+                                <NumberInput
                                     min={0}
                                     className={fieldInput}
                                     placeholder="0"
                                     value={specs.jumlah_produksi ?? 0}
-                                    onChange={e => setField('jumlah_produksi', Number(e.target.value) || 0)}
+                                    onChange={v => setField('jumlah_produksi', v)}
                                 />
                             </div>
                         </div>
@@ -333,26 +332,24 @@ export default function FormOrderEditor({ order, onSave, isLoading = false }: Fo
                         <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label className={fieldLabel}>Kebutuhan Bahan (meter)</label>
-                                <input
-                                    type="number"
+                                <NumberInput
                                     min={0}
-                                    step="0.1"
+                                    decimal
                                     className={fieldInput}
                                     placeholder="0"
                                     value={specs.kebutuhan_bahan_meter ?? 0}
-                                    onChange={e => setField('kebutuhan_bahan_meter', Number(e.target.value) || 0)}
+                                    onChange={v => setField('kebutuhan_bahan_meter', v)}
                                 />
                             </div>
                             <div>
                                 <label className={fieldLabel}>Kebutuhan Bahan (kg)</label>
-                                <input
-                                    type="number"
+                                <NumberInput
                                     min={0}
-                                    step="0.1"
+                                    decimal
                                     className={fieldInput}
                                     placeholder="0"
                                     value={specs.kebutuhan_bahan_kg ?? 0}
-                                    onChange={e => setField('kebutuhan_bahan_kg', Number(e.target.value) || 0)}
+                                    onChange={v => setField('kebutuhan_bahan_kg', v)}
                                 />
                             </div>
                         </div>

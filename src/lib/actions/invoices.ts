@@ -241,7 +241,7 @@ export async function createInvoice(
         }
     }
 
-    // Auto-create kuitansi for DP Desain if already verified
+    // Auto-create kuitansi for Deposit Desain if already verified
     if (invoice && orderData?.dp_desain_verified && orderData.dp_desain_amount > 0) {
         const { error: kuitansiError } = await supabase
             .from('kuitansi')
@@ -249,14 +249,14 @@ export async function createInvoice(
                 invoice_id: invoice.id,
                 tanggal: new Date().toISOString().split('T')[0],
                 jumlah: orderData.dp_desain_amount,
-                keterangan: `Pembayaran DP Desain - ${noInvoice}`,
+                keterangan: `Pembayaran Deposit Desain - ${noInvoice}`,
                 created_by: user?.id
             })
 
         if (kuitansiError) {
-            console.error('Error creating auto-kuitansi for DP Desain:', kuitansiError)
+            console.error('Error creating auto-kuitansi for Deposit Desain:', kuitansiError)
         } else {
-            console.log('Auto-kuitansi DP Desain created for invoice:', noInvoice)
+            console.log('Auto-kuitansi Deposit Desain created for invoice:', noInvoice)
         }
     }
 

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { updateEmployee } from '../actions'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
+import { CurrencyInput } from '@/components/ui'
 
 interface Employee {
     id: string
@@ -152,14 +153,12 @@ export default function EditEmployeeModal({ employee, onClose }: EditEmployeeMod
                         <label className="block text-sm font-medium text-slate-700 mb-2">
                             Gaji Harian (Rp) <span className="text-red-500">*</span>
                         </label>
-                        <input
-                            type="number"
+                        <CurrencyInput
                             name="daily_rate"
                             required
-                            min="0"
-                            step="1000"
+                            min={0}
                             defaultValue={employee.daily_rate}
-                            className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:border-red-500 focus:ring-2 focus:ring-red-200 outline-none"
+                            className="!px-3 !py-2 !rounded-lg !bg-white !border-slate-300 focus:!border-red-500 focus:!ring-2 focus:!ring-red-200"
                         />
                     </div>
 

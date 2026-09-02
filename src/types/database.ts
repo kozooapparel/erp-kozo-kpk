@@ -557,7 +557,7 @@ export type OrderStage =
     | 'pengiriman'           // 10. Pengiriman
 
 export const STAGE_LABELS: Record<OrderStage, string> = {
-    customer_dp_desain: 'Customer DP Desain',
+    customer_dp_desain: 'Customer Deposit Desain',
     proses_desain: 'Proses Desain',
     dp_produksi: 'DP Produksi',
     proses_layout: 'Proses Layout',

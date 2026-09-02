@@ -16,6 +16,7 @@ interface CurrencyInputProps {
     max?: number
     name?: string
     autoFocus?: boolean
+    required?: boolean
 }
 
 // Raw digits (no thousand separators) from any value
@@ -63,6 +64,7 @@ export default function CurrencyInput({
     max,
     name,
     autoFocus,
+    required,
 }: CurrencyInputProps) {
     const inputRef = useRef<HTMLInputElement>(null)
     const isControlled = value !== undefined
@@ -168,7 +170,7 @@ export default function CurrencyInput({
                 className={`w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 ${showPrefix && !isFocused && displayValue ? 'pl-10' : ''} ${className}`}
             />
             {name && (
-                <input type="hidden" name={name} value={rawValue} />
+                <input type="hidden" name={name} value={rawValue === 0 ? '' : rawValue} required={required} />
             )}
         </div>
     )

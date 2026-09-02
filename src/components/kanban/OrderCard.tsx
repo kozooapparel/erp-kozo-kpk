@@ -35,7 +35,7 @@ export default function OrderCard({ order, isBottleneck, onClick }: OrderCardPro
     const getPaymentStatus = () => {
         if (order.pelunasan_verified) return { label: 'Lunas', color: 'bg-emerald-100 text-emerald-700', priority: 'low' }
         if (order.dp_produksi_verified) return { label: 'DP 50%', color: 'bg-amber-100 text-amber-700', priority: 'medium' }
-        if (order.dp_desain_verified) return { label: 'DP Desain', color: 'bg-blue-100 text-blue-700', priority: 'medium' }
+        if (order.dp_desain_verified) return { label: 'Deposit Desain', color: 'bg-blue-100 text-blue-700', priority: 'medium' }
         return { label: 'Belum Bayar', color: 'bg-red-100 text-red-700', priority: 'urgent' }
     }
 
@@ -47,7 +47,7 @@ export default function OrderCard({ order, isBottleneck, onClick }: OrderCardPro
             case 'customer_dp_desain':
                 return {
                     isReady: order.dp_desain_verified,
-                    reason: order.dp_desain_verified ? undefined : 'Menunggu DP Desain'
+                    reason: order.dp_desain_verified ? undefined : 'Menunggu Deposit Desain'
                 }
             case 'proses_desain':
                 return {

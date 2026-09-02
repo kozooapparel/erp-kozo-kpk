@@ -768,11 +768,11 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                                 </div>
                             )}
 
-                            {/* DP Desain - Show only at customer_dp_desain stage OR if already verified */}
+                            {/* Deposit Desain - Show only at customer_dp_desain stage OR if already verified */}
                             {(order.stage === 'customer_dp_desain' || order.dp_desain_verified) && (
                                 <div className="p-4 rounded-xl bg-slate-50 space-y-3">
                                     <div className="flex items-center justify-between">
-                                        <p className="text-sm font-medium text-slate-900">DP Desain</p>
+                                        <p className="text-sm font-medium text-slate-900">Deposit Desain</p>
                                         {getPaymentBadge(order.dp_desain_verified, order.dp_desain_amount)}
                                     </div>
 
@@ -871,13 +871,12 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                                     {order.dp_produksi_verified ? (
                                         editingDP === 'dp_produksi' ? (
                                             <div className="flex gap-2">
-                                                <div className="flex-1 relative">
-                                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">Rp</span>
-                                                    <input
-                                                        type="number"
-                                                        value={editDPAmount}
-                                                        onChange={(e) => setEditDPAmount(e.target.value)}
-                                                        className="w-full pl-10 pr-4 py-2 rounded-lg bg-white border border-amber-300 text-slate-900 focus:outline-none focus:border-amber-500"
+                                                <div className="flex-1">
+                                                    <CurrencyInput
+                                                        value={parseFloat(editDPAmount) || 0}
+                                                        onChange={(v) => setEditDPAmount(String(v))}
+                                                        showPrefix={false}
+                                                        className="!py-2 !pl-4 rounded-lg bg-white border-amber-300 focus:!ring-2 focus:!ring-amber-500/40"
                                                         autoFocus
                                                     />
                                                 </div>
@@ -920,14 +919,12 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                                         )
                                     ) : (
                                         <div className="flex gap-2">
-                                            <div className="flex-1 relative">
-                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">Rp</span>
-                                                <input
-                                                    type="number"
-                                                    value={dpProduksiAmount || order.dp_produksi_amount || ''}
-                                                    onChange={(e) => setDpProduksiAmount(e.target.value)}
+                                            <div className="flex-1">
+                                                <CurrencyInput
+                                                    value={parseInt(dpProduksiAmount || String(order.dp_produksi_amount || '0')) || 0}
+                                                    onChange={(v) => setDpProduksiAmount(String(v))}
                                                     placeholder="0"
-                                                    className="w-full pl-10 pr-4 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                                                    className="!py-2"
                                                 />
                                             </div>
                                             <button
@@ -966,14 +963,12 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                                     {order.pelunasan_verified ? (
                                         editingDP === 'pelunasan' ? (
                                             <div className="flex gap-2">
-                                                <div className="flex-1 relative">
-                                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">Rp</span>
-                                                    <input
-                                                        type="number"
-                                                        value={editDPAmount}
-                                                        onChange={(e) => setEditDPAmount(e.target.value)}
-                                                        className="w-full pl-10 pr-4 py-2 rounded-lg bg-white border border-amber-300 text-slate-900 focus:outline-none focus:border-amber-500"
-                                                        autoFocus
+                                                <div className="flex-1">
+                                                    <CurrencyInput
+                                                        value={parseFloat(editDPAmount) || 0}
+                                                        onChange={(v) => setEditDPAmount(String(v))}
+                                                        showPrefix={false}
+                                                        className="!py-2 !pl-4 rounded-lg bg-white border-amber-300 focus:!ring-2 focus:!ring-amber-500/40"
                                                     />
                                                 </div>
                                                 <button
@@ -1015,14 +1010,12 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                                         )
                                     ) : (
                                         <div className="flex gap-2">
-                                            <div className="flex-1 relative">
-                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">Rp</span>
-                                                <input
-                                                    type="number"
-                                                    value={pelunasanAmount || order.pelunasan_amount || ''}
-                                                    onChange={(e) => setPelunasanAmount(e.target.value)}
+                                            <div className="flex-1">
+                                                <CurrencyInput
+                                                    value={parseInt(pelunasanAmount || String(order.pelunasan_amount || '0')) || 0}
+                                                    onChange={(v) => setPelunasanAmount(String(v))}
                                                     placeholder="0"
-                                                    className="w-full pl-10 pr-4 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                                                    className="!py-2"
                                                 />
                                             </div>
                                             <button

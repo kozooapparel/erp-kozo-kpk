@@ -7,6 +7,7 @@ import { createKuitansi } from '@/lib/actions/kuitansi'
 import { formatCurrency, formatDateInput, formatDate } from '@/lib/utils/format'
 import { terbilang } from '@/lib/utils/terbilang'
 import { toast } from 'sonner'
+import { CurrencyInput } from '@/components/ui'
 
 interface KuitansiFormProps {
     unpaidInvoices: (InvoiceWithCustomer & { brand?: Brand | null })[]
@@ -194,14 +195,13 @@ export default function KuitansiForm({ unpaidInvoices, prefilledInvoiceId }: Kui
                             <div className="flex items-center gap-2">
                                 <span className="text-lg font-medium">: Rp.</span>
                                 <div className="flex items-center gap-2">
-                                    <input
-                                        type="number"
+                                    <CurrencyInput
                                         value={jumlah}
-                                        onChange={(e) => setJumlah(e.target.value)}
-                                        className="w-48 px-4 py-2 border-2 border-slate-300 rounded-lg text-xl font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                                        onChange={(v) => setJumlah(v > 0 ? String(v) : '')}
+                                        showPrefix={false}
+                                        className="!w-48 !px-4 !py-2 !border-2 !rounded-lg !text-xl !font-bold !bg-white !border-slate-300 focus:!ring-blue-500/50"
                                         placeholder="0"
-                                        required
-                                        min="0"
+                                        min={0}
                                         max={selectedInvoice?.sisa_tagihan}
                                     />
                                     {selectedInvoice && (

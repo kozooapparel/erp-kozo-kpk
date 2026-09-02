@@ -10,6 +10,7 @@ import { formatCurrency, formatDateInput } from '@/lib/utils/format'
 import { terbilang } from '@/lib/utils/terbilang'
 import { toast } from 'sonner'
 import BrandSelector from './BrandSelector'
+import { CurrencyInput, NumberInput } from '@/components/ui'
 
 interface InvoiceFormProps {
     customers: Customer[]
@@ -372,12 +373,12 @@ export default function InvoiceForm({
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                         <span className="text-sm text-slate-500">Produksi:</span>
-                        <input
-                            type="number"
+                        <NumberInput
                             value={perkiraanProduksi}
-                            onChange={(e) => setPerkiraanProduksi(e.target.value)}
+                            onChange={(v) => setPerkiraanProduksi(v > 0 ? String(v) : '')}
                             placeholder="16"
-                            className="w-14 px-2 py-1 border border-slate-200 rounded text-sm text-center focus:outline-none focus:ring-2 focus:ring-orange-500/50"
+                            allowEmpty
+                            className="!w-14 !px-2 !py-1 !rounded !text-sm !text-center !bg-white !border-slate-200 focus:!ring-orange-500/50"
                         />
                         <span className="text-sm text-slate-400">hari</span>
                     </div>
@@ -486,13 +487,13 @@ export default function InvoiceForm({
                                         </div>
                                     </td>
                                     <td className="py-2">
-                                        <input
-                                            type="number"
+                                        <NumberInput
                                             value={item.jumlah || ''}
-                                            onChange={(e) => updateItem(index, 'jumlah', e.target.value)}
-                                            className="w-full px-2 py-1 border border-slate-200 rounded text-sm text-center focus:outline-none focus:ring-2 focus:ring-orange-500/50"
+                                            onChange={(v) => updateItem(index, 'jumlah', v > 0 ? String(v) : '')}
+                                            className="!w-full !px-2 !py-1 !rounded !text-sm !text-center !bg-white !border-slate-200 focus:!ring-orange-500/50"
                                             placeholder="0"
-                                            min="0"
+                                            min={0}
+                                            allowEmpty
                                         />
                                     </td>
                                     <td className="py-2">
@@ -504,13 +505,13 @@ export default function InvoiceForm({
                                         />
                                     </td>
                                     <td className="py-2">
-                                        <input
-                                            type="number"
+                                        <CurrencyInput
                                             value={item.harga_satuan || ''}
-                                            onChange={(e) => updateItem(index, 'harga_satuan', e.target.value)}
-                                            className="w-full px-2 py-1 border border-slate-200 rounded text-sm text-right focus:outline-none focus:ring-2 focus:ring-orange-500/50"
+                                            onChange={(v) => updateItem(index, 'harga_satuan', v > 0 ? String(v) : '')}
+                                            showPrefix={false}
+                                            className="!w-full !px-2 !py-1 !rounded !text-sm !text-right !bg-white !border-slate-200 focus:!ring-orange-500/50"
                                             placeholder="0"
-                                            min="0"
+                                            min={0}
                                         />
                                     </td>
                                     <td className="py-2 text-right text-sm font-medium text-slate-900">
@@ -565,13 +566,12 @@ export default function InvoiceForm({
                                 <div className="flex items-center justify-between text-sm">
                                     <div className="flex items-center gap-2">
                                         <span className="text-slate-500">PPN</span>
-                                        <input
-                                            type="number"
+                                        <NumberInput
                                             value={ppnPersen}
-                                            onChange={(e) => setPpnPersen(e.target.value)}
-                                            className="w-12 px-2 py-0.5 border border-slate-200 rounded text-xs text-center focus:outline-none focus:ring-2 focus:ring-orange-500/50"
-                                            min="0"
-                                            max="100"
+                                            onChange={(v) => setPpnPersen(String(v))}
+                                            className="!w-12 !px-2 !py-0.5 !rounded !text-xs !text-center !bg-white !border-slate-200 focus:!ring-orange-500/50"
+                                            min={0}
+                                            max={100}
                                         />
                                         <span className="text-slate-400 text-xs">%</span>
                                     </div>
@@ -622,11 +622,11 @@ export default function InvoiceForm({
                             </div>
                             <div className="flex items-center gap-2 bg-slate-50 px-3 py-2 rounded-lg">
                                 <span className="text-sm text-slate-500">Termin:</span>
-                                <input
-                                    type="number"
+                                <NumberInput
                                     value={terminPembayaran}
-                                    onChange={(e) => setTerminPembayaran(e.target.value)}
-                                    className="w-14 px-2 py-1 border border-slate-200 rounded text-sm text-center focus:outline-none focus:ring-2 focus:ring-orange-500/50"
+                                    onChange={(v) => setTerminPembayaran(String(v))}
+                                    className="!w-14 !px-2 !py-1 !rounded !text-sm !text-center !bg-white !border-slate-200 focus:!ring-orange-500/50"
+                                    min={1}
                                 />
                                 <span className="text-sm text-slate-400">hari</span>
                             </div>
