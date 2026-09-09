@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { KuitansiWithInvoice } from '@/types/database'
 import { deleteKuitansi } from '@/lib/actions/kuitansi'
 import { formatCurrency, formatDateShort } from '@/lib/utils/format'
@@ -19,8 +18,8 @@ interface KuitansiListProps {
     brands: BrandItem[]
 }
 
-export default function KuitansiList({ kuitansiList, brands }: KuitansiListProps) {
-    const router = useRouter()
+export default function KuitansiList({ kuitansiList: initialKuitansi, brands }: KuitansiListProps) {
+    const [kuitansiList, setKuitansiList] = useState<KuitansiWithInvoice[]>(initialKuitansi)
     const [loading, setLoading] = useState<string | null>(null)
     const [search, setSearch] = useState('')
     const [brandFilter, setBrandFilter] = useState<string>('all')
@@ -49,7 +48,7 @@ export default function KuitansiList({ kuitansiList, brands }: KuitansiListProps
         setLoading(id)
         try {
             await deleteKuitansi(id)
-            router.refresh()
+            setKuitansiList((current) => current.filter((k) => k.id !== id))
         } catch (error) {
             toast.error(error instanceof Error ? error.message : 'Gagal menghapus kuitansi')
         } finally {

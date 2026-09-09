@@ -1,11 +1,7 @@
 'use client'
 
-import { Order, Customer, OrderStage } from '@/types/database'
+import { Order, OrderStage, OrderWithCustomer } from '@/types/database'
 import OrderCard from './OrderCard'
-
-interface OrderWithCustomer extends Order {
-    customer: Customer
-}
 
 interface KanbanColumnProps {
     stage: OrderStage

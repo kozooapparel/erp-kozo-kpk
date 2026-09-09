@@ -56,7 +56,6 @@ export default function KuitansiForm({ unpaidInvoices, prefilledInvoiceId }: Kui
             })
 
             router.push('/kuitansi')
-            router.refresh()
         } catch (error) {
             console.error('Error creating kuitansi:', error)
             toast.error(error instanceof Error ? error.message : 'Gagal membuat kuitansi')

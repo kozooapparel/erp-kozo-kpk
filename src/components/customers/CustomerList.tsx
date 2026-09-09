@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import AddCustomerModal from './AddCustomerModal'
 import CustomerDetailModal from './CustomerDetailModal'
@@ -96,14 +95,42 @@ const toneToBadge: Record<TierTone, string> = {
     brand: 'badge-brand',
 }
 
-export default function CustomerList({ customers }: CustomerListProps) {
+export default function CustomerList({ customers: initialCustomers }: CustomerListProps) {
+    const [customers, setCustomers] = useState<CustomerWithStats[]>(initialCustomers)
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [selectedCustomer, setSelectedCustomer] = useState<CustomerWithStats | null>(null)
     const [editingCustomer, setEditingCustomer] = useState<CustomerWithStats | null>(null)
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
     const [deleting, setDeleting] = useState(false)
     const [isMobile, setIsMobile] = useState(false)
-    const router = useRouter()
+
+    // Sync with server data when page re-renders (e.g. first load)
+    useEffect(() => {
+        setCustomers(initialCustomers)
+    }, [initialCustomers])
+
+    const upsertCustomer = (nextCustomer: CustomerWithStats) => {
+        setCustomers((current) => {
+            const idx = current.findIndex((c) => c.id === nextCustomer.id)
+            if (idx === -1) return [nextCustomer, ...current]
+            const updated = [...current]
+            updated[idx] = nextCustomer
+            return updated
+        })
+    }
+
+    const handleCustomerCreated = (customer: CustomerWithStats) => {
+        upsertCustomer(customer)
+    }
+
+    const handleCustomerUpdated = (customer: CustomerWithStats) => {
+        upsertCustomer(customer)
+        setEditingCustomer(null)
+    }
+
+    const handleCustomerDeleted = (customerId: string) => {
+        setCustomers((current) => current.filter((c) => c.id !== customerId))
+    }
 
     // Detect mobile viewport
     useEffect(() => {
@@ -134,7 +161,7 @@ export default function CustomerList({ customers }: CustomerListProps) {
             }
             toast.success(result.message)
             setDeleteConfirmId(null)
-            router.refresh()
+            handleCustomerDeleted(customerId)
         } catch (err) {
             console.error('Delete error:', err)
             toast.error('Gagal menghapus customer')
@@ -386,6 +413,7 @@ export default function CustomerList({ customers }: CustomerListProps) {
             <AddCustomerModal
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
+                onCustomerCreated={handleCustomerCreated}
             />
 
             {/* Customer Detail Modal */}
@@ -400,10 +428,7 @@ export default function CustomerList({ customers }: CustomerListProps) {
                 customer={editingCustomer}
                 isOpen={editingCustomer !== null}
                 onClose={() => setEditingCustomer(null)}
-                onSuccess={() => {
-                    setEditingCustomer(null)
-                    router.refresh()
-                }}
+                onCustomerUpdated={handleCustomerUpdated}
             />
 
             {/* Delete Confirmation Dialog */}

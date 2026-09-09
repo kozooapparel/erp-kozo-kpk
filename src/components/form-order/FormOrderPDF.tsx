@@ -1,12 +1,8 @@
 'use client'
 
 import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer'
-import { Order, Customer, Brand, ProductionSpecs } from '@/types/database'
+import { Brand, ProductionSpecs, OrderWithCustomer } from '@/types/database'
 import { getDeadlineProduksi, formatTanggal, PRODUKSI_DURATION_DAYS } from '@/lib/form-order'
-
-interface OrderWithCustomer extends Order {
-    customer: Customer
-}
 
 interface FormOrderPDFProps {
     order: OrderWithCustomer

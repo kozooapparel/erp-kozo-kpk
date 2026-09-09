@@ -5,17 +5,17 @@ import { Brand, BrandInsert, BrandUpdate } from '@/types/database'
 import { createBrand, updateBrand } from '@/lib/actions/brands'
 import { createClient } from '@/lib/supabase/client'
 import { resizeImageToSquare } from '@/lib/utils/image'
-import { useRouter } from 'next/navigation'
 
 interface BrandFormModalProps {
     isOpen: boolean
     onClose: () => void
     brand?: Brand  // If provided, we're editing
+    onBrandCreated?: (brand: Brand) => void
+    onBrandUpdated?: (brand: Brand) => void
 }
 
-export default function BrandFormModal({ isOpen, onClose, brand }: BrandFormModalProps) {
+export default function BrandFormModal({ isOpen, onClose, brand, onBrandCreated, onBrandUpdated }: BrandFormModalProps) {
     const isEditing = !!brand
-    const router = useRouter()
 
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -142,13 +142,14 @@ export default function BrandFormModal({ isOpen, onClose, brand }: BrandFormModa
             }
 
             if (isEditing && brand) {
-                await updateBrand(brand.id, data)
+                const updated = await updateBrand(brand.id, data)
+                onBrandUpdated?.(updated)
             } else {
-                await createBrand(data as BrandInsert)
+                const created = await createBrand(data as BrandInsert)
+                onBrandCreated?.(created)
             }
 
             onClose()
-            router.refresh()
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Terjadi kesalahan')
         } finally {

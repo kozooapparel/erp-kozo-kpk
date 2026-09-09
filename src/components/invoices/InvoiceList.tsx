@@ -5,7 +5,6 @@ import { useState } from 'react'
 import { InvoiceWithCustomer } from '@/types/database'
 import { deleteInvoice } from '@/lib/actions/invoices'
 import { formatCurrency, formatDateShort } from '@/lib/utils/format'
-import { useRouter } from 'next/navigation'
 import InvoiceDownloadButton from './InvoiceDownloadButton'
 import { toast } from 'sonner'
 
@@ -20,8 +19,8 @@ interface InvoiceListProps {
     brands: BrandItem[]
 }
 
-export default function InvoiceList({ invoices, brands }: InvoiceListProps) {
-    const router = useRouter()
+export default function InvoiceList({ invoices: initialInvoices, brands }: InvoiceListProps) {
+    const [invoices, setInvoices] = useState<InvoiceWithCustomer[]>(initialInvoices)
     const [loading, setLoading] = useState<string | null>(null)
     const [filter, setFilter] = useState<'all' | 'BELUM_LUNAS' | 'SUDAH_LUNAS'>('all')
     const [search, setSearch] = useState('')
@@ -64,7 +63,7 @@ export default function InvoiceList({ invoices, brands }: InvoiceListProps) {
         setLoading(id)
         try {
             await deleteInvoice(id)
-            router.refresh()
+            setInvoices((current) => current.filter((inv) => inv.id !== id))
         } catch (error) {
             toast.error(error instanceof Error ? error.message : 'Gagal menghapus invoice')
         } finally {

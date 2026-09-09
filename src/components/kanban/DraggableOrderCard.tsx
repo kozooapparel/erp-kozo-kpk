@@ -3,16 +3,8 @@
 import { useState, useEffect } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Order, Customer, OrderStage } from '@/types/database'
-import { hasFormOrderData } from '@/lib/form-order'
-import { createClient } from '@/lib/supabase/client'
+import { OrderStage, OrderWithCustomer } from '@/types/database'
 import Image from 'next/image'
-
-interface OrderWithCustomer extends Order {
-    customer: Customer
-    creator: { id: string; full_name: string } | null
-    brand?: { id: string; code: string; name: string; logo_url: string | null } | null
-}
 
 interface DraggableOrderCardProps {
     order: OrderWithCustomer
@@ -21,8 +13,7 @@ interface DraggableOrderCardProps {
 }
 
 export default function DraggableOrderCard({ order, isBottleneck, onClick }: DraggableOrderCardProps) {
-    const supabase = createClient()
-    const [hasInvoice, setHasInvoice] = useState(false)
+    const hasInvoice = (order.invoices?.length ?? 0) > 0
 
     const {
         attributes,
@@ -32,24 +23,6 @@ export default function DraggableOrderCard({ order, isBottleneck, onClick }: Dra
         transition,
         isDragging,
     } = useSortable({ id: order.id })
-
-    // Check if order has invoice (for dp_produksi stage)
-    useEffect(() => {
-        const checkInvoice = async () => {
-            if (order.stage !== 'dp_produksi') {
-                setHasInvoice(true) // Not relevant for other stages
-                return
-            }
-            const { data } = await supabase
-                .from('invoices')
-                .select('id')
-                .eq('order_id', order.id)
-                .limit(1)
-                .single()
-            setHasInvoice(!!data)
-        }
-        checkInvoice()
-    }, [order.id, order.stage, supabase])
 
     const style = {
         transform: CSS.Transform.toString(transform),

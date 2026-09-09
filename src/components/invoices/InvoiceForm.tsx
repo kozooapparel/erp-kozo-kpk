@@ -275,7 +275,6 @@ export default function InvoiceForm({
             }
 
             router.push('/invoices')
-            router.refresh()
         } catch (error) {
             console.error('Error saving invoice:', error)
             toast.error('Gagal menyimpan invoice')

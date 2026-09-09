@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { DndContext, DragEndEvent, DragStartEvent, DragOverlay, closestCorners, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
-import { Order, Customer, DashboardMetrics, STAGES_ORDER, STAGE_LABELS, OrderStage, GATEKEEPER_STAGES, STAGE_BOTTLENECK_DAYS } from '@/types/database'
+import { Order, Customer, DashboardMetrics, STAGES_ORDER, STAGE_LABELS, OrderStage, GATEKEEPER_STAGES, STAGE_BOTTLENECK_DAYS, OrderWithCustomer } from '@/types/database'
 import DroppableColumn from './DroppableColumn'
 import MetricsBar from './MetricsBar'
 import SearchBar from '../ui/SearchBar'
@@ -12,13 +12,7 @@ import OrderDetailModal from '../orders/OrderDetailModal'
 import AddCustomerModal from '../customers/AddCustomerModal'
 import { createClient } from '@/lib/supabase/client'
 import { generateSPKNumber } from '@/lib/actions/orders'
-import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-
-interface OrderWithCustomer extends Order {
-    customer: Customer
-    creator: { id: string; full_name: string } | null
-}
 
 interface AdminProfile {
     id: string
@@ -37,12 +31,24 @@ interface KanbanBoardProps {
     customers: Customer[]
     admins: AdminProfile[]
     brands: BrandItem[]
+    onOrderCreated: (order: OrderWithCustomer) => void
+    onOrderUpdated: (orderId: string, updates: Partial<OrderWithCustomer>) => void
+    onOrderRemoved: (orderId: string) => void
 }
 
-export default function KanbanBoard({ orders, metrics, customers, admins, brands }: KanbanBoardProps) {
+export default function KanbanBoard({
+    orders,
+    metrics,
+    customers,
+    admins,
+    brands,
+    onOrderCreated,
+    onOrderUpdated,
+    onOrderRemoved,
+}: KanbanBoardProps) {
     const [isAddModalOpen, setIsAddModalOpen] = useState(false)
     const [isAddCustomerModalOpen, setIsAddCustomerModalOpen] = useState(false)
-    const [selectedOrder, setSelectedOrder] = useState<OrderWithCustomer | null>(null)
+    const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
     const [searchQuery, setSearchQuery] = useState('')
     const [activeId, setActiveId] = useState<string | null>(null)
     const [orderFilter, setOrderFilter] = useState<OrderFilter>('all')
@@ -55,8 +61,7 @@ export default function KanbanBoard({ orders, metrics, customers, admins, brands
 
     const scrollContainerRef = useRef<HTMLDivElement>(null)
 
-    const router = useRouter()
-    const supabase = createClient()
+    const supabase = useMemo(() => createClient(), [])
 
     // Detect mobile viewport
     useEffect(() => {
@@ -135,7 +140,7 @@ export default function KanbanBoard({ orders, metrics, customers, admins, brands
     }
 
     // Filter orders based on search query, order status, and admin
-    const filteredOrders = orders.filter(order => {
+    const filteredOrders = useMemo(() => orders.filter(order => {
         // Search filter
         if (searchQuery) {
             const query = searchQuery.toLowerCase()
@@ -176,13 +181,13 @@ export default function KanbanBoard({ orders, metrics, customers, admins, brands
         }
 
         return true
-    })
+    }), [adminFilter, brandFilter, orderFilter, orders, searchQuery])
 
     // Group orders by stage
-    const ordersByStage = STAGES_ORDER.reduce((acc, stage) => {
+    const ordersByStage = useMemo(() => STAGES_ORDER.reduce((acc, stage) => {
         acc[stage] = filteredOrders.filter(order => order.stage === stage)
         return acc
-    }, {} as Record<OrderStage, OrderWithCustomer[]>)
+    }, {} as Record<OrderStage, OrderWithCustomer[]>), [filteredOrders])
 
     // Check if order is bottleneck (exceeded stage-specific threshold)
     // Proses Desain: 1 day, Other stages: 2 days
@@ -292,18 +297,26 @@ export default function KanbanBoard({ orders, metrics, customers, admins, brands
             return
         }
 
+        const previousStage = order.stage
+        const nextStageEnteredAt = new Date().toISOString()
+
+        onOrderUpdated(orderId, {
+            stage: targetStage,
+            stage_entered_at: nextStageEnteredAt,
+        })
+
         try {
             const { error } = await supabase
                 .from('orders')
                 .update({
                     stage: targetStage,
-                    stage_entered_at: new Date().toISOString()
+                    stage_entered_at: nextStageEnteredAt
                 })
                 .eq('id', orderId)
-                .select()
 
             if (error) {
                 console.error('Supabase error:', error.message, error.code)
+                onOrderUpdated(orderId, { stage: previousStage, stage_entered_at: order.stage_entered_at })
                 toast.error(`Gagal pindah stage: ${error.message}`)
                 return
             }
@@ -312,20 +325,21 @@ export default function KanbanBoard({ orders, metrics, customers, admins, brands
             if (targetStage === 'antrean_produksi' && !order.spk_number) {
                 const spk = await generateSPKNumber(orderId)
                 if (spk.success) {
+                    onOrderUpdated(orderId, { spk_number: spk.spkNumber ?? null })
                     toast.success(`Berhasil pindah stage! SPK ${spk.spkNumber} otomatis di-generate`)
                 } else {
                     toast.warning('Pindah stage berhasil, tapi SPK gagal dibuat. Buka detail order untuk membuat SPK.')
                 }
             }
-
-            router.refresh()
         } catch (err) {
+            onOrderUpdated(orderId, { stage: previousStage, stage_entered_at: order.stage_entered_at })
             console.error('Failed to update stage:', err)
             toast.error('Terjadi kesalahan saat update stage')
         }
     }
 
     const activeOrder = activeId ? orders.find(o => o.id === activeId) : null
+    const selectedOrder = selectedOrderId ? orders.find((order) => order.id === selectedOrderId) ?? null : null
 
     return (
         <div className="flex flex-col h-[calc(100vh-4rem)]">
@@ -542,7 +556,7 @@ export default function KanbanBoard({ orders, metrics, customers, admins, brands
                                 isGatekeeper={isGatekeeperStage(STAGES_ORDER[currentStageIndex])}
                                 isBottleneckStage={hasBottleneckOrders(STAGES_ORDER[currentStageIndex])}
                                 checkBottleneck={isBottleneck}
-                                onOrderClick={(order) => setSelectedOrder(order)}
+                                onOrderClick={(order) => setSelectedOrderId(order.id)}
                                 fullWidth
                             />
                         </div>
@@ -562,7 +576,7 @@ export default function KanbanBoard({ orders, metrics, customers, admins, brands
                                         isGatekeeper={isGatekeeperStage(stage)}
                                         isBottleneckStage={hasBottleneckOrders(stage)}
                                         checkBottleneck={isBottleneck}
-                                        onOrderClick={(order) => setSelectedOrder(order)}
+                                        onOrderClick={(order) => setSelectedOrderId(order.id)}
                                     />
                                 ))}
                             </div>
@@ -584,12 +598,15 @@ export default function KanbanBoard({ orders, metrics, customers, admins, brands
                 isOpen={isAddModalOpen}
                 onClose={() => setIsAddModalOpen(false)}
                 customers={customers}
+                onOrderCreated={onOrderCreated}
             />
 
             <OrderDetailModal
                 order={selectedOrder}
                 isOpen={selectedOrder !== null}
-                onClose={() => setSelectedOrder(null)}
+                onClose={() => setSelectedOrderId(null)}
+                onOrderUpdated={onOrderCreated}
+                onOrderDeleted={onOrderRemoved}
             />
 
             <AddCustomerModal
@@ -599,4 +616,3 @@ export default function KanbanBoard({ orders, metrics, customers, admins, brands
         </div>
     )
 }
-

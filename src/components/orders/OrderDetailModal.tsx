@@ -1,9 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Order, Customer, STAGE_LABELS, STAGES_ORDER, OrderStage, GATEKEEPER_STAGES } from '@/types/database'
+import { useEffect, useMemo, useState } from 'react'
+import { STAGE_LABELS, STAGES_ORDER, OrderStage, GATEKEEPER_STAGES, OrderWithCustomer } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
 import { toast } from 'sonner'
@@ -12,17 +11,21 @@ import { hasFormOrderData } from '@/lib/form-order'
 import { ImageDropzone, CurrencyInput } from '@/components/ui'
 import { verifyDPPayment, correctDPPayment, moveOrderToNextStage, deleteOrder, updateDesignNotes, archiveOrder } from '@/lib/actions/orders'
 
-interface OrderWithCustomer extends Order {
-    customer: Customer
-}
-
 interface OrderDetailModalProps {
     order: OrderWithCustomer | null
     isOpen: boolean
     onClose: () => void
+    onOrderUpdated?: (order: OrderWithCustomer) => void
+    onOrderDeleted?: (orderId: string) => void
 }
 
-export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetailModalProps) {
+export default function OrderDetailModal({
+    order,
+    isOpen,
+    onClose,
+    onOrderUpdated,
+    onOrderDeleted,
+}: OrderDetailModalProps) {
     const [loading, setLoading] = useState(false)
     const [activeTab, setActiveTab] = useState<'detail' | 'payment' | 'stage' | 'form-order'>('detail')
     const [trackingNumber, setTrackingNumber] = useState('')
@@ -45,8 +48,34 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
     const [editingDP, setEditingDP] = useState<'dp_desain' | 'dp_produksi' | 'pelunasan' | null>(null)
     const [editDPAmount, setEditDPAmount] = useState('')
     const [savingCorrection, setSavingCorrection] = useState(false)
-    const router = useRouter()
-    const supabase = createClient()
+    const supabase = useMemo(() => createClient(), [])
+
+    const syncLatestOrder = async (options?: { close?: boolean }) => {
+        if (!order?.id) return
+
+        const { data, error } = await supabase
+            .from('orders')
+            .select(`
+                *,
+                invoices(id),
+                customer:customers(*),
+                creator:profiles!created_by(id, full_name),
+                brand:brands(*)
+            `)
+            .eq('id', order.id)
+            .single()
+
+        if (error) {
+            console.error('Failed to sync latest order:', error)
+            return
+        }
+
+        onOrderUpdated?.(data as OrderWithCustomer)
+
+        if (options?.close) {
+            onClose()
+        }
+    }
 
     // Fetch invoice for this order
     useEffect(() => {
@@ -132,8 +161,7 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                 .eq('id', order.id)
 
             if (error) throw error
-            router.refresh()
-            onClose()
+            await syncLatestOrder({ close: true })
         } catch (err) {
             console.error('Save tracking error:', err)
         } finally {
@@ -175,8 +203,7 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
             }
 
             toast.success('Desain berhasil diupload!', { id: toastId })
-            onClose()
-            router.refresh()
+            await syncLatestOrder({ close: true })
         } catch (err) {
             console.error('Upload error:', err)
             const message = err instanceof Error ? err.message : 'Unknown error'
@@ -225,7 +252,7 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
 
             toast.success('Desain berhasil dihapus', { id: toastId })
             setShowDeleteMockupConfirm(false)
-            router.refresh()
+            await syncLatestOrder()
         } catch (err) {
             console.error('Delete mockup error:', err)
             const message = err instanceof Error ? err.message : 'Unknown error'
@@ -307,8 +334,7 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
             }
 
             toast.success(result.message)
-            router.refresh()
-            onClose()
+            await syncLatestOrder({ close: true })
         } catch (err) {
             console.error('Verify error:', err)
             toast.error('Gagal verify pembayaran')
@@ -343,8 +369,7 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                 toast.success('Berhasil pindah stage')
             }
 
-            router.refresh()
-            onClose()
+            await syncLatestOrder({ close: true })
         } catch (err) {
             console.error('Move stage error:', err)
             const message = err instanceof Error ? err.message : 'Gagal pindah stage'
@@ -376,7 +401,7 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
             }
             toast.success(result.message)
             setShowDeleteConfirm(false)
-            router.refresh()
+            onOrderDeleted?.(order.id)
             onClose()
         } catch (err) {
             console.error('Delete error:', err)
@@ -397,7 +422,7 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
             }
             toast.success(result.message)
             setShowArchiveConfirm(false)
-            router.refresh()
+            onOrderDeleted?.(order.id)
             onClose()
         } catch (err) {
             console.error('Archive error:', err)
@@ -590,6 +615,7 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                                         try {
                                             const result = await updateDesignNotes(order.id, designNotes)
                                             if (result.success) {
+                                                onOrderUpdated?.({ ...order, design_notes: designNotes || null })
                                                 toast.success(result.message)
                                             } else {
                                                 toast.error(result.message)
@@ -795,7 +821,7 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                                                         setSavingCorrection(true)
                                                         try {
                                                             const result = await correctDPPayment(order.id, 'dp_desain', amount)
-                                                            if (result.success) { toast.success(result.message); setEditingDP(null); router.refresh(); onClose() }
+                                                            if (result.success) { toast.success(result.message); setEditingDP(null); await syncLatestOrder({ close: true }) }
                                                             else { toast.error(result.message) }
                                                         } catch { toast.error('Gagal koreksi') } finally { setSavingCorrection(false) }
                                                     }}
@@ -887,7 +913,7 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                                                         setSavingCorrection(true)
                                                         try {
                                                             const result = await correctDPPayment(order.id, 'dp_produksi', amount)
-                                                            if (result.success) { toast.success(result.message); setEditingDP(null); router.refresh(); onClose() }
+                                                            if (result.success) { toast.success(result.message); setEditingDP(null); await syncLatestOrder({ close: true }) }
                                                             else { toast.error(result.message) }
                                                         } catch { toast.error('Gagal koreksi') } finally { setSavingCorrection(false) }
                                                     }}
@@ -978,7 +1004,7 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                                                         setSavingCorrection(true)
                                                         try {
                                                             const result = await correctDPPayment(order.id, 'pelunasan', amount)
-                                                            if (result.success) { toast.success(result.message); setEditingDP(null); router.refresh(); onClose() }
+                                                            if (result.success) { toast.success(result.message); setEditingDP(null); await syncLatestOrder({ close: true }) }
                                                             else { toast.error(result.message) }
                                                         } catch { toast.error('Gagal koreksi') } finally { setSavingCorrection(false) }
                                                     }}
@@ -1117,7 +1143,7 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
 
                                                     setPaymentProofFile(null)
                                                     setPaymentProofPreview(null)
-                                                    router.refresh()
+                                                    await syncLatestOrder()
                                                     toast.success('Bukti pembayaran berhasil diupload!')
                                                 } catch (err: unknown) {
                                                     console.error('Upload error:', err)
@@ -1312,8 +1338,7 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
 
                                                             if (error) throw error
                                                             toast.success('Link dihapus')
-                                                            router.refresh()
-                                                            onClose()
+                                                            await syncLatestOrder({ close: true })
                                                         } catch (err) {
                                                             toast.error('Gagal menghapus link')
                                                         }
@@ -1367,8 +1392,7 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
 
                                                         if (error) throw error
                                                         toast.success('Link layout berhasil disimpan!')
-                                                        router.refresh()
-                                                        onClose()
+                                                        await syncLatestOrder({ close: true })
                                                     } catch (err) {
                                                         console.error('Error saving layout link:', err)
                                                         toast.error('Gagal menyimpan link')
@@ -1591,8 +1615,7 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
                                                     .eq('id', order.id)
 
                                                 if (error) throw error
-                                                router.refresh()
-                                                onClose()
+                                                await syncLatestOrder({ close: true })
                                             } catch (err) {
                                                 console.error('Toggle stage error:', err)
                                                 toast.error('Gagal mengupdate status')
@@ -1686,8 +1709,7 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
 
                                         if (error) throw error
                                         toast.success('Form order berhasil disimpan!')
-                                        onClose()
-                                        router.refresh()
+                                        await syncLatestOrder({ close: true })
                                     } catch (err) {
                                         console.error('Save form order error:', err)
                                         const message = err instanceof Error ? err.message : 'Kesalahan tidak diketahui'
@@ -1814,4 +1836,3 @@ export default function OrderDetailModal({ order, isOpen, onClose }: OrderDetail
         </div >
     )
 }
-

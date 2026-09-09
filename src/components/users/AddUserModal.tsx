@@ -1,17 +1,24 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { createAdmin } from '@/app/users/actions'
 import { Modal, ModalFooter } from '@/components/ui'
+
+interface AdminUser {
+    id: string
+    email: string
+    full_name: string
+    role: 'owner' | 'admin'
+    created_at: string
+}
 
 interface AddUserModalProps {
     isOpen: boolean
     onClose: () => void
+    onUserAdded?: (user: AdminUser) => void
 }
 
-export default function AddUserModal({ isOpen, onClose }: AddUserModalProps) {
-    const router = useRouter()
+export default function AddUserModal({ isOpen, onClose, onUserAdded }: AddUserModalProps) {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
 
@@ -23,9 +30,9 @@ export default function AddUserModal({ isOpen, onClose }: AddUserModalProps) {
         const formData = new FormData(e.currentTarget)
         const result = await createAdmin(formData)
 
-        if (result.success) {
+        if (result.success && result.user) {
+            onUserAdded?.(result.user)
             onClose()
-            router.refresh()
         } else {
             setError(result.error || 'Gagal menambahkan admin')
         }

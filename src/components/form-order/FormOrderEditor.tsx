@@ -3,23 +3,10 @@
 import { useState } from 'react'
 import { Trash2, Upload, X } from 'lucide-react'
 import { toast } from 'sonner'
-import { Customer, Brand, ProductionSpecs } from '@/types/database'
+import { ProductionSpecs, OrderWithCustomer } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
 import { ImageDropzone, NumberInput } from '@/components/ui'
 import { getDeadlineProduksi, formatTanggal, PRODUKSI_DURATION_DAYS } from '@/lib/form-order'
-
-interface OrderWithCustomer {
-    id: string
-    created_at: string
-    total_quantity: number | null
-    order_description: string | null
-    nama_po: string | null
-    spk_number: string | null
-    deadline: string | null
-    production_specs: ProductionSpecs | null
-    customer: Customer | null
-    brand?: Brand | null
-}
 
 interface FormOrderEditorProps {
     order: OrderWithCustomer

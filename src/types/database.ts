@@ -636,6 +636,15 @@ export interface InvoiceWithCustomer extends Invoice {
     customer: Customer
 }
 
+// Canonical order with relations used across kanban, modals, and form-order.
+// Struct-compatible superset of every previously duplicated local definition.
+export interface OrderWithCustomer extends Order {
+    customer: Customer
+    creator?: { id: string; full_name: string } | null
+    brand?: Brand | null
+    invoices?: Array<{ id: string }>
+}
+
 export interface InvoiceWithItems extends Invoice {
     customer: Customer
     items: InvoiceItem[]

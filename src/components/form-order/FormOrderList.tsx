@@ -1,14 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { Order, Customer, ProductionSpecs, STAGE_LABELS, OrderStage } from '@/types/database'
+import { ProductionSpecs, STAGE_LABELS, OrderStage, OrderWithCustomer } from '@/types/database'
 import FormOrderDownloadButton from './FormOrderDownloadButton'
 import { EmptyState, DefaultEmptyIcon, StatCard } from '@/components/ui/ds'
 import { getDeadlineProduksi, formatTanggal } from '@/lib/form-order'
-
-interface OrderWithCustomer extends Order {
-    customer: Customer
-}
 
 interface BrandItem {
     id: string

@@ -2,13 +2,8 @@
 
 import { useState } from 'react'
 import { pdf } from '@react-pdf/renderer'
-import { Order, Customer, Brand } from '@/types/database'
+import { OrderWithCustomer } from '@/types/database'
 import FormOrderPDF from './FormOrderPDF'
-
-interface OrderWithCustomer extends Order {
-    customer: Customer
-    brand?: Brand | null
-}
 
 interface FormOrderDownloadButtonProps {
     order: OrderWithCustomer

@@ -1,13 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { Order, Customer, OrderStage, Brand } from '@/types/database'
+import { OrderStage, OrderWithCustomer } from '@/types/database'
 import Image from 'next/image'
-
-interface OrderWithCustomer extends Order {
-    customer: Customer
-    brand?: Brand | null
-}
 
 interface OrderCardProps {
     order: OrderWithCustomer

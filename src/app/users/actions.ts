@@ -53,7 +53,7 @@ export async function getAdminUsers(): Promise<AdminUser[]> {
 }
 
 // Create new admin user
-export async function createAdmin(formData: FormData): Promise<{ success: boolean; error?: string }> {
+export async function createAdmin(formData: FormData): Promise<{ success: boolean; error?: string; user?: AdminUser }> {
     try {
         await verifyOwner()
 
@@ -110,7 +110,16 @@ export async function createAdmin(formData: FormData): Promise<{ success: boolea
         }
 
         revalidatePath('/users')
-        return { success: true }
+        return {
+            success: true,
+            user: {
+                id: authData.user.id,
+                email,
+                full_name: fullName,
+                role: 'admin',
+                created_at: new Date().toISOString(),
+            }
+        }
     } catch (error) {
         return { success: false, error: error instanceof Error ? error.message : 'Terjadi kesalahan' }
     }
