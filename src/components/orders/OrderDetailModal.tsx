@@ -29,9 +29,6 @@ export default function OrderDetailModal({
     const [loading, setLoading] = useState(false)
     const [activeTab, setActiveTab] = useState<'detail' | 'payment' | 'stage' | 'form-order'>('detail')
     const [trackingNumber, setTrackingNumber] = useState('')
-    const [paymentProofFile, setPaymentProofFile] = useState<File | null>(null)
-    const [paymentProofPreview, setPaymentProofPreview] = useState<string | null>(null)
-    const [uploadingProof, setUploadingProof] = useState(false)
     const [dpDesainAmount, setDpDesainAmount] = useState('')
     const [dpProduksiAmount, setDpProduksiAmount] = useState('')
     const [pelunasanAmount, setPelunasanAmount] = useState('')
@@ -49,6 +46,12 @@ export default function OrderDetailModal({
     const [editDPAmount, setEditDPAmount] = useState('')
     const [savingCorrection, setSavingCorrection] = useState(false)
     const supabase = useMemo(() => createClient(), [])
+
+    // Kalkulator DP Produksi: minimal DP = 50% dari total invoice
+    const totalInvoice = orderInvoice?.total ?? 0
+    const dpProduksiMinimal = Math.round(totalInvoice * 0.5)
+    const dpProduksiInputValue = parseInt(dpProduksiAmount) || 0
+    const sisaSetelahDP = Math.max(totalInvoice - (order?.dp_desain_amount || 0) - dpProduksiInputValue, 0)
 
     const syncLatestOrder = async (options?: { close?: boolean }) => {
         if (!order?.id) return
@@ -944,30 +947,72 @@ export default function OrderDetailModal({
                                             </div>
                                         )
                                     ) : (
-                                        <div className="flex gap-2">
-                                            <div className="flex-1">
-                                                <CurrencyInput
-                                                    value={parseInt(dpProduksiAmount || String(order.dp_produksi_amount || '0')) || 0}
-                                                    onChange={(v) => setDpProduksiAmount(String(v))}
-                                                    placeholder="0"
-                                                    className="!py-2"
-                                                />
+                                        <>
+                                            {/* Kalkulator DP Produksi - bantu hitung minimal DP 50% */}
+                                            <div className="p-3 rounded-lg bg-white border border-amber-200 space-y-2">
+                                                <div className="flex justify-between text-sm">
+                                                    <span className="text-slate-600">Total Invoice</span>
+                                                    <span className="font-semibold text-slate-900">{formatCurrency(totalInvoice)}</span>
+                                                </div>
+                                                <div className="flex justify-between text-sm">
+                                                    <span className="text-slate-600">Minimal DP (50%)</span>
+                                                    <span className="font-bold text-amber-600">{formatCurrency(dpProduksiMinimal)}</span>
+                                                </div>
+                                                <div className="flex justify-between text-sm pt-2 border-t border-amber-200">
+                                                    <span className="text-slate-600">Sisa setelah DP</span>
+                                                    <span className={`font-semibold ${sisaSetelahDP > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                                                        {formatCurrency(sisaSetelahDP)}
+                                                    </span>
+                                                </div>
+                                                <div className="flex gap-2 pt-1">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setDpProduksiAmount(String(dpProduksiMinimal))}
+                                                        disabled={loading}
+                                                        className="flex-1 px-2 py-1.5 rounded-lg bg-amber-100 text-amber-700 text-xs font-medium hover:bg-amber-200 disabled:opacity-50 transition-colors"
+                                                    >
+                                                        Isi 50% (Minimal)
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setDpProduksiAmount(String(totalInvoice))}
+                                                        disabled={loading}
+                                                        className="flex-1 px-2 py-1.5 rounded-lg bg-amber-100 text-amber-700 text-xs font-medium hover:bg-amber-200 disabled:opacity-50 transition-colors"
+                                                    >
+                                                        Isi 100%
+                                                    </button>
+                                                </div>
                                             </div>
-                                            <button
-                                                onClick={async () => {
-                                                    const amount = parseInt(dpProduksiAmount) || 0
-                                                    if (amount <= 0) {
-                                                        toast.warning('Masukkan nominal DP Produksi')
-                                                        return
-                                                    }
-                                                    await handleVerifyPayment('dp_produksi', amount)
-                                                }}
-                                                disabled={loading}
-                                                className="px-4 py-2 rounded-lg bg-emerald-500 text-slate-900 font-medium hover:bg-emerald-600 disabled:opacity-50 whitespace-nowrap"
-                                            >
-                                                Simpan & Verify
-                                            </button>
-                                        </div>
+
+                                            <div className="flex gap-2">
+                                                <div className="flex-1">
+                                                    <CurrencyInput
+                                                        value={parseInt(dpProduksiAmount || String(order.dp_produksi_amount || '0')) || 0}
+                                                        onChange={(v) => setDpProduksiAmount(String(v))}
+                                                        placeholder="0"
+                                                        className="!py-2"
+                                                    />
+                                                </div>
+                                                <button
+                                                    onClick={async () => {
+                                                        const amount = parseInt(dpProduksiAmount) || 0
+                                                        if (amount <= 0) {
+                                                            toast.warning('Masukkan nominal DP Produksi')
+                                                            return
+                                                        }
+                                                        if (totalInvoice > 0 && amount < dpProduksiMinimal) {
+                                                            toast.warning(`DP Produksi minimal ${formatCurrency(dpProduksiMinimal)} (50% dari total invoice)`)
+                                                            return
+                                                        }
+                                                        await handleVerifyPayment('dp_produksi', amount)
+                                                    }}
+                                                    disabled={loading}
+                                                    className="px-4 py-2 rounded-lg bg-emerald-500 text-slate-900 font-medium hover:bg-emerald-600 disabled:opacity-50 whitespace-nowrap"
+                                                >
+                                                    Simpan & Verify
+                                                </button>
+                                            </div>
+                                        </>
                                     )}
                                 </div>
                             )}
@@ -1069,97 +1114,6 @@ export default function OrderDetailModal({
                                 <p className="text-2xl font-bold text-emerald-400">
                                     {formatCurrency(order.dp_desain_amount + order.dp_produksi_amount + order.pelunasan_amount)}
                                 </p>
-                            </div>
-
-                            {/* Payment Proof Upload */}
-                            <div className="p-4 rounded-xl bg-slate-50">
-                                <p className="text-sm font-medium text-slate-900 mb-3">Bukti Pembayaran</p>
-
-                                {/* Show existing proof if available */}
-                                {order.dp_desain_proof_url && (
-                                    <div
-                                        className="relative w-full h-40 mb-3 rounded-lg overflow-hidden bg-white cursor-zoom-in hover:opacity-95 transition-opacity"
-                                        onClick={() => setPreviewImage(order.dp_desain_proof_url)}
-                                    >
-                                        <Image src={order.dp_desain_proof_url} alt="Bukti Pembayaran" fill className="object-contain" />
-                                    </div>
-                                )}
-
-                                {/* Upload form */}
-                                <div className="space-y-2">
-                                    <ImageDropzone
-                                        onFileSelect={(file) => {
-                                            setPaymentProofFile(file)
-                                            setPaymentProofPreview(URL.createObjectURL(file))
-                                        }}
-                                        onError={(message) => toast.error(message)}
-                                        disabled={uploadingProof}
-                                        label="Upload bukti pembayaran"
-                                    />
-
-                                    {paymentProofPreview && (
-                                        <div
-                                            className="relative w-full h-40 rounded-lg overflow-hidden bg-white cursor-zoom-in hover:opacity-95 transition-opacity"
-                                            onClick={() => setPreviewImage(paymentProofPreview)}
-                                        >
-                                            <Image src={paymentProofPreview} alt="Preview" fill className="object-contain" />
-                                        </div>
-                                    )}
-
-                                    {paymentProofFile && (
-                                        <button
-                                            onClick={async () => {
-                                                if (!paymentProofFile || !order) return
-                                                setUploadingProof(true)
-                                                try {
-                                                    const fileExt = paymentProofFile.name.split('.').pop()
-                                                    const filePath = `payment-proofs/${order.id}/${Date.now()}.${fileExt}`
-
-                                                    const { error: uploadError } = await supabase.storage
-                                                        .from('order-assets')
-                                                        .upload(filePath, paymentProofFile)
-
-                                                    if (uploadError) {
-                                                        console.error('Storage error:', uploadError)
-                                                        toast.error(`Gagal upload: ${uploadError.message}`)
-                                                        return
-                                                    }
-
-                                                    const { data: { publicUrl } } = supabase.storage
-                                                        .from('order-assets')
-                                                        .getPublicUrl(filePath)
-
-                                                    // Use dp_desain_proof_url as general payment proof
-                                                    const { error: updateError } = await supabase
-                                                        .from('orders')
-                                                        .update({ dp_desain_proof_url: publicUrl })
-                                                        .eq('id', order.id)
-
-                                                    if (updateError) {
-                                                        console.error('Update error:', updateError)
-                                                        toast.error(`Gagal update: ${updateError.message}`)
-                                                        return
-                                                    }
-
-                                                    setPaymentProofFile(null)
-                                                    setPaymentProofPreview(null)
-                                                    await syncLatestOrder()
-                                                    toast.success('Bukti pembayaran berhasil diupload!')
-                                                } catch (err: unknown) {
-                                                    console.error('Upload error:', err)
-                                                    const message = err instanceof Error ? err.message : 'Unknown error'
-                                                    toast.error(`Gagal upload bukti pembayaran: ${message}`)
-                                                } finally {
-                                                    setUploadingProof(false)
-                                                }
-                                            }}
-                                            disabled={uploadingProof}
-                                            className="w-full py-2 px-4 rounded-lg bg-blue-500 text-slate-900 font-medium hover:bg-blue-600 disabled:opacity-50 transition-colors"
-                                        >
-                                            {uploadingProof ? 'Uploading...' : 'Upload Bukti'}
-                                        </button>
-                                    )}
-                                </div>
                             </div>
                         </div>
                     )}
