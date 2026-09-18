@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { ChangeEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { STAGE_LABELS, STAGES_ORDER, OrderStage, GATEKEEPER_STAGES, OrderWithCustomer } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
 import Image from 'next/image'
@@ -8,26 +8,90 @@ import Link from 'next/link'
 import { toast } from 'sonner'
 import { FormOrderEditor, FormOrderDownloadButton } from '@/components/form-order'
 import { hasFormOrderData } from '@/lib/form-order'
+import { getOrderStageReadiness } from '@/lib/order-stage-readiness'
 import { ImageDropzone, CurrencyInput } from '@/components/ui'
 import { verifyDPPayment, correctDPPayment, moveOrderToNextStage, deleteOrder, updateDesignNotes, archiveOrder } from '@/lib/actions/orders'
+
+type OrderDetailTab = 'detail' | 'payment' | 'stage' | 'form-order'
 
 interface OrderDetailModalProps {
     order: OrderWithCustomer | null
     isOpen: boolean
+    initialActiveTab?: OrderDetailTab
     onClose: () => void
     onOrderUpdated?: (order: OrderWithCustomer) => void
     onOrderDeleted?: (orderId: string) => void
 }
 
+type LayoutFile = {
+    id: string
+    originalName: string
+    sizeBytes: number
+    status: 'uploading' | 'ready' | 'missing' | 'deleted' | 'failed'
+}
+
+class StorageRequestError extends Error {
+    r2Completed: boolean
+
+    constructor(message: string, r2Completed = false) {
+        super(message)
+        this.name = 'StorageRequestError'
+        this.r2Completed = r2Completed
+    }
+}
+
+function formatFileSize(bytes: number) {
+    if (bytes === 0) return '0 B'
+    const units = ['B', 'KB', 'MB', 'GB', 'TB']
+    const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1)
+    return `${(bytes / (1024 ** index)).toFixed(index === 0 ? 0 : 1)} ${units[index]}`
+}
+
+async function storageRequest<T>(url: string, init?: RequestInit): Promise<T> {
+    const response = await fetch(url, {
+        ...init,
+        headers: { 'Content-Type': 'application/json', ...(init?.headers || {}) },
+    })
+    const body = await response.json()
+    if (!response.ok) throw new StorageRequestError(body.error || 'Permintaan file gagal', body.r2Completed === true)
+    return body as T
+}
+
+function uploadPart(url: string, chunk: Blob, onProgress: (loaded: number) => void): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const request = new XMLHttpRequest()
+        request.open('PUT', url)
+        request.upload.onprogress = (event) => {
+            if (event.lengthComputable) onProgress(event.loaded)
+        }
+        request.onload = () => {
+            if (request.status < 200 || request.status >= 300) {
+                reject(new Error(`Upload bagian file gagal (${request.status})`))
+                return
+            }
+            const eTag = request.getResponseHeader('ETag')
+            if (!eTag) {
+                reject(new Error('Upload berhasil, tetapi ETag tidak diterima. Periksa CORS bucket R2.'))
+                return
+            }
+            resolve(eTag)
+        }
+        request.onerror = () => reject(new Error('Gagal menghubungi R2 saat mengupload bagian file'))
+        request.onabort = () => reject(new Error('Upload bagian file dibatalkan'))
+        request.send(chunk)
+    })
+}
+
 export default function OrderDetailModal({
     order,
     isOpen,
+    initialActiveTab,
     onClose,
     onOrderUpdated,
     onOrderDeleted,
 }: OrderDetailModalProps) {
     const [loading, setLoading] = useState(false)
-    const [activeTab, setActiveTab] = useState<'detail' | 'payment' | 'stage' | 'form-order'>('detail')
+    const [activeTab, setActiveTab] = useState<OrderDetailTab>('detail')
     const [trackingNumber, setTrackingNumber] = useState('')
     const [dpDesainAmount, setDpDesainAmount] = useState('')
     const [dpProduksiAmount, setDpProduksiAmount] = useState('')
@@ -45,7 +109,21 @@ export default function OrderDetailModal({
     const [editingDP, setEditingDP] = useState<'dp_desain' | 'dp_produksi' | 'pelunasan' | null>(null)
     const [editDPAmount, setEditDPAmount] = useState('')
     const [savingCorrection, setSavingCorrection] = useState(false)
+    const [layoutFiles, setLayoutFiles] = useState<LayoutFile[]>([])
+    const [layoutFilesLoading, setLayoutFilesLoading] = useState(false)
+    const [layoutUploadProgress, setLayoutUploadProgress] = useState<number | null>(null)
+    const [layoutBusy, setLayoutBusy] = useState<string | null>(null)
+    const layoutFileInputRef = useRef<HTMLInputElement>(null)
+    const wasOpenRef = useRef(false)
     const supabase = useMemo(() => createClient(), [])
+
+    // Only callers that explicitly provide a tab override the modal's existing behavior.
+    useEffect(() => {
+        if (isOpen && !wasOpenRef.current && initialActiveTab) {
+            setActiveTab(initialActiveTab)
+        }
+        wasOpenRef.current = isOpen
+    }, [initialActiveTab, isOpen])
 
     // Kalkulator DP Produksi: minimal DP = 50% dari total invoice
     const totalInvoice = orderInvoice?.total ?? 0
@@ -113,42 +191,205 @@ export default function OrderDetailModal({
         setShowDeleteMockupConfirm(false)
     }, [order?.id])
 
+    const refreshLayoutFiles = async (target?: { orderId: string; brandId: string }): Promise<LayoutFile[]> => {
+        const orderId = target?.orderId || order?.id
+        const brandId = target?.brandId || order?.brand_id
+        if (!orderId || !brandId) {
+            setLayoutFiles([])
+            return []
+        }
+
+        setLayoutFilesLoading(true)
+        try {
+            const result = await storageRequest<{ files: LayoutFile[] }>(
+                `/api/storage/files?orderId=${encodeURIComponent(orderId)}&brandId=${encodeURIComponent(brandId)}`,
+            )
+            const files = result.files.filter((file) => file.status !== 'deleted')
+            setLayoutFiles(files)
+            return files
+        } catch (error) {
+            console.error('Failed to load layout files:', error)
+            setLayoutFiles([])
+            return []
+        } finally {
+            setLayoutFilesLoading(false)
+        }
+    }
+
+    useEffect(() => {
+        if (isOpen) void refreshLayoutFiles()
+    // The order identifiers are sufficient to refresh the scoped R2 list.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isOpen, order?.id, order?.brand_id])
+
     // Determine if order is ready to move to next stage
     const getStageReadiness = (): boolean => {
         if (!order) return false
-        const stage = order.stage as OrderStage
-
-        switch (stage) {
-            case 'customer_dp_desain':
-                return order.dp_desain_verified
-            case 'proses_desain':
-                return order.mockup_url !== null
-            case 'proses_layout':
-                return order.layout_completed
-            case 'dp_produksi':
-                // Must have: invoice + dp verified + form order data filled
-                const hasInvoice = orderInvoice !== null
-                return !!(order.dp_produksi_verified && hasInvoice && hasFormOrderData(order))
-            case 'antrean_produksi':
-                return order.production_ready
-            case 'print_press':
-                return order.print_completed
-            case 'cutting_jahit':
-                return order.sewing_completed
-            case 'packing':
-                return order.packing_completed
-            case 'pelunasan':
-                return order.pelunasan_verified
-            case 'pengiriman':
-                return order.tracking_number !== null && order.shipped_at !== null
-            default:
-                return false
-        }
+        return getOrderStageReadiness(order, { hasInvoice: orderInvoice !== null }).isReady
     }
 
     const isReady = getStageReadiness()
 
     if (!isOpen || !order) return null
+    const handleLayoutFileSelect = async (event: ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0]
+        event.target.value = ''
+        if (!file) return
+
+        let fileId: string | null = null
+        let r2UploadCompleted = false
+        let brandId: string | null = order.brand_id
+        setLayoutBusy('upload')
+        setLayoutUploadProgress(0)
+        const toastId = toast.loading('Mengupload file layout...')
+
+        try {
+            if (!brandId) {
+                const { data: defaultBrand, error: brandError } = await supabase
+                    .from('brands')
+                    .select('id')
+                    .eq('is_active', true)
+                    .eq('is_default', true)
+                    .maybeSingle()
+                if (brandError) throw brandError
+                if (!defaultBrand) throw new Error('Brand default aktif belum tersedia untuk order ini')
+
+                const { error: orderError } = await supabase
+                    .from('orders')
+                    .update({ brand_id: defaultBrand.id } as any)
+                    .eq('id', order.id)
+                    .is('brand_id', null)
+                if (orderError) throw orderError
+                brandId = defaultBrand.id
+                await syncLatestOrder()
+            }
+            if (!brandId) throw new Error('Brand order belum tersedia untuk upload file layout')
+
+            const started = await storageRequest<{ fileId: string; partSize: number }>('/api/storage/uploads/initiate', {
+                method: 'POST',
+                body: JSON.stringify({
+                    fileName: file.name,
+                    contentType: file.type || null,
+                    sizeBytes: file.size,
+                    brandId,
+                    orderId: order.id,
+                }),
+            })
+            fileId = started.fileId
+            const partSize = started.partSize
+            const totalParts = Math.max(1, Math.ceil(file.size / partSize))
+            const parts: Array<{ ETag: string; PartNumber: number }> = []
+
+            for (let index = 0; index < totalParts; index += 1) {
+                const start = index * partSize
+                const end = Math.min(start + partSize, file.size)
+                let eTag: string | null = null
+                let lastError: unknown
+                for (let attempt = 1; attempt <= 3 && !eTag; attempt += 1) {
+                    try {
+                        // Request a new presigned URL for every retry; this also
+                        // avoids retrying an expired signed URL on a slow network.
+                        const part = await storageRequest<{ url: string }>('/api/storage/uploads/part-url', {
+                            method: 'POST',
+                            body: JSON.stringify({ fileId, partNumber: index + 1 }),
+                        })
+                        eTag = await uploadPart(part.url, file.slice(start, end), (loaded) => {
+                            const uploaded = start + loaded
+                            setLayoutUploadProgress(file.size ? Math.min(99, Math.round((uploaded / file.size) * 100)) : 99)
+                        })
+                    } catch (error) {
+                        lastError = error
+                    }
+                }
+                if (!eTag) {
+                    throw lastError instanceof Error ? lastError : new Error('Gagal mengupload bagian file')
+                }
+                parts.push({ ETag: eTag, PartNumber: index + 1 })
+            }
+
+            await storageRequest('/api/storage/uploads/complete', {
+                method: 'POST',
+                body: JSON.stringify({ fileId, parts }),
+            })
+            r2UploadCompleted = true
+
+            // Success is based on a fresh server response, not optimistic state
+            // from the browser while the multipart request was still in flight.
+            const files = await refreshLayoutFiles({ orderId: order.id, brandId })
+            if (!files.some((item) => item.id === fileId && item.status === 'ready')) {
+                throw new Error('R2 sudah menyelesaikan upload, tetapi file belum tersedia di metadata server')
+            }
+
+            const { error } = await supabase
+                .from('orders')
+                .update({ layout_completed: true, layout_completed_at: new Date().toISOString() } as any)
+                .eq('id', order.id)
+            if (error) throw error
+
+            setLayoutUploadProgress(100)
+            await syncLatestOrder()
+            toast.success('File layout berhasil diupload.', { id: toastId })
+        } catch (error) {
+            console.error('Layout upload failed:', error)
+            const r2CompletedDuringFinalization = error instanceof StorageRequestError && error.r2Completed
+            if (fileId && !r2UploadCompleted && !r2CompletedDuringFinalization) {
+                await storageRequest('/api/storage/uploads/abort', {
+                    method: 'POST', body: JSON.stringify({ fileId }),
+                }).catch(() => undefined)
+            }
+            const message = error instanceof Error ? error.message : 'Gagal mengupload file layout'
+            toast.error(r2UploadCompleted ? 'File R2 sudah tersimpan, tetapi status layout gagal diperbarui' : message, { id: toastId })
+            if ((r2UploadCompleted || r2CompletedDuringFinalization) && brandId) {
+                await refreshLayoutFiles({ orderId: order.id, brandId }).catch(() => undefined)
+            }
+        } finally {
+            setLayoutBusy(null)
+            setLayoutUploadProgress(null)
+        }
+    }
+
+    const openLayoutFile = async (file: LayoutFile, download: boolean) => {
+        setLayoutBusy(`${download ? 'download' : 'open'}-${file.id}`)
+        try {
+            const result = await storageRequest<{ url: string }>(
+                `/api/storage/files/${file.id}/download${download ? '' : '?disposition=inline'}`,
+                { method: 'POST' },
+            )
+            if (download) window.location.assign(result.url)
+            else window.open(result.url, '_blank', 'noopener,noreferrer')
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : 'Gagal menyiapkan file')
+            await refreshLayoutFiles()
+        } finally {
+            setLayoutBusy(null)
+        }
+    }
+
+    const deleteLayoutFile = async (file: LayoutFile) => {
+        if (!confirm(`Hapus file “${file.originalName}”?`)) return
+        setLayoutBusy(`delete-${file.id}`)
+        try {
+            await storageRequest('/api/storage/files', {
+                method: 'DELETE', body: JSON.stringify({ fileId: file.id }),
+            })
+            const remainingFiles = layoutFiles.filter((item) => item.id !== file.id && item.status === 'ready')
+            const { error } = await supabase
+                .from('orders')
+                .update({
+                    layout_completed: remainingFiles.length > 0 || Boolean(order.layout_url),
+                    layout_completed_at: remainingFiles.length > 0 || order.layout_url ? order.layout_completed_at : null,
+                } as any)
+                .eq('id', order.id)
+            if (error) throw error
+            await refreshLayoutFiles()
+            await syncLatestOrder()
+            toast.success('File layout dihapus')
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : 'Gagal menghapus file layout')
+        } finally {
+            setLayoutBusy(null)
+        }
+    }
 
     // Handle save tracking number
     const handleSaveTrackingNumber = async () => {
@@ -435,9 +676,6 @@ export default function OrderDetailModal({
         }
     }
 
-    // Check if order can be archived
-    const canArchive = order.stage === 'pengiriman' && order.tracking_number && order.shipped_at
-
     const nextStage = getNextStage()
 
     return (
@@ -460,26 +698,25 @@ export default function OrderDetailModal({
                             }`}>
                             {STAGE_LABELS[order.stage]}
                         </span>
-                        {/* Archive button - only show for completed pengiriman orders */}
-                        {canArchive && (
-                            <button
-                                onClick={() => setShowArchiveConfirm(true)}
-                                className="p-2 rounded-lg hover:bg-amber-100 text-amber-500 hover:text-amber-700"
-                                title="Arsipkan Order"
-                            >
+                        <button
+                            onClick={() => setShowArchiveConfirm(true)}
+                            className="p-2 rounded-lg hover:bg-amber-100 text-amber-600 hover:text-amber-700"
+                            title="Arsipkan Order"
+                            aria-label="Arsipkan order"
+                        >
                                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
                                 </svg>
-                            </button>
-                        )}
+                        </button>
                         <button
                             onClick={() => setShowDeleteConfirm(true)}
-                            className="p-2 rounded-lg hover:bg-red-100 text-red-500 hover:text-red-700"
-                            title="Hapus Order"
+                            className="p-2 rounded-lg hover:bg-red-100 text-red-600 hover:text-red-700"
+                            title="Hapus Permanen"
+                            aria-label="Hapus order permanen"
                         >
-                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
                         </button>
                         <button onClick={onClose} className="p-2 rounded-lg hover:bg-slate-200 text-slate-500 hover:text-slate-900">
                             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -708,11 +945,6 @@ export default function OrderDetailModal({
                     {/* Payment Tab */}
                     {activeTab === 'payment' && (
                         <div className="space-y-4">
-                            {/* Current Payment Stage Header */}
-                            <div className={`p-3 rounded-lg ${isReady ? 'bg-emerald-50' : 'bg-red-50'}`}>
-                                <p className="text-xs text-slate-500">Stage: <span className={`font-medium ${isReady ? 'text-emerald-600' : 'text-red-600'}`}>{STAGE_LABELS[order.stage]}</span></p>
-                            </div>
-
                             {/* Invoice Info Card - Show if invoice exists */}
                             {orderInvoice && (
                                 <div className="p-4 rounded-xl bg-blue-50 border border-blue-200">
@@ -799,7 +1031,13 @@ export default function OrderDetailModal({
 
                             {/* Deposit Desain - Show only at customer_dp_desain stage OR if already verified */}
                             {(order.stage === 'customer_dp_desain' || order.dp_desain_verified) && (
-                                <div className="p-4 rounded-xl bg-slate-50 space-y-3">
+                                <div className={`p-4 rounded-xl space-y-3 ${order.stage === 'customer_dp_desain'
+                                    ? 'bg-rose-50 border border-rose-200'
+                                    : 'bg-slate-50'
+                                    }`}>
+                                    {order.stage === 'customer_dp_desain' && (
+                                        <p className="text-[10px] font-semibold uppercase tracking-wide text-rose-700">Tindakan saat ini</p>
+                                    )}
                                     <div className="flex items-center justify-between">
                                         <p className="text-sm font-medium text-slate-900">Deposit Desain</p>
                                         {getPaymentBadge(order.dp_desain_verified, order.dp_desain_amount)}
@@ -885,8 +1123,15 @@ export default function OrderDetailModal({
 
                             {/* DP Produksi - Show only at dp_produksi stage OR if already verified */}
                             {(order.stage === 'dp_produksi' || order.dp_produksi_verified) && (
-                                <div className={`p-4 rounded-xl space-y-3 ${GATEKEEPER_STAGES.includes('dp_produksi') ? 'bg-amber-500/10 border border-amber-500/30' : 'bg-slate-50'
+                                <div className={`p-4 rounded-xl space-y-3 ${order.stage === 'dp_produksi'
+                                    ? 'bg-rose-50 border border-rose-200'
+                                    : GATEKEEPER_STAGES.includes('dp_produksi')
+                                        ? 'bg-amber-500/10 border border-amber-500/30'
+                                        : 'bg-slate-50'
                                     }`}>
+                                    {order.stage === 'dp_produksi' && (
+                                        <p className="text-[10px] font-semibold uppercase tracking-wide text-rose-700">Tindakan saat ini</p>
+                                    )}
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-2">
                                             <p className="text-sm font-medium text-slate-900">DP Produksi</p>
@@ -1019,8 +1264,15 @@ export default function OrderDetailModal({
 
                             {/* Pelunasan - Show only at pelunasan stage OR if already verified */}
                             {(order.stage === 'pelunasan' || order.pelunasan_verified) && (
-                                <div className={`p-4 rounded-xl space-y-3 ${GATEKEEPER_STAGES.includes('pelunasan') ? 'bg-amber-500/10 border border-amber-500/30' : 'bg-slate-50'
+                                <div className={`p-4 rounded-xl space-y-3 ${order.stage === 'pelunasan'
+                                    ? 'bg-rose-50 border border-rose-200'
+                                    : GATEKEEPER_STAGES.includes('pelunasan')
+                                        ? 'bg-amber-500/10 border border-amber-500/30'
+                                        : 'bg-slate-50'
                                     }`}>
+                                    {order.stage === 'pelunasan' && (
+                                        <p className="text-[10px] font-semibold uppercase tracking-wide text-rose-700">Tindakan saat ini</p>
+                                    )}
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-2">
                                             <p className="text-sm font-medium text-slate-900">Pelunasan</p>
@@ -1250,21 +1502,49 @@ export default function OrderDetailModal({
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                                             </svg>
                                             <p className="text-sm font-medium text-slate-900">
-                                                Link Layout (Google Drive)
+                                                File Layout
                                             </p>
                                         </div>
-                                        {order.layout_url && (
+                                        {(layoutFiles.some((file) => file.status === 'ready') || order.layout_url) && (
                                             <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-emerald-100 text-emerald-700">
                                                 ✓ Tersimpan
                                             </span>
                                         )}
                                     </div>
 
-                                    {order.layout_url ? (
-                                        /* VIEW MODE - Link sudah tersimpan */
+                                    <div className="space-y-2">
+                                        {layoutFilesLoading ? <p className="text-xs text-slate-500">Memuat file layout...</p> : layoutFiles.map((file) => (
+                                            <div key={file.id} className="flex flex-wrap items-center gap-2 rounded-lg bg-slate-50 px-3 py-2.5">
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="truncate text-sm font-medium text-slate-800">{file.originalName}</p>
+                                                    <p className="text-xs text-slate-500">{formatFileSize(file.sizeBytes)} · {file.status === 'ready' ? 'Tersedia' : file.status === 'uploading' ? 'Sedang diupload' : file.status === 'missing' ? 'Tidak ditemukan di R2' : file.status === 'failed' ? 'Gagal diupload' : 'Tidak tersedia'}</p>
+                                                </div>
+                                                {file.status === 'ready' && <>
+                                                    <button onClick={() => void openLayoutFile(file, false)} disabled={layoutBusy !== null} className="rounded-md border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-white disabled:opacity-50">Buka</button>
+                                                    <button onClick={() => void openLayoutFile(file, true)} disabled={layoutBusy !== null} className="rounded-md border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-white disabled:opacity-50">Download</button>
+                                                    {order.stage === 'proses_layout' && <button onClick={() => void deleteLayoutFile(file)} disabled={layoutBusy !== null} className="rounded-md border border-red-200 px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50">Hapus</button>}
+                                                </>}
+                                            </div>
+                                        ))}
+                                        {!layoutFilesLoading && layoutFiles.length === 0 && !order.layout_url && <p className="text-xs text-slate-400 italic">Belum ada file layout.</p>}
+                                        {!layoutFilesLoading && layoutFiles.length === 0 && order.layout_url && (
+                                            <div className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5">
+                                                <p className="flex-1 text-xs text-amber-800">File Layout Lama (Google Drive)</p>
+                                                <a href={order.layout_url} target="_blank" rel="noopener noreferrer" className="rounded-md border border-amber-300 px-2.5 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-100">Buka File</a>
+                                            </div>
+                                        )}
+                                        {order.stage === 'proses_layout' && <>
+                                            <input ref={layoutFileInputRef} type="file" className="hidden" onChange={(event) => void handleLayoutFileSelect(event)} />
+                                            <button onClick={() => layoutFileInputRef.current?.click()} disabled={layoutBusy === 'upload' || !order.brand_id} className="w-full rounded-lg bg-blue-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-600 disabled:opacity-50">{layoutFiles.length > 0 ? 'Ganti File' : 'Upload File Layout'}</button>
+                                            {layoutUploadProgress !== null && <div><div className="mb-1 flex justify-between text-xs text-slate-500"><span>Status upload</span><span>{layoutUploadProgress}%</span></div><div className="h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-blue-500 transition-all" style={{ width: `${layoutUploadProgress}%` }} /></div></div>}
+                                        </>}
+                                    </div>
+
+                                    {/* Legacy Google Drive input retired; the saved link remains as a read-only fallback above.
+                                        VIEW MODE - Link sudah tersimpan
                                         <div className="flex gap-2">
                                             <a
-                                                href={order.layout_url}
+                                                href={legacyOrder.layout_url || undefined}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-blue-500 text-white font-medium hover:bg-blue-600 transition-colors"
@@ -1274,8 +1554,8 @@ export default function OrderDetailModal({
                                                 </svg>
                                                 Buka di Google Drive
                                             </a>
-                                            {/* Delete button - only on proses_layout */}
-                                            {order.stage === 'proses_layout' && (
+                                            Delete button - only on proses_layout
+                                            {legacyOrder.stage === 'proses_layout' && (
                                                 <button
                                                     onClick={async () => {
                                                         if (!confirm('Hapus link layout ini?')) return
@@ -1288,7 +1568,7 @@ export default function OrderDetailModal({
                                                                     layout_completed: false,
                                                                     layout_completed_at: null
                                                                 } as any)
-                                                                .eq('id', order.id)
+                                                                .eq('id', legacyOrder.id)
 
                                                             if (error) throw error
                                                             toast.success('Link dihapus')
@@ -1306,8 +1586,8 @@ export default function OrderDetailModal({
                                                 </button>
                                             )}
                                         </div>
-                                    ) : order.stage === 'proses_layout' ? (
-                                        /* EDIT MODE - Belum ada link (only on proses_layout) */
+                                    ) : legacyOrder.stage === 'proses_layout' ? (
+                                        EDIT MODE - Belum ada link (only on proses_layout)
                                         <div className="flex gap-2">
                                             <div className="relative flex-1">
                                                 <input
@@ -1342,7 +1622,7 @@ export default function OrderDetailModal({
                                                                 layout_completed: true,
                                                                 layout_completed_at: new Date().toISOString()
                                                             } as any)
-                                                            .eq('id', order.id)
+                                                            .eq('id', legacyOrder.id)
 
                                                         if (error) throw error
                                                         toast.success('Link layout berhasil disimpan!')
@@ -1363,9 +1643,9 @@ export default function OrderDetailModal({
                                             </button>
                                         </div>
                                     ) : (
-                                        /* No link, not in proses_layout - show info */
+                                        No link, not in proses_layout - show info
                                         <p className="text-xs text-slate-400 italic">Belum ada link layout</p>
-                                    )}
+                                    */}
                                 </div>
                             )}
 
@@ -1723,12 +2003,12 @@ export default function OrderDetailModal({
                                 </svg>
                             </div>
                             <div>
-                                <h3 className="text-lg font-bold text-slate-900">Hapus Order?</h3>
+                                <h3 className="text-lg font-bold text-red-700">Hapus Permanen?</h3>
                                 <p className="text-sm text-slate-500">{order.customer?.name}</p>
                             </div>
                         </div>
                         <p className="text-slate-600 mb-6">
-                            Order ini beserta <strong>invoice</strong> dan <strong>kuitansi</strong> terkait akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.
+                            <strong>PERMANEN:</strong> semua data transaksi yang khusus untuk order ini akan dihapus dan tidak dapat dipulihkan. Ini mencakup invoice, item invoice, kuitansi, pembayaran terkait, dan file layout R2 milik order ini.
                         </p>
                         <div className="flex gap-3">
                             <button
@@ -1743,7 +2023,7 @@ export default function OrderDetailModal({
                                 disabled={deleting}
                                 className="flex-1 px-4 py-2 rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 disabled:opacity-50"
                             >
-                                {deleting ? 'Menghapus...' : 'Ya, Hapus'}
+                                {deleting ? 'Menghapus...' : 'Hapus Permanen'}
                             </button>
                         </div>
                     </div>
@@ -1766,7 +2046,7 @@ export default function OrderDetailModal({
                             </div>
                         </div>
                         <p className="text-slate-600 mb-6">
-                            Order ini akan dipindahkan ke <strong>Riwayat Order</strong>. Anda dapat mengembalikannya kapan saja dari halaman riwayat.
+                            Order akan dikeluarkan dari proses aktif, tetapi invoice, kuitansi, pembayaran, dan riwayat order tetap tersimpan. Anda dapat memulihkannya kapan saja dari halaman Riwayat Order.
                         </p>
                         <div className="flex gap-3">
                             <button

@@ -1,8 +1,38 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { Brand, BrandInsert, BrandUpdate } from '@/types/database'
 import { revalidatePath } from 'next/cache'
+import { requireTenantContext } from '@/lib/storage/tenant'
+
+async function verifyOwner() {
+    return requireTenantContext({ owner: true })
+}
+
+function pickEditableBrandFields(brandData: BrandInsert | BrandUpdate): BrandUpdate {
+    const fields: BrandUpdate = {
+        code: brandData.code,
+        name: brandData.name,
+        company_name: brandData.company_name,
+        address: brandData.address,
+        phone: brandData.phone,
+        email: brandData.email,
+        logo_url: brandData.logo_url,
+        bank_name: brandData.bank_name,
+        account_name: brandData.account_name,
+        account_number: brandData.account_number,
+        primary_color: brandData.primary_color,
+        accent_color: brandData.accent_color,
+        invoice_prefix: brandData.invoice_prefix,
+        kuitansi_prefix: brandData.kuitansi_prefix,
+        spk_prefix: brandData.spk_prefix,
+    }
+
+    return Object.fromEntries(
+        Object.entries(fields).filter(([, value]) => value !== undefined)
+    ) as BrandUpdate
+}
 
 /**
  * Get all active brands
@@ -64,11 +94,19 @@ export async function getDefaultBrand(): Promise<Brand | null> {
  * Create a new brand
  */
 export async function createBrand(brandData: BrandInsert): Promise<Brand> {
-    const supabase = await createClient()
+    const context = await verifyOwner()
+    const supabase = createAdminClient()
+
+    const safeBrandData = pickEditableBrandFields(brandData) as BrandInsert
 
     const { data, error } = await supabase
         .from('brands')
-        .insert(brandData)
+        .insert({
+        ...safeBrandData,
+        tenant_id: context.tenantId,
+            is_default: false,
+            is_active: true,
+        })
         .select()
         .single()
 
@@ -82,19 +120,23 @@ export async function createBrand(brandData: BrandInsert): Promise<Brand> {
  * Update an existing brand
  */
 export async function updateBrand(id: string, brandData: BrandUpdate): Promise<Brand> {
-    const supabase = await createClient()
+    const context = await verifyOwner()
+    const supabase = createAdminClient()
+
+    const safeBrandData = pickEditableBrandFields(brandData)
 
     const { data, error } = await supabase
         .from('brands')
-        .update(brandData)
+        .update(safeBrandData)
         .eq('id', id)
+        .eq('tenant_id', context.tenantId)
         .select()
         .single()
 
     if (error) throw error
 
     revalidatePath('/brands')
-    revalidatePath('/dashboard')
+    revalidatePath('/', 'layout')
     return data
 }
 
@@ -102,13 +144,15 @@ export async function updateBrand(id: string, brandData: BrandUpdate): Promise<B
  * Soft delete a brand (set is_active to false)
  */
 export async function deleteBrand(id: string): Promise<void> {
-    const supabase = await createClient()
+    const context = await verifyOwner()
+    const supabase = createAdminClient()
 
     // Check if this is the default brand
     const { data: brand } = await supabase
         .from('brands')
         .select('is_default')
         .eq('id', id)
+        .eq('tenant_id', context.tenantId)
         .single()
 
     if (brand?.is_default) {
@@ -119,6 +163,7 @@ export async function deleteBrand(id: string): Promise<void> {
         .from('brands')
         .update({ is_active: false })
         .eq('id', id)
+        .eq('tenant_id', context.tenantId)
 
     if (error) throw error
 
@@ -129,23 +174,16 @@ export async function deleteBrand(id: string): Promise<void> {
  * Set a brand as default
  */
 export async function setDefaultBrand(id: string): Promise<void> {
+    await verifyOwner()
     const supabase = await createClient()
 
-    // Remove default from all brands
-    await supabase
-        .from('brands')
-        .update({ is_default: false })
-        .neq('id', id)
-
-    // Set new default
     const { error } = await supabase
-        .from('brands')
-        .update({ is_default: true })
-        .eq('id', id)
+        .rpc('set_default_brand', { p_brand_id: id })
 
     if (error) throw error
 
     revalidatePath('/brands')
+    revalidatePath('/', 'layout')
 }
 
 /**
@@ -155,7 +193,8 @@ export async function incrementBrandCounter(
     brandId: string,
     counterType: 'invoice' | 'kuitansi' | 'spk'
 ): Promise<number> {
-    const supabase = await createClient()
+    await verifyOwner()
+    const supabase = createAdminClient()
 
     const { data, error } = await supabase
         .rpc('increment_brand_counter', {

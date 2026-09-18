@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { useApplicationIdentity } from '@/components/layout/AppIdentityProvider'
 
 export default function LoginPage() {
     const [email, setEmail] = useState('')
@@ -11,6 +12,7 @@ export default function LoginPage() {
     const [error, setError] = useState<string | null>(null)
     const router = useRouter()
     const supabase = createClient()
+    const identity = useApplicationIdentity()
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -112,13 +114,18 @@ export default function LoginPage() {
             <div className="relative z-10 w-full max-w-md px-6">
                 {/* Logo & Title */}
                 <div className="text-center mb-10">
-                    <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-brand-gradient mb-5 shadow-lg shadow-red-900/40 transform hover:scale-105 transition-transform duration-300">
-                        <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 0h.008v.008h-.008V7.5z" />
-                        </svg>
+                    <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-brand-gradient mb-5 shadow-lg shadow-red-900/40 transform hover:scale-105 transition-transform duration-300 overflow-hidden">
+                        {identity.logoUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={identity.logoUrl} alt={`${identity.name} logo`} className="w-full h-full object-contain bg-white p-2" />
+                        ) : (
+                            <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 0h.008v.008h-.008V7.5z" />
+                            </svg>
+                        )}
                     </div>
                     <h1 className="text-4xl font-bold text-white mb-2 tracking-tight">
-                        Raidwear
+                        {identity.name}
                     </h1>
                     <p className="text-red-300/80 text-sm tracking-widest uppercase font-medium">
                         Jersey Convection Management

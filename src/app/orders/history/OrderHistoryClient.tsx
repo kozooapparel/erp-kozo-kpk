@@ -222,7 +222,7 @@ export default function OrderHistoryClient({ orders, brands }: OrderHistoryClien
         <div className="space-y-6">
             <PageHeader
                 title="Riwayat Order"
-                description={`${filteredOrders.length} dari ${orders.length} order telah selesai`}
+                description={`${filteredOrders.length} dari ${orders.length} order diarsipkan`}
                 badge={
                     <span className="badge badge-neutral">
                         <Icon.Archive className="w-3 h-3 mr-1" />
@@ -247,7 +247,7 @@ export default function OrderHistoryClient({ orders, brands }: OrderHistoryClien
             {/* Summary Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
                 <StatCard
-                    label="Total Order Selesai"
+                    label="Total Order Arsip"
                     value={filteredOrders.length}
                     tone="brand"
                 />
@@ -370,10 +370,10 @@ export default function OrderHistoryClient({ orders, brands }: OrderHistoryClien
                 <div className="surface">
                     <EmptyState
                         icon={<DefaultEmptyIcon />}
-                        title={hasActiveFilters ? 'Tidak ada hasil' : 'Belum ada order selesai'}
+                        title={hasActiveFilters ? 'Tidak ada hasil' : 'Belum ada order arsip'}
                         description={hasActiveFilters
                             ? 'Coba ubah filter atau kata kunci pencarian'
-                            : 'Order yang sudah dikirim dan diarsip akan muncul di sini'}
+                            : 'Order yang diarsipkan akan muncul di sini'}
                         action={hasActiveFilters ? (
                             <button onClick={clearFilters} className="btn-secondary">
                                 Reset Filter

@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { OrderStage, OrderWithCustomer } from '@/types/database'
+import { OrderWithCustomer } from '@/types/database'
+import { getOrderStageReadiness } from '@/lib/order-stage-readiness'
 import Image from 'next/image'
 
 interface DraggableOrderCardProps {
@@ -13,8 +14,6 @@ interface DraggableOrderCardProps {
 }
 
 export default function DraggableOrderCard({ order, isBottleneck, onClick }: DraggableOrderCardProps) {
-    const hasInvoice = (order.invoices?.length ?? 0) > 0
-
     const {
         attributes,
         listeners,
@@ -99,85 +98,9 @@ export default function DraggableOrderCard({ order, isBottleneck, onClick }: Dra
         return () => clearInterval(interval)
     }, [order.created_at])
 
-    // Get stage-specific status badge (green = ready, red = not ready)
-    const getStageStatus = (): { label: string; isReady: boolean } => {
-        const stage = order.stage as OrderStage
-
-        switch (stage) {
-            case 'customer_dp_desain':
-                return {
-                    label: order.dp_desain_verified ? 'Sudah DP' : 'Belum Bayar',
-                    isReady: order.dp_desain_verified
-                }
-            case 'proses_desain':
-                return {
-                    label: order.mockup_url ? 'Sudah ACC' : 'Belum ACC',
-                    isReady: order.mockup_url !== null
-                }
-            case 'proses_layout':
-                return {
-                    label: order.layout_completed ? 'Selesai' : 'Belum Selesai',
-                    isReady: order.layout_completed
-                }
-            case 'dp_produksi':
-                // Need invoice + DP verified + SPK filled
-                const hasSPK = (order.size_breakdown && Object.keys(order.size_breakdown).length > 0) ||
-                    (order.spk_sections && order.spk_sections.length > 0)
-                const dpReady = !!(order.dp_produksi_verified && hasInvoice && hasSPK)
-                const dpLabel = !hasInvoice ? 'Belum Invoice' :
-                    !hasSPK ? 'Belum SPK' :
-                        order.dp_produksi_verified ? 'Sudah DP' : 'Belum DP'
-                return {
-                    label: dpLabel,
-                    isReady: dpReady
-                }
-            case 'antrean_produksi':
-                return {
-                    label: order.production_ready ? 'Selesai' : 'Belum Selesai',
-                    isReady: order.production_ready
-                }
-            case 'print_press':
-                return {
-                    label: order.print_completed ? 'Selesai' : 'Belum Selesai',
-                    isReady: order.print_completed
-                }
-            case 'cutting_jahit':
-                return {
-                    label: order.sewing_completed ? 'Selesai' : 'Belum Selesai',
-                    isReady: order.sewing_completed
-                }
-            case 'packing':
-                return {
-                    label: order.packing_completed ? 'Selesai' : 'Belum Selesai',
-                    isReady: order.packing_completed
-                }
-            case 'pelunasan':
-                return {
-                    label: order.pelunasan_verified ? 'Sudah Lunas' : 'Belum Lunas',
-                    isReady: order.pelunasan_verified
-                }
-            case 'pengiriman':
-                return {
-                    label: (order.tracking_number && order.shipped_at) ? 'Sudah Kirim' : 'Belum Kirim',
-                    isReady: order.tracking_number !== null && order.shipped_at !== null
-                }
-            default:
-                return { label: 'Unknown', isReady: false }
-        }
-    }
-
-    // Determine if order is ready to move to next stage (uses same logic as getStageStatus)
-    const getStageReadiness = (): { isReady: boolean; reason?: string } => {
-        const stageStatus = getStageStatus()
-        return {
-            isReady: stageStatus.isReady,
-            reason: stageStatus.isReady ? undefined : stageStatus.label
-        }
-    }
-
-    const stageStatus = getStageStatus()
+    const stageStatus = getOrderStageReadiness(order)
     const daysInStage = getDaysInStage()
-    const stageReadiness = getStageReadiness()
+    const stageReadiness = stageStatus
 
     return (
         <div

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Profile } from '@/types/database'
 import { useRouter, usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { useApplicationIdentity } from './AppIdentityProvider'
 
 interface DashboardLayoutProps {
     user: Profile | null
@@ -110,6 +111,7 @@ export default function DashboardLayout({ user, children }: DashboardLayoutProps
     const router = useRouter()
     const pathname = usePathname()
     const supabase = createClient()
+    const identity = useApplicationIdentity()
     const [sidebarOpen, setSidebarOpen] = useState(false)
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
     const [isMobile, setIsMobile] = useState(false)
@@ -159,6 +161,7 @@ export default function DashboardLayout({ user, children }: DashboardLayoutProps
     const settingsItems: NavItem[] = [
         { href: '/users', label: 'Kelola User', icon: Icon.User },
         { href: '/brands', label: 'Brand', icon: Icon.Brand },
+        { href: '/storage', label: 'Penyimpanan File', icon: Icon.Product },
     ]
 
     type NavSection = { title: string; items: NavItem[] }
@@ -212,13 +215,18 @@ export default function DashboardLayout({ user, children }: DashboardLayoutProps
         <>
             {/* Logo */}
             <div className="h-16 px-4 flex items-center gap-3 border-b border-slate-200 flex-shrink-0">
-                <div className="w-10 h-10 rounded-xl bg-brand-gradient flex items-center justify-center shadow-sm flex-shrink-0">
-                    <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 0h.008v.008h-.008V7.5z" />
-                    </svg>
+                <div className="w-10 h-10 rounded-xl bg-brand-gradient flex items-center justify-center shadow-sm flex-shrink-0 overflow-hidden">
+                    {identity.logoUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={identity.logoUrl} alt={`${identity.name} logo`} className="w-full h-full object-contain bg-white p-1" />
+                    ) : (
+                        <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 0h.008v.008h-.008V7.5z" />
+                        </svg>
+                    )}
                 </div>
                 <div className={`overflow-hidden flex-1 transition-all duration-200 ease-in-out ${isExpanded ? 'opacity-100 w-auto translate-x-0' : 'opacity-0 w-0 -translate-x-2'}`}>
-                    <h1 className="text-[15px] font-semibold text-slate-900 whitespace-nowrap tracking-tight">Raidwear</h1>
+                    <h1 className="text-[15px] font-semibold text-slate-900 whitespace-nowrap tracking-tight">{identity.name}</h1>
                     <p className="text-[11px] text-slate-500 whitespace-nowrap">Jersey Convection</p>
                 </div>
                 {isMobile && (
@@ -320,12 +328,17 @@ export default function DashboardLayout({ user, children }: DashboardLayoutProps
                             {Icon.Menu}
                         </button>
                         <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-lg bg-brand-gradient flex items-center justify-center">
-                                <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 0h.008v.008h-.008V7.5z" />
-                                </svg>
+                            <div className="w-8 h-8 rounded-lg bg-brand-gradient flex items-center justify-center overflow-hidden">
+                                {identity.logoUrl ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img src={identity.logoUrl} alt={`${identity.name} logo`} className="w-full h-full object-contain bg-white p-1" />
+                                ) : (
+                                    <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 0h.008v.008h-.008V7.5z" />
+                                    </svg>
+                                )}
                             </div>
-                            <span className="font-semibold text-slate-900">Raidwear</span>
+                            <span className="font-semibold text-slate-900">{identity.name}</span>
                         </div>
                     </div>
                 )}

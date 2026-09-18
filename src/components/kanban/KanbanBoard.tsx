@@ -12,6 +12,7 @@ import OrderDetailModal from '../orders/OrderDetailModal'
 import AddCustomerModal from '../customers/AddCustomerModal'
 import { createClient } from '@/lib/supabase/client'
 import { generateSPKNumber } from '@/lib/actions/orders'
+import { getOrderStageReadiness } from '@/lib/order-stage-readiness'
 import { toast } from 'sonner'
 
 interface AdminProfile {
@@ -23,6 +24,19 @@ interface BrandItem {
     id: string
     code: string
     name: string
+}
+
+const KANBAN_INITIAL_TAB_BY_STAGE: Record<OrderStage, 'payment' | 'stage' | 'form-order'> = {
+    customer_dp_desain: 'payment',
+    proses_desain: 'stage',
+    dp_produksi: 'payment',
+    proses_layout: 'stage',
+    antrean_produksi: 'form-order',
+    print_press: 'stage',
+    cutting_jahit: 'stage',
+    packing: 'stage',
+    pelunasan: 'payment',
+    pengiriman: 'stage',
 }
 
 interface KanbanBoardProps {
@@ -94,32 +108,7 @@ export default function KanbanBoard({
     )
 
     // Check if order is ready to move to next stage
-    const isOrderReady = (order: Order): boolean => {
-        switch (order.stage) {
-            case 'customer_dp_desain':
-                return order.dp_desain_verified
-            case 'proses_desain':
-                return order.mockup_url !== null
-            case 'proses_layout':
-                return order.layout_completed
-            case 'dp_produksi':
-                return order.dp_produksi_verified
-            case 'antrean_produksi':
-                return order.production_ready
-            case 'print_press':
-                return order.print_completed
-            case 'cutting_jahit':
-                return order.sewing_completed
-            case 'packing':
-                return order.packing_completed
-            case 'pelunasan':
-                return order.pelunasan_verified
-            case 'pengiriman':
-                return order.tracking_number !== null && order.shipped_at !== null
-            default:
-                return false
-        }
-    }
+    const isOrderReady = (order: OrderWithCustomer): boolean => getOrderStageReadiness(order).isReady
 
     // Check if order is bottleneck
     const isOrderBottleneck = (order: Order): boolean => {
@@ -604,6 +593,7 @@ export default function KanbanBoard({
             <OrderDetailModal
                 order={selectedOrder}
                 isOpen={selectedOrder !== null}
+                initialActiveTab={selectedOrder ? KANBAN_INITIAL_TAB_BY_STAGE[selectedOrder.stage] : undefined}
                 onClose={() => setSelectedOrderId(null)}
                 onOrderUpdated={onOrderCreated}
                 onOrderDeleted={onOrderRemoved}

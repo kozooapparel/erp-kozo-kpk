@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { OrderStage, OrderWithCustomer } from '@/types/database'
+import { OrderWithCustomer } from '@/types/database'
+import { getOrderStageReadiness } from '@/lib/order-stage-readiness'
 import Image from 'next/image'
 
 interface OrderCardProps {
@@ -34,53 +35,6 @@ export default function OrderCard({ order, isBottleneck, onClick }: OrderCardPro
         return { label: 'Belum Bayar', color: 'bg-red-100 text-red-700', priority: 'urgent' }
     }
 
-    // Determine if order is ready to move to next stage
-    const getStageReadiness = (): { isReady: boolean; reason?: string } => {
-        const stage = order.stage as OrderStage
-
-        switch (stage) {
-            case 'customer_dp_desain':
-                return {
-                    isReady: order.dp_desain_verified,
-                    reason: order.dp_desain_verified ? undefined : 'Menunggu Deposit Desain'
-                }
-            case 'proses_desain':
-                return {
-                    isReady: order.mockup_url !== null,
-                    reason: order.mockup_url ? undefined : 'Belum upload mockup ACC'
-                }
-                return {
-                    isReady: order.dp_produksi_verified,
-                    reason: order.dp_produksi_verified ? undefined : 'Menunggu DP Produksi'
-                }
-            case 'proses_layout':
-                return {
-                    isReady: order.layout_completed,
-                    reason: order.layout_completed ? undefined : 'Menunggu Layout Selesai'
-                }
-            case 'pelunasan':
-                return {
-                    isReady: order.pelunasan_verified,
-                    reason: order.pelunasan_verified ? undefined : 'Menunggu Pelunasan'
-                }
-            case 'pengiriman':
-                return {
-                    isReady: order.tracking_number !== null && order.shipped_at !== null,
-                    reason: (order.tracking_number && order.shipped_at) ? undefined : 'Belum dikirim'
-                }
-            // Production stages - always need manual verification
-            case 'antrean_produksi':
-            case 'print_press':
-            case 'cutting_jahit':
-            case 'packing':
-            default:
-                return {
-                    isReady: false,
-                    reason: 'Perlu verifikasi admin'
-                }
-        }
-    }
-
     const getPriorityBadge = () => {
         const daysInStage = getDaysInStage()
         if (isBottleneck || daysInStage >= 5) return { label: 'URGENT', color: 'bg-red-500 text-white' }
@@ -96,7 +50,7 @@ export default function OrderCard({ order, isBottleneck, onClick }: OrderCardPro
     const paymentStatus = getPaymentStatus()
     const priorityBadge = getPriorityBadge()
     const daysInStage = getDaysInStage()
-    const stageReadiness = getStageReadiness()
+    const stageReadiness = getOrderStageReadiness(order)
 
     return (
         <>

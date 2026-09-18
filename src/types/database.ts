@@ -64,6 +64,7 @@ export type Database = {
                     spk_counter: number
                     is_default: boolean
                     is_active: boolean
+                    tenant_id: string
                     created_at: string
                     updated_at: string
                 }
@@ -89,6 +90,7 @@ export type Database = {
                     spk_counter?: number
                     is_default?: boolean
                     is_active?: boolean
+                    tenant_id?: string
                     created_at?: string
                     updated_at?: string
                 }
@@ -114,6 +116,7 @@ export type Database = {
                     spk_counter?: number
                     is_default?: boolean
                     is_active?: boolean
+                    tenant_id?: string
                     created_at?: string
                     updated_at?: string
                 }
@@ -175,6 +178,7 @@ export type Database = {
                     design_notes: string | null
                     // Archive
                     is_archived: boolean
+                    tenant_id: string
                 }
                 Insert: {
                     id?: string
@@ -216,6 +220,7 @@ export type Database = {
                     design_notes?: string | null
                     // Archive
                     is_archived?: boolean
+                    tenant_id?: string
                 }
                 Update: {
                     id?: string
@@ -264,6 +269,7 @@ export type Database = {
                     design_notes?: string | null
                     // Archive
                     is_archived?: boolean
+                    tenant_id?: string
                 }
             }
             profiles: {
@@ -538,7 +544,12 @@ export type Database = {
                 }
             }
         }
-        Functions: {}
+        Functions: {
+            delete_order_permanently: {
+                Args: { p_order_id: string }
+                Returns: undefined
+            }
+        }
         Enums: {}
     }
 }
@@ -557,7 +568,7 @@ export type OrderStage =
     | 'pengiriman'           // 10. Pengiriman
 
 export const STAGE_LABELS: Record<OrderStage, string> = {
-    customer_dp_desain: 'Customer Deposit Desain',
+    customer_dp_desain: 'Deposit Desain',
     proses_desain: 'Proses Desain',
     dp_produksi: 'DP Produksi',
     proses_layout: 'Proses Layout',
