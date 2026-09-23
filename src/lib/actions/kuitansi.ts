@@ -113,7 +113,7 @@ export async function createKuitansi(data: Omit<KuitansiInsert, 'no_kuitansi' | 
     // Get invoice details for keterangan
     const { data: invoice } = await supabase
         .from('invoices')
-        .select('no_invoice, sisa_tagihan')
+        .select('no_invoice, sisa_tagihan, brand_id')
         .eq('id', data.invoice_id)
         .single()
 
@@ -126,11 +126,20 @@ export async function createKuitansi(data: Omit<KuitansiInsert, 'no_kuitansi' | 
         throw new Error(`Jumlah pembayaran (${data.jumlah}) melebihi sisa tagihan (${invoice.sisa_tagihan})`)
     }
 
+    const { data: brand } = invoice.brand_id
+        ? await supabase
+            .from('brands')
+            .select('default_kuitansi_template_id')
+            .eq('id', invoice.brand_id)
+            .single()
+        : { data: null }
+
     // Create kuitansi
     const { data: kuitansi, error } = await supabase
         .from('kuitansi')
         .insert({
             ...data,
+            template_id: brand?.default_kuitansi_template_id || 'receipt_01',
             keterangan: `Pembayaran invoice no: ${invoice.no_invoice}`,
             created_by: user?.id
         })

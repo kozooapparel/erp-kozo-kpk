@@ -6,6 +6,7 @@ import { InvoiceWithCustomer } from '@/types/database'
 import { deleteInvoice } from '@/lib/actions/invoices'
 import { formatCurrency, formatDateShort } from '@/lib/utils/format'
 import InvoiceDownloadButton from './InvoiceDownloadButton'
+import InvoicePreviewButton from './InvoicePreviewButton'
 import { toast } from 'sonner'
 
 interface BrandItem {
@@ -234,6 +235,7 @@ export default function InvoiceList({ invoices: initialInvoices, brands }: Invoi
                                         </td>
                                         <td className="px-6 py-4 text-center">
                                             <div className="flex items-center justify-center gap-2">
+                                                <InvoicePreviewButton invoiceId={invoice.id} />
                                                 <InvoiceDownloadButton
                                                     invoiceId={invoice.id}
                                                     variant="icon"

@@ -51,7 +51,7 @@ export async function verifyDPPayment(
         // Check if invoice exists for this order to create kuitansi
         const { data: invoices } = await supabase
             .from('invoices')
-            .select('id, no_invoice, sisa_tagihan')
+            .select('id, no_invoice, sisa_tagihan, brand_id')
             .eq('order_id', orderId)
             .order('created_at', { ascending: false })
             .limit(1)
@@ -73,12 +73,21 @@ export async function verifyDPPayment(
                         ? 'Pembayaran DP Produksi'
                         : 'Pembayaran Pelunasan'
 
+                const { data: brand } = invoice.brand_id
+                    ? await supabase
+                        .from('brands')
+                        .select('default_kuitansi_template_id')
+                        .eq('id', invoice.brand_id)
+                        .single()
+                    : { data: null }
+
                 const { error: kuitansiError } = await supabase
                     .from('kuitansi')
                     .insert({
                         invoice_id: invoice.id,
                         tanggal: new Date().toISOString().split('T')[0],
                         jumlah: paymentAmount,
+                        template_id: brand?.default_kuitansi_template_id || 'receipt_01',
                         keterangan: `${keterangan} - ${invoice.no_invoice}`,
                         created_by: user?.id
                     })

@@ -56,6 +56,9 @@ export type Database = {
                     account_number: string | null
                     primary_color: string
                     accent_color: string
+                    secondary_color: string
+                    default_invoice_template_id: string
+                    default_kuitansi_template_id: string
                     invoice_prefix: string
                     kuitansi_prefix: string
                     spk_prefix: string
@@ -82,6 +85,9 @@ export type Database = {
                     account_number?: string | null
                     primary_color?: string
                     accent_color?: string
+                    secondary_color?: string
+                    default_invoice_template_id?: string
+                    default_kuitansi_template_id?: string
                     invoice_prefix?: string
                     kuitansi_prefix?: string
                     spk_prefix?: string
@@ -108,6 +114,9 @@ export type Database = {
                     account_number?: string | null
                     primary_color?: string
                     accent_color?: string
+                    secondary_color?: string
+                    default_invoice_template_id?: string
+                    default_kuitansi_template_id?: string
                     invoice_prefix?: string
                     kuitansi_prefix?: string
                     spk_prefix?: string
@@ -383,6 +392,7 @@ export type Database = {
                     updated_at: string
                     // Brand
                     brand_id: string | null
+                    template_id: string | null
                 }
                 Insert: {
                     id?: string
@@ -406,6 +416,7 @@ export type Database = {
                     updated_at?: string
                     // Brand
                     brand_id?: string | null
+                    template_id?: string | null
                 }
                 Update: {
                     id?: string
@@ -429,6 +440,7 @@ export type Database = {
                     updated_at?: string
                     // Brand
                     brand_id?: string | null
+                    template_id?: string | null
                 }
             }
             invoice_items: {
@@ -480,6 +492,7 @@ export type Database = {
                     lokasi: string
                     created_by: string | null
                     created_at: string
+                    template_id: string | null
                 }
                 Insert: {
                     id?: string
@@ -502,6 +515,7 @@ export type Database = {
                     lokasi?: string
                     created_by?: string | null
                     created_at?: string
+                    template_id?: string | null
                 }
             }
             app_settings: {

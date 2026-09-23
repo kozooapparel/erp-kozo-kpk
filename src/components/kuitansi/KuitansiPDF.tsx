@@ -142,19 +142,31 @@ interface KuitansiPDFProps {
         name: string
         address: string
         phone: string
+        primary_color?: string | null
+        accent_color?: string | null
+        default_kuitansi_template_id?: string | null
     }
 }
 
 export function KuitansiPDFDocument({ kuitansi, companyInfo }: KuitansiPDFProps) {
     // Get brand info from invoice, fallback to company info
-    const displayName = kuitansi.invoice?.brand?.company_name || companyInfo?.name || 'RAIDWEAR'
-    const displayAddress = kuitansi.invoice?.brand?.address || companyInfo?.address || ''
+    const brand = kuitansi.invoice?.brand
+    const displayName = brand?.company_name || companyInfo?.name || 'RAIDWEAR'
+    const displayAddress = brand?.address || companyInfo?.address || ''
+    const primaryColor = brand?.primary_color || companyInfo?.primary_color || '#1e293b'
+    const accentColor = brand?.accent_color || companyInfo?.accent_color || '#f97316'
+    const templateId = kuitansi.template_id || brand?.default_kuitansi_template_id || companyInfo?.default_kuitansi_template_id || 'receipt_01'
+    const isMinimal = templateId === 'receipt_02'
+    const isCompact = templateId === 'receipt_03'
+    const headerStyle = isMinimal ? { ...styles.header, backgroundColor: '#ffffff', borderBottomWidth: 2, borderBottomColor: primaryColor } : isCompact ? { ...styles.header, backgroundColor: primaryColor, padding: 12, marginBottom: 10 } : { ...styles.header, backgroundColor: primaryColor }
+    const footerStyle = isMinimal ? { ...styles.footer, backgroundColor: '#ffffff', borderTopWidth: 1, borderTopColor: primaryColor } : { ...styles.footer, backgroundColor: primaryColor }
+    const amountStyle = isCompact ? { ...styles.amountBox, padding: 10, marginBottom: 12 } : { ...styles.amountBox, backgroundColor: `${accentColor}25` }
     return (
         <Document>
             <Page size="A4" style={styles.page}>
                 {/* Header */}
-                <View style={styles.header}>
-                    <Text style={styles.title}>KUITANSI</Text>
+                <View style={headerStyle}>
+                    <Text style={[styles.title, { color: isMinimal ? primaryColor : 'white' }]}>KUITANSI</Text>
                     <View style={styles.headerInfo}>
                         <View>
                             <View style={styles.headerRow}>
@@ -187,14 +199,14 @@ export function KuitansiPDFDocument({ kuitansi, companyInfo }: KuitansiPDFProps)
                     </View>
 
                     {/* Jumlah */}
-                    <View style={styles.amountBox}>
+                    <View style={amountStyle}>
                         <Text style={styles.amountValue}>Rp {formatCurrency(kuitansi.jumlah).replace('Rp', '').trim()}</Text>
                     </View>
 
                     {/* Terbilang */}
                     <View style={styles.terbilangRow}>
                         <View style={styles.terbilangLabel}>
-                            <Text style={[styles.labelTitle, { color: '#f97316' }]}>Terbilang</Text>
+                            <Text style={[styles.labelTitle, { color: primaryColor }]}>Terbilang</Text>
                             <Text style={styles.labelSubtitle}>Amount in words</Text>
                         </View>
                         <Text style={styles.terbilangValue}>: {terbilang(kuitansi.jumlah)}</Text>
@@ -203,10 +215,10 @@ export function KuitansiPDFDocument({ kuitansi, companyInfo }: KuitansiPDFProps)
                     {/* Untuk Pembayaran */}
                     <View style={styles.row}>
                         <View style={styles.label}>
-                            <Text style={[styles.labelTitle, { color: '#3b82f6' }]}>Untuk Pembayaran</Text>
+                            <Text style={[styles.labelTitle, { color: primaryColor }]}>Untuk Pembayaran</Text>
                             <Text style={styles.labelSubtitle}>In Payment of</Text>
                         </View>
-                        <Text style={[styles.value, { color: '#3b82f6' }]}>: {kuitansi.keterangan}</Text>
+                        <Text style={[styles.value, { color: primaryColor }]}>: {kuitansi.keterangan}</Text>
                     </View>
 
                     {/* Signature */}
@@ -222,7 +234,7 @@ export function KuitansiPDFDocument({ kuitansi, companyInfo }: KuitansiPDFProps)
                 </View>
 
                 {/* Footer */}
-                <View style={styles.footer}>
+                <View style={footerStyle}>
                     <Text style={[styles.footerText, { fontWeight: 'bold', marginBottom: 3 }]}>{displayName}</Text>
                     <Text style={styles.footerText}>Kuitansi ini berlaku sah, setelah uang diterima.</Text>
                     <Text style={styles.footerSubtext}>This payment will be legal, if the cheque has been accepted by the bank</Text>

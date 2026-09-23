@@ -1,55 +1,47 @@
 'use client'
 
-import dynamic from 'next/dynamic'
-import { Document, Page, Text, View, StyleSheet, Font } from '@react-pdf/renderer'
+import { Document, Page, Text, View, Image, StyleSheet } from '@react-pdf/renderer'
 import { InvoiceWithItems } from '@/types/database'
 import { formatCurrency, formatDate } from '@/lib/utils/format'
 import { terbilang } from '@/lib/utils/terbilang'
 
-// Styles untuk PDF
 const styles = StyleSheet.create({
-    page: {
-        padding: 40,
-        fontSize: 10,
-        fontFamily: 'Helvetica',
-    },
+    page: { padding: 40, fontSize: 10, fontFamily: 'Helvetica' },
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
+        alignItems: 'center',
         marginBottom: 20,
     },
-    title: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        color: '#1e293b',
+    title: { fontSize: 24, fontWeight: 'bold', color: '#1e293b' },
+    companyLogo: {
+        width: 120,
+        height: 75,
+        objectFit: 'contain',
+        objectPosition: 'right center',
     },
-    companyName: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        color: '#f97316',
-        textAlign: 'right',
-    },
-    companyAddress: {
+    footerCompanyInfo: {
+        position: 'absolute',
+        bottom: 42,
+        left: 40,
+        right: 40,
         fontSize: 8,
         color: '#64748b',
-        textAlign: 'right',
-        maxWidth: 200,
+        textAlign: 'center',
     },
-    infoRow: {
-        flexDirection: 'row',
-        marginBottom: 4,
+    footerLegal: {
+        position: 'absolute',
+        bottom: 28,
+        left: 40,
+        right: 40,
+        textAlign: 'center',
+        color: '#94a3b8',
+        fontSize: 8,
     },
-    infoLabel: {
-        width: 100,
-        color: '#64748b',
-    },
-    infoValue: {
-        fontWeight: 'bold',
-    },
-    section: {
-        marginTop: 15,
-        marginBottom: 15,
-    },
+    infoRow: { flexDirection: 'row', marginBottom: 4 },
+    infoLabel: { width: 100, color: '#64748b' },
+    infoValue: { fontWeight: 'bold' },
+    section: { marginTop: 15, marginBottom: 15 },
     sectionTitle: {
         fontSize: 11,
         fontWeight: 'bold',
@@ -59,51 +51,20 @@ const styles = StyleSheet.create({
         borderBottomColor: '#e2e8f0',
         paddingBottom: 5,
     },
-    customerBox: {
-        backgroundColor: '#f8fafc',
-        padding: 10,
-        borderRadius: 4,
-    },
-    table: {
-        marginTop: 10,
-    },
-    tableHeader: {
-        flexDirection: 'row',
-        backgroundColor: '#1e293b',
-        color: 'white',
-        padding: 8,
-    },
-    tableRow: {
-        flexDirection: 'row',
-        borderBottomWidth: 1,
-        borderBottomColor: '#e2e8f0',
-        padding: 8,
-    },
+    customerBox: { backgroundColor: '#f8fafc', padding: 10, borderRadius: 4 },
+    table: { marginTop: 10 },
+    tableHeader: { flexDirection: 'row', backgroundColor: '#1e293b', color: 'white', padding: 8 },
+    tableRow: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#e2e8f0', padding: 8 },
     colNo: { width: '5%', textAlign: 'center' },
     colDesc: { width: '40%' },
     colQty: { width: '10%', textAlign: 'center' },
     colUnit: { width: '10%', textAlign: 'center' },
     colPrice: { width: '17.5%', textAlign: 'right' },
     colSubtotal: { width: '17.5%', textAlign: 'right' },
-    totalsBox: {
-        marginTop: 20,
-        alignItems: 'flex-end',
-    },
-    totalRow: {
-        flexDirection: 'row',
-        justifyContent: 'flex-end',
-        marginBottom: 4,
-        width: 250,
-    },
-    totalLabel: {
-        width: 100,
-        color: '#64748b',
-    },
-    totalValue: {
-        width: 150,
-        textAlign: 'right',
-        fontWeight: 'bold',
-    },
+    totalsBox: { marginTop: 20, alignItems: 'flex-end' },
+    totalRow: { flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 4, width: 250 },
+    totalLabel: { width: 100, color: '#64748b' },
+    totalValue: { width: 150, textAlign: 'right', fontWeight: 'bold' },
     grandTotal: {
         fontSize: 14,
         fontWeight: 'bold',
@@ -122,101 +83,88 @@ const styles = StyleSheet.create({
         color: '#92400e',
         fontSize: 9,
     },
-    bankInfo: {
-        marginTop: 20,
-        padding: 10,
-        backgroundColor: '#f0fdf4',
-        borderRadius: 4,
-    },
-    footer: {
-        position: 'absolute',
-        bottom: 30,
-        left: 40,
-        right: 40,
-        textAlign: 'center',
-        color: '#94a3b8',
-        fontSize: 8,
-    },
+    bankInfo: { marginTop: 20, padding: 10, backgroundColor: '#f0fdf4', borderRadius: 4 },
 })
 
 interface InvoicePDFProps {
     invoice: InvoiceWithItems
-    companyInfo?: {
-        name: string
-        address: string
-        phone: string
-    }
-    bankInfo?: {
-        bank_name: string
-        account_name: string
-        account_number: string
-    }
+    companyInfo?: { name: string; address: string; phone: string }
+    bankInfo?: { bank_name: string; account_name: string; account_number: string }
     brandInfo?: {
         name: string
         address: string | null
         logo_url: string | null
+        primary_color?: string | null
+        accent_color?: string | null
+        default_invoice_template_id?: string | null
     } | null
 }
 
 export function InvoicePDFDocument({ invoice, companyInfo, bankInfo, brandInfo }: InvoicePDFProps) {
-    // Calculate jatuh tempo
     const jatuhTempo = new Date(invoice.tanggal)
     jatuhTempo.setDate(jatuhTempo.getDate() + (invoice.termin_pembayaran || 16))
 
-    // Use brand info if available, fallback to company info
-    const displayName = brandInfo?.name || companyInfo?.name || 'RAIDWEAR'
-    const displayAddress = brandInfo?.address || companyInfo?.address || ''
+    const primaryColor = brandInfo?.primary_color || '#1e293b'
+    const accentColor = brandInfo?.accent_color || '#f97316'
+    const template = invoice.template_id || brandInfo?.default_invoice_template_id || 'invoice_01'
+    const isMinimal = template === 'invoice_02'
+    const isBold = template === 'invoice_03'
+    const headerStyle = isMinimal
+        ? { ...styles.header, borderBottomWidth: 2, borderBottomColor: primaryColor, paddingBottom: 12 }
+        : isBold
+            ? { ...styles.header, backgroundColor: primaryColor, padding: 16, borderRadius: 6 }
+            : { ...styles.header, backgroundColor: primaryColor, padding: 12, borderRadius: 4 }
+    const headerTextColor = isMinimal ? '#1e293b' : 'white'
+    const tableHeaderStyle = isMinimal
+        ? { ...styles.tableHeader, backgroundColor: '#64748b' }
+        : isBold
+            ? { ...styles.tableHeader, backgroundColor: accentColor }
+            : { ...styles.tableHeader, backgroundColor: primaryColor }
+    const customerBoxStyle = isMinimal
+        ? { ...styles.customerBox, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#e2e8f0' }
+        : { ...styles.customerBox, backgroundColor: `${primaryColor}12` }
 
     return (
         <Document>
             <Page size="A4" style={styles.page}>
-                {/* Header */}
-                <View style={styles.header}>
+                <View style={headerStyle}>
                     <View>
-                        <Text style={styles.title}>INVOICE</Text>
+                        <Text style={[styles.title, { color: headerTextColor, fontSize: isBold ? 28 : isMinimal ? 22 : 24 }]}>INVOICE</Text>
                         <View style={{ marginTop: 10 }}>
                             <View style={styles.infoRow}>
-                                <Text style={styles.infoLabel}>No. Invoice:</Text>
-                                <Text style={styles.infoValue}>{invoice.no_invoice}</Text>
+                                <Text style={[styles.infoLabel, { color: isMinimal ? '#64748b' : '#cbd5e1' }]}>No. Invoice:</Text>
+                                <Text style={[styles.infoValue, { color: headerTextColor }]}>{invoice.no_invoice}</Text>
                             </View>
                             <View style={styles.infoRow}>
-                                <Text style={styles.infoLabel}>Tanggal:</Text>
-                                <Text style={styles.infoValue}>{formatDate(invoice.tanggal)}</Text>
+                                <Text style={[styles.infoLabel, { color: isMinimal ? '#64748b' : '#cbd5e1' }]}>Tanggal:</Text>
+                                <Text style={[styles.infoValue, { color: headerTextColor }]}>{formatDate(invoice.tanggal)}</Text>
                             </View>
                             <View style={styles.infoRow}>
-                                <Text style={styles.infoLabel}>Jatuh Tempo:</Text>
-                                <Text style={styles.infoValue}>{formatDate(jatuhTempo)}</Text>
+                                <Text style={[styles.infoLabel, { color: isMinimal ? '#64748b' : '#cbd5e1' }]}>Jatuh Tempo:</Text>
+                                <Text style={[styles.infoValue, { color: headerTextColor }]}>{formatDate(jatuhTempo)}</Text>
                             </View>
                             {invoice.no_po && (
                                 <View style={styles.infoRow}>
-                                    <Text style={styles.infoLabel}>No. PO:</Text>
-                                    <Text style={styles.infoValue}>{invoice.no_po}</Text>
+                                    <Text style={[styles.infoLabel, { color: isMinimal ? '#64748b' : '#cbd5e1' }]}>No. PO:</Text>
+                                    <Text style={[styles.infoValue, { color: headerTextColor }]}>{invoice.no_po}</Text>
                                 </View>
                             )}
                         </View>
                     </View>
-                    <View>
-                        <Text style={styles.companyName}>{displayName}</Text>
-                        <Text style={styles.companyAddress}>{displayAddress}</Text>
-                        {companyInfo?.phone && (
-                            <Text style={styles.companyAddress}>{companyInfo.phone}</Text>
-                        )}
-                    </View>
+                    {brandInfo?.logo_url && <Image src={brandInfo.logo_url} style={styles.companyLogo} />}
                 </View>
 
-                {/* Customer Info */}
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Kepada Yth.</Text>
-                    <View style={styles.customerBox}>
+                    <Text style={[styles.sectionTitle, { color: primaryColor, borderBottomColor: `${primaryColor}40` }]}>Kepada Yth.</Text>
+                    <View style={customerBoxStyle}>
                         <Text style={{ fontWeight: 'bold', marginBottom: 4 }}>{invoice.customer?.name}</Text>
                         <Text style={{ color: '#64748b' }}>{invoice.customer?.alamat || '-'}</Text>
                         <Text style={{ color: '#64748b' }}>Telp: {invoice.customer?.phone}</Text>
                     </View>
                 </View>
 
-                {/* Items Table */}
                 <View style={styles.table}>
-                    <View style={styles.tableHeader}>
+                    <View style={tableHeaderStyle}>
                         <Text style={[styles.colNo, { color: 'white' }]}>#</Text>
                         <Text style={[styles.colDesc, { color: 'white' }]}>Deskripsi</Text>
                         <Text style={[styles.colQty, { color: 'white' }]}>Qty</Text>
@@ -236,7 +184,6 @@ export function InvoicePDFDocument({ invoice, companyInfo, bankInfo, brandInfo }
                     ))}
                 </View>
 
-                {/* Totals */}
                 <View style={styles.totalsBox}>
                     <View style={styles.totalRow}>
                         <Text style={styles.totalLabel}>Sub Total</Text>
@@ -248,9 +195,9 @@ export function InvoicePDFDocument({ invoice, companyInfo, bankInfo, brandInfo }
                             <Text style={styles.totalValue}>{formatCurrency(invoice.ppn_amount)}</Text>
                         </View>
                     )}
-                    <View style={[styles.totalRow, styles.grandTotal]}>
+                    <View style={[styles.totalRow, styles.grandTotal, { color: primaryColor, borderTopColor: primaryColor }]}>
                         <Text style={styles.totalLabel}>TOTAL</Text>
-                        <Text style={[styles.totalValue, { color: '#059669' }]}>{formatCurrency(invoice.total)}</Text>
+                        <Text style={[styles.totalValue, { color: primaryColor }]}>{formatCurrency(invoice.total)}</Text>
                     </View>
                     {invoice.total_dibayar > 0 && (
                         <>
@@ -268,12 +215,10 @@ export function InvoicePDFDocument({ invoice, companyInfo, bankInfo, brandInfo }
                     )}
                 </View>
 
-                {/* Terbilang */}
                 <View style={styles.terbilang}>
                     <Text>Terbilang: {terbilang(invoice.total_dibayar > 0 ? invoice.sisa_tagihan : invoice.total)}</Text>
                 </View>
 
-                {/* Bank Info */}
                 {bankInfo && (
                     <View style={styles.bankInfo}>
                         <Text style={{ fontWeight: 'bold', marginBottom: 5 }}>Pembayaran:</Text>
@@ -283,10 +228,12 @@ export function InvoicePDFDocument({ invoice, companyInfo, bankInfo, brandInfo }
                     </View>
                 )}
 
-                {/* Footer */}
-                <Text style={styles.footer}>
-                    Invoice ini sah dan diproses secara elektronik.
-                </Text>
+                {(companyInfo?.address || companyInfo?.phone) && (
+                    <Text style={styles.footerCompanyInfo}>
+                        {[companyInfo.address, companyInfo.phone].filter(Boolean).join(' • ')}
+                    </Text>
+                )}
+                <Text style={styles.footerLegal}>Invoice ini sah dan diproses secara elektronik.</Text>
             </Page>
         </Document>
     )

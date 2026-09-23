@@ -5,6 +5,7 @@ import { Brand, BrandInsert, BrandUpdate } from '@/types/database'
 import { createBrand, updateBrand } from '@/lib/actions/brands'
 import { createClient } from '@/lib/supabase/client'
 import { resizeImageToSquare } from '@/lib/utils/image'
+import { toast } from 'sonner'
 
 interface BrandFormModalProps {
     isOpen: boolean
@@ -41,6 +42,8 @@ export default function BrandFormModal({ isOpen, onClose, brand, onBrandCreated,
         spk_prefix: '',
         primary_color: '#1e293b',
         accent_color: '#f97316',
+        default_invoice_template_id: 'invoice_01' as 'invoice_01' | 'invoice_02' | 'invoice_03',
+        default_kuitansi_template_id: 'receipt_01' as 'receipt_01' | 'receipt_02' | 'receipt_03',
     })
 
     // Update form data when brand prop changes
@@ -62,6 +65,8 @@ export default function BrandFormModal({ isOpen, onClose, brand, onBrandCreated,
                 spk_prefix: brand.spk_prefix || '',
                 primary_color: brand.primary_color || '#1e293b',
                 accent_color: brand.accent_color || '#f97316',
+                default_invoice_template_id: (brand.default_invoice_template_id || 'invoice_01') as 'invoice_01' | 'invoice_02' | 'invoice_03',
+                default_kuitansi_template_id: (brand.default_kuitansi_template_id || 'receipt_01') as 'receipt_01' | 'receipt_02' | 'receipt_03',
             })
         } else {
             // Reset form for new brand
@@ -81,12 +86,14 @@ export default function BrandFormModal({ isOpen, onClose, brand, onBrandCreated,
                 spk_prefix: '',
                 primary_color: '#1e293b',
                 accent_color: '#f97316',
+                default_invoice_template_id: 'invoice_01' as const,
+                default_kuitansi_template_id: 'receipt_01' as const,
             })
         }
         setError(null)
     }, [brand])
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value } = e.target
         setFormData(prev => ({ ...prev, [name]: value }))
     }
@@ -144,9 +151,11 @@ export default function BrandFormModal({ isOpen, onClose, brand, onBrandCreated,
             if (isEditing && brand) {
                 const updated = await updateBrand(brand.id, data)
                 onBrandUpdated?.(updated)
+                toast.success('Pengaturan brand dan tampilan dokumen berhasil disimpan')
             } else {
                 const created = await createBrand(data as BrandInsert)
                 onBrandCreated?.(created)
+                toast.success('Brand berhasil dibuat')
             }
 
             onClose()
@@ -445,6 +454,43 @@ export default function BrandFormModal({ isOpen, onClose, brand, onBrandCreated,
                                 />
                                 <p className="text-xs text-slate-400 mt-1">Contoh: {formData.spk_prefix || `SPK-${formData.code.toUpperCase()}` || 'SPK-KZO'}-001</p>
                             </div>
+                        </div>
+                    </div>
+
+                    {/* Document Appearance */}
+                    <div className="space-y-4">
+                        <h3 className="font-semibold text-slate-700 flex items-center gap-2">
+                            <span className="w-6 h-6 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-xs">5</span>
+                            Tampilan Dokumen
+                        </h3>
+                        <p className="text-xs text-slate-500">Pilih layout yang akan digunakan saat PDF dibuat untuk brand ini.</p>
+                        <div className="grid grid-cols-2 gap-4">
+                            <label className="block text-sm font-medium text-slate-700">
+                                Layout Invoice
+                                <select name="default_invoice_template_id" value={formData.default_invoice_template_id} onChange={handleChange} className="mt-1 w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/50">
+                                    <option value="invoice_01">Modern — header berwarna</option>
+                                    <option value="invoice_02">Minimal — bersih dan hemat tinta</option>
+                                    <option value="invoice_03">Bold — identitas brand dominan</option>
+                                </select>
+                            </label>
+                            <label className="block text-sm font-medium text-slate-700">
+                                Layout Kuitansi
+                                <select name="default_kuitansi_template_id" value={formData.default_kuitansi_template_id} onChange={handleChange} className="mt-1 w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/50">
+                                    <option value="receipt_01">Formal — pembayaran jelas</option>
+                                    <option value="receipt_02">Minimal — sederhana</option>
+                                    <option value="receipt_03">Compact — hemat ruang</option>
+                                </select>
+                            </label>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <label className="block text-sm font-medium text-slate-700">
+                                Warna Utama
+                                <input type="color" name="primary_color" value={formData.primary_color} onChange={handleChange} className="mt-1 block h-10 w-full rounded-lg border border-slate-300 bg-white p-1" />
+                            </label>
+                            <label className="block text-sm font-medium text-slate-700">
+                                Warna Aksen
+                                <input type="color" name="accent_color" value={formData.accent_color} onChange={handleChange} className="mt-1 block h-10 w-full rounded-lg border border-slate-300 bg-white p-1" />
+                            </label>
                         </div>
                     </div>
 

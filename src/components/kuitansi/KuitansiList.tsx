@@ -5,6 +5,7 @@ import { KuitansiWithInvoice } from '@/types/database'
 import { deleteKuitansi } from '@/lib/actions/kuitansi'
 import { formatCurrency, formatDateShort } from '@/lib/utils/format'
 import KuitansiDownloadButton from './KuitansiDownloadButton'
+import KuitansiPreviewButton from './KuitansiPreviewButton'
 import { toast } from 'sonner'
 
 interface BrandItem {
@@ -197,6 +198,7 @@ export default function KuitansiList({ kuitansiList: initialKuitansi, brands }: 
                                         </td>
                                         <td className="px-6 py-4 text-center">
                                             <div className="flex items-center justify-center gap-2">
+                                                <KuitansiPreviewButton kuitansiId={kuitansi.id} />
                                                 <KuitansiDownloadButton
                                                     kuitansiId={kuitansi.id}
                                                     variant="icon"

@@ -184,6 +184,14 @@ export async function createInvoice(
     // Prioritize brand_id from invoiceData (manual selection), then fallback to order's brand
     const finalBrandId = invoiceData.brand_id || orderBrandId
 
+    const { data: brand } = finalBrandId
+        ? await supabase
+            .from('brands')
+            .select('default_invoice_template_id')
+            .eq('id', finalBrandId)
+            .single()
+        : { data: null }
+
     // Generate invoice number
     const noInvoice = await generateUniqueInvoiceNumber(
         invoiceData.customerName,
@@ -205,6 +213,7 @@ export async function createInvoice(
             customer_id: invoiceData.customer_id,
             order_id: invoiceData.order_id,
             brand_id: finalBrandId,  // Use prioritized brand_id
+            template_id: brand?.default_invoice_template_id || 'invoice_01',
             perkiraan_produksi: invoiceData.perkiraan_produksi,
             deadline: invoiceData.deadline,
             termin_pembayaran: invoiceData.termin_pembayaran,

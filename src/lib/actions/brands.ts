@@ -24,6 +24,8 @@ function pickEditableBrandFields(brandData: BrandInsert | BrandUpdate): BrandUpd
         account_number: brandData.account_number,
         primary_color: brandData.primary_color,
         accent_color: brandData.accent_color,
+        default_invoice_template_id: brandData.default_invoice_template_id,
+        default_kuitansi_template_id: brandData.default_kuitansi_template_id,
         invoice_prefix: brandData.invoice_prefix,
         kuitansi_prefix: brandData.kuitansi_prefix,
         spk_prefix: brandData.spk_prefix,

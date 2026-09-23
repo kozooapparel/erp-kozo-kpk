@@ -15,14 +15,13 @@ interface InvoiceDownloadButtonProps {
     className?: string
 }
 
-export default function InvoiceDownloadButton({ invoiceId, invoice: propInvoice, variant = 'button', className }: InvoiceDownloadButtonProps) {
+export default function InvoiceDownloadButton({ invoiceId, variant = 'button', className }: InvoiceDownloadButtonProps) {
     const [loading, setLoading] = useState(false)
 
     const handleDownload = async () => {
         setLoading(true)
         try {
-            // Fetch full invoice data if not provided
-            const invoice = propInvoice || await getInvoiceById(invoiceId)
+            const invoice = await getInvoiceById(invoiceId)
             if (!invoice) {
                 toast.error('Invoice tidak ditemukan')
                 return
@@ -62,7 +61,10 @@ export default function InvoiceDownloadButton({ invoiceId, invoice: propInvoice,
                     brandInfo={invoice.brand ? {
                         name: invoice.brand.company_name,
                         address: invoice.brand.address,
-                        logo_url: invoice.brand.logo_url
+                        logo_url: invoice.brand.logo_url,
+                        primary_color: invoice.brand.primary_color,
+                        accent_color: invoice.brand.accent_color,
+                        default_invoice_template_id: invoice.brand.default_invoice_template_id
                     } : null}
                 />
             ).toBlob()
