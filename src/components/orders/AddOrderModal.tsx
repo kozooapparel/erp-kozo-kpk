@@ -1,19 +1,17 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Customer, OrderInsert, Brand } from '@/types/database'
+import { useEffect, useMemo, useState } from 'react'
+import { Brand, Customer, OrderInsert, OrderWithCustomer } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
-import NumberInput from '@/components/ui/NumberInput'
-import CurrencyInput from '@/components/ui/CurrencyInput'
 
 interface AddOrderModalProps {
     isOpen: boolean
     onClose: () => void
     customers: Customer[]
+    onOrderCreated: (order: OrderWithCustomer) => void
 }
 
-export default function AddOrderModal({ isOpen, onClose, customers }: AddOrderModalProps) {
+export default function AddOrderModal({ isOpen, onClose, customers, onOrderCreated }: AddOrderModalProps) {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [brands, setBrands] = useState<Brand[]>([])
@@ -22,8 +20,7 @@ export default function AddOrderModal({ isOpen, onClose, customers }: AddOrderMo
     const [brandId, setBrandId] = useState('')
     const [customerId, setCustomerId] = useState('')
 
-    const router = useRouter()
-    const supabase = createClient()
+    const supabase = useMemo(() => createClient(), [])
 
     // Fetch brands on mount
     useEffect(() => {
@@ -70,7 +67,7 @@ export default function AddOrderModal({ isOpen, onClose, customers }: AddOrderMo
                 brand_id: brandId || null,
             }
 
-            const { error: orderError } = await supabase
+            const { data: insertedOrder, error: orderError } = await supabase
                 .from('orders')
                 .insert(orderData)
                 .select()
@@ -78,10 +75,24 @@ export default function AddOrderModal({ isOpen, onClose, customers }: AddOrderMo
 
             if (orderError) throw orderError
 
+            const { data: freshOrder, error: fetchOrderError } = await supabase
+                .from('orders')
+                .select(`
+                    *,
+                    invoices(id),
+                    customer:customers(*),
+                    creator:profiles!created_by(id, full_name),
+                    brand:brands(*)
+                `)
+                .eq('id', insertedOrder.id)
+                .single()
+
+            if (fetchOrderError) throw fetchOrderError
+
             // Reset form and close
+            onOrderCreated(freshOrder as OrderWithCustomer)
             resetForm()
             onClose()
-            router.refresh()
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Terjadi kesalahan')
         } finally {

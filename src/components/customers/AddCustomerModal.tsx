@@ -2,22 +2,31 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Modal, ModalFooter } from '@/components/ui'
+
+interface CustomerWithStats {
+    id: string
+    name: string
+    phone: string
+    created_at: string
+    order_count: number
+    total_quantity: number
+    total_revenue: number
+}
 
 interface AddCustomerModalProps {
     isOpen: boolean
     onClose: () => void
+    onCustomerCreated?: (customer: CustomerWithStats) => void
 }
 
-export default function AddCustomerModal({ isOpen, onClose }: AddCustomerModalProps) {
+export default function AddCustomerModal({ isOpen, onClose, onCustomerCreated }: AddCustomerModalProps) {
     const [loading, setLoading] = useState(false)
     const [name, setName] = useState('')
     const [phone, setPhone] = useState('')
     const [alamat, setAlamat] = useState('')
 
-    const router = useRouter()
     const supabase = createClient()
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -41,13 +50,15 @@ export default function AddCustomerModal({ isOpen, onClose }: AddCustomerModalPr
                 return
             }
 
-            const { error } = await supabase
+            const { data: inserted, error } = await supabase
                 .from('customers')
                 .insert({
                     name: name.trim(),
                     phone: phone.trim(),
                     alamat: alamat.trim() || null,
                 })
+                .select('*')
+                .single()
 
             if (error) {
                 console.error('Error:', error)
@@ -59,7 +70,15 @@ export default function AddCustomerModal({ isOpen, onClose }: AddCustomerModalPr
             setName('')
             setPhone('')
             setAlamat('')
-            router.refresh()
+            onCustomerCreated?.({
+                id: inserted.id,
+                name: inserted.name,
+                phone: inserted.phone,
+                created_at: inserted.created_at,
+                order_count: 0,
+                total_quantity: 0,
+                total_revenue: 0,
+            })
             onClose()
             toast.success('Customer berhasil ditambahkan!')
         } catch (err) {

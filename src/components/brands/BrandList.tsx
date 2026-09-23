@@ -3,28 +3,34 @@
 import { useState } from 'react'
 import { Brand } from '@/types/database'
 import { deleteBrand, setDefaultBrand } from '@/lib/actions/brands'
-import { useRouter } from 'next/navigation'
 import BrandFormModal from './BrandFormModal'
 
 interface BrandListProps {
     brands: Brand[]
+    onBrandUpdated: (brand: Brand) => void
+    onSetDefault: (id: string) => void
+    onDelete: (id: string) => void
 }
 
-export default function BrandList({ brands }: BrandListProps) {
+export default function BrandList({ brands, onBrandUpdated, onSetDefault, onDelete }: BrandListProps) {
     const [loading, setLoading] = useState<string | null>(null)
     const [editingBrand, setEditingBrand] = useState<Brand | null>(null)
-    const router = useRouter()
 
     const handleSetDefault = async (id: string) => {
         setLoading(id)
         try {
             await setDefaultBrand(id)
-            router.refresh()
+            onSetDefault(id)
         } catch (error) {
             console.error('Error setting default brand:', error)
         } finally {
             setLoading(null)
         }
+    }
+
+    const handleBrandUpdated = (brand: Brand) => {
+        onBrandUpdated(brand)
+        setEditingBrand(null)
     }
 
     const handleDelete = async (id: string, name: string) => {
@@ -33,7 +39,7 @@ export default function BrandList({ brands }: BrandListProps) {
         setLoading(id)
         try {
             await deleteBrand(id)
-            router.refresh()
+            onDelete(id)
         } catch (error) {
             console.error('Error deleting brand:', error)
             alert(error instanceof Error ? error.message : 'Error menghapus brand')
@@ -168,6 +174,7 @@ export default function BrandList({ brands }: BrandListProps) {
                 isOpen={editingBrand !== null}
                 onClose={() => setEditingBrand(null)}
                 brand={editingBrand || undefined}
+                onBrandUpdated={handleBrandUpdated}
             />
         </>
     )

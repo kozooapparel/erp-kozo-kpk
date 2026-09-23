@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner";
+import { getApplicationIdentity } from '@/lib/brand-identity'
+import { AppIdentityProvider } from '@/components/layout/AppIdentityProvider'
 import "./globals.css";
+
+export const dynamic = 'force-dynamic'
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -13,28 +17,36 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "Kozo KPK - ERP Konveksi",
-  description: "ERP System untuk Kozo KPK Jersey Convection",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const identity = await getApplicationIdentity()
 
-export default function RootLayout({
+  return {
+    title: `${identity.name} - ERP Konveksi`,
+    description: `ERP System untuk ${identity.name} Jersey Convection`,
+  }
+}
+
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const identity = await getApplicationIdentity()
+
   return (
     <html lang="en">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <Toaster
-          position="top-right"
-          richColors
-          closeButton
-          duration={3000}
-        />
-        {children}
+        <AppIdentityProvider identity={identity}>
+          <Toaster
+            position="top-right"
+            richColors
+            closeButton
+            duration={3000}
+          />
+          {children}
+        </AppIdentityProvider>
       </body>
     </html>
   );

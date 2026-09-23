@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { approveBonus } from '../employees/actions'
 import { toast } from 'sonner'
 
@@ -24,8 +23,8 @@ interface Bonus {
     }
 }
 
-export default function BonusApprovalClient({ bonuses }: { bonuses: Bonus[] }) {
-    const router = useRouter()
+export default function BonusApprovalClient({ bonuses: initialBonuses }: { bonuses: Bonus[] }) {
+    const [bonuses, setBonuses] = useState<Bonus[]>(initialBonuses)
     const [loading, setLoading] = useState('')
 
     const handleApprove = async (bonusId: string) => {
@@ -36,7 +35,9 @@ export default function BonusApprovalClient({ bonuses }: { bonuses: Bonus[] }) {
 
         if (result.success) {
             toast.success('Bonus telah diapprove!')
-            router.refresh()
+            setBonuses((current) =>
+                current.map((b) => (b.id === bonusId ? { ...b, status: 'approved' } : b))
+            )
         } else {
             toast.error(result.error || 'Gagal approve bonus')
         }

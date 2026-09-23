@@ -56,6 +56,9 @@ export type Database = {
                     account_number: string | null
                     primary_color: string
                     accent_color: string
+                    secondary_color: string
+                    default_invoice_template_id: string
+                    default_kuitansi_template_id: string
                     invoice_prefix: string
                     kuitansi_prefix: string
                     spk_prefix: string
@@ -64,6 +67,7 @@ export type Database = {
                     spk_counter: number
                     is_default: boolean
                     is_active: boolean
+                    tenant_id: string
                     created_at: string
                     updated_at: string
                 }
@@ -81,6 +85,9 @@ export type Database = {
                     account_number?: string | null
                     primary_color?: string
                     accent_color?: string
+                    secondary_color?: string
+                    default_invoice_template_id?: string
+                    default_kuitansi_template_id?: string
                     invoice_prefix?: string
                     kuitansi_prefix?: string
                     spk_prefix?: string
@@ -89,6 +96,7 @@ export type Database = {
                     spk_counter?: number
                     is_default?: boolean
                     is_active?: boolean
+                    tenant_id?: string
                     created_at?: string
                     updated_at?: string
                 }
@@ -106,6 +114,9 @@ export type Database = {
                     account_number?: string | null
                     primary_color?: string
                     accent_color?: string
+                    secondary_color?: string
+                    default_invoice_template_id?: string
+                    default_kuitansi_template_id?: string
                     invoice_prefix?: string
                     kuitansi_prefix?: string
                     spk_prefix?: string
@@ -114,6 +125,7 @@ export type Database = {
                     spk_counter?: number
                     is_default?: boolean
                     is_active?: boolean
+                    tenant_id?: string
                     created_at?: string
                     updated_at?: string
                 }
@@ -175,6 +187,7 @@ export type Database = {
                     design_notes: string | null
                     // Archive
                     is_archived: boolean
+                    tenant_id: string
                 }
                 Insert: {
                     id?: string
@@ -216,6 +229,7 @@ export type Database = {
                     design_notes?: string | null
                     // Archive
                     is_archived?: boolean
+                    tenant_id?: string
                 }
                 Update: {
                     id?: string
@@ -264,6 +278,7 @@ export type Database = {
                     design_notes?: string | null
                     // Archive
                     is_archived?: boolean
+                    tenant_id?: string
                 }
             }
             profiles: {
@@ -296,6 +311,7 @@ export type Database = {
             barang: {
                 Row: {
                     id: string
+                    brand_id: string
                     nama_barang: string
                     satuan: string
                     harga_satuan: number
@@ -306,6 +322,7 @@ export type Database = {
                 }
                 Insert: {
                     id?: string
+                    brand_id: string
                     nama_barang: string
                     satuan?: string
                     harga_satuan?: number
@@ -316,6 +333,7 @@ export type Database = {
                 }
                 Update: {
                     id?: string
+                    brand_id?: string
                     nama_barang?: string
                     satuan?: string
                     harga_satuan?: number
@@ -374,6 +392,7 @@ export type Database = {
                     updated_at: string
                     // Brand
                     brand_id: string | null
+                    template_id: string | null
                 }
                 Insert: {
                     id?: string
@@ -397,6 +416,7 @@ export type Database = {
                     updated_at?: string
                     // Brand
                     brand_id?: string | null
+                    template_id?: string | null
                 }
                 Update: {
                     id?: string
@@ -420,6 +440,7 @@ export type Database = {
                     updated_at?: string
                     // Brand
                     brand_id?: string | null
+                    template_id?: string | null
                 }
             }
             invoice_items: {
@@ -471,6 +492,7 @@ export type Database = {
                     lokasi: string
                     created_by: string | null
                     created_at: string
+                    template_id: string | null
                 }
                 Insert: {
                     id?: string
@@ -493,6 +515,7 @@ export type Database = {
                     lokasi?: string
                     created_by?: string | null
                     created_at?: string
+                    template_id?: string | null
                 }
             }
             app_settings: {
@@ -535,7 +558,12 @@ export type Database = {
                 }
             }
         }
-        Functions: {}
+        Functions: {
+            delete_order_permanently: {
+                Args: { p_order_id: string }
+                Returns: undefined
+            }
+        }
         Enums: {}
     }
 }
@@ -554,7 +582,7 @@ export type OrderStage =
     | 'pengiriman'           // 10. Pengiriman
 
 export const STAGE_LABELS: Record<OrderStage, string> = {
-    customer_dp_desain: 'Customer DP Desain',
+    customer_dp_desain: 'Deposit Desain',
     proses_desain: 'Proses Desain',
     dp_produksi: 'DP Produksi',
     proses_layout: 'Proses Layout',
@@ -633,6 +661,15 @@ export interface InvoiceWithCustomer extends Invoice {
     customer: Customer
 }
 
+// Canonical order with relations used across kanban, modals, and form-order.
+// Struct-compatible superset of every previously duplicated local definition.
+export interface OrderWithCustomer extends Order {
+    customer: Customer
+    creator?: { id: string; full_name: string } | null
+    brand?: Brand | null
+    invoices?: Array<{ id: string }>
+}
+
 export interface InvoiceWithItems extends Invoice {
     customer: Customer
     items: InvoiceItem[]
@@ -701,8 +738,25 @@ export interface ProductionSpecs {
     bis?: string                 // "BRAND SENDIRI", "POLOSIN", etc.
     autentic?: string            // Authentic label
     penjahit?: string            // Tailor name
-    need_atasan: boolean         // Checkbox: needs top
-    need_celana: boolean         // Checkbox: needs pants
+    need_atasan?: boolean        // Checkbox: needs top
+    need_celana?: boolean        // Checkbox: needs pants
+
+    // ===== Form Order Produksi =====
+    // Detail Produk (isi manual)
+    jenis_produk?: string        // "Jersey", "Polo Shirt", etc.
+    jenis_bahan?: string         // "Milano Premium", "Drifit", etc.
+    pola_desain?: string         // Pola baju / desain
+    model_kerah?: string         // "O-Neck", "V-Neck", "Polo", etc.
+    model_lengan?: string        // "Pendek", "Panjang", "Tanpa Lengan"
+    jumlah_produksi?: number     // Jumlah produksi (pcs)
+
+    // Kebutuhan Produksi (isi manual)
+    kebutuhan_bahan_meter?: number
+    kebutuhan_bahan_kg?: number
+
+    // Gambar (paste / upload)
+    mockup_image_url?: string    // Mockup — kanan bawah
+    list_order_image_urls?: string[]  // List order — kanan atas, memanjang ke bawah
 }
 
 // Full SPK data structure

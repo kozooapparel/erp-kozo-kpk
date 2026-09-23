@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { addBonus, updateBonus, deleteBonus } from '../actions'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
+import { CurrencyInput, NumberInput } from '@/components/ui'
 
 interface Bonus {
     id: string
@@ -109,14 +110,12 @@ export default function BonusModal({ employeeId, bonus, onClose }: BonusModalPro
                         <label className="block text-sm font-medium text-slate-700 mb-2">
                             Nominal (Rp) <span className="text-red-500">*</span>
                         </label>
-                        <input
-                            type="number"
+                        <CurrencyInput
                             name="amount"
                             required
-                            min="0"
-                            step="10000"
+                            min={0}
                             defaultValue={bonus?.amount || ''}
-                            className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none"
+                            className="!px-3 !py-2 !rounded-lg !bg-white !border-slate-300 focus:!border-purple-500 focus:!ring-2 focus:!ring-purple-200"
                         />
                     </div>
 
@@ -144,14 +143,14 @@ export default function BonusModal({ employeeId, bonus, onClose }: BonusModalPro
                                 <label className="block text-sm font-medium text-slate-700 mb-2">
                                     Tahun <span className="text-red-500">*</span>
                                 </label>
-                                <input
-                                    type="number"
+                                <NumberInput
                                     name="period_year"
                                     required
+                                    groupThousands={false}
                                     defaultValue={currentYear}
                                     min={currentYear - 1}
                                     max={currentYear + 1}
-                                    className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none"
+                                    className="!px-3 !py-2 !rounded-lg !bg-white !border-slate-300 focus:!border-purple-500 focus:!ring-2 focus:!ring-purple-200"
                                 />
                             </div>
                         </div>

@@ -18,10 +18,21 @@ interface UserManagementProps {
     adminUsers: AdminUser[]
 }
 
-export default function UserManagement({ adminUsers }: UserManagementProps) {
+export default function UserManagement({ adminUsers: initialAdminUsers }: UserManagementProps) {
+    const [adminUsers, setAdminUsers] = useState<AdminUser[]>(initialAdminUsers)
     const [isAddModalOpen, setIsAddModalOpen] = useState(false)
     const [resetPasswordUser, setResetPasswordUser] = useState<AdminUser | null>(null)
     const [deleteUser, setDeleteUser] = useState<AdminUser | null>(null)
+
+    const handleUserAdded = (user: AdminUser) => {
+        setAdminUsers((current) => [user, ...current])
+        setIsAddModalOpen(false)
+    }
+
+    const handleUserDeleted = (userId: string) => {
+        setAdminUsers((current) => current.filter((u) => u.id !== userId))
+        setDeleteUser(null)
+    }
 
     const formatDate = (date: string) => {
         return new Date(date).toLocaleDateString('id-ID', {
@@ -129,6 +140,7 @@ export default function UserManagement({ adminUsers }: UserManagementProps) {
             <AddUserModal
                 isOpen={isAddModalOpen}
                 onClose={() => setIsAddModalOpen(false)}
+                onUserAdded={handleUserAdded}
             />
 
             <ResetPasswordModal
@@ -141,6 +153,7 @@ export default function UserManagement({ adminUsers }: UserManagementProps) {
                 user={deleteUser}
                 isOpen={deleteUser !== null}
                 onClose={() => setDeleteUser(null)}
+                onUserDeleted={handleUserDeleted}
             />
         </div>
     )

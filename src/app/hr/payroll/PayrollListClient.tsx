@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { generatePayroll, submitPayrollForApproval, approvePayroll } from './actions'
 import { toast } from 'sonner'
@@ -22,13 +21,13 @@ interface PayrollPeriod {
 }
 
 export default function PayrollListClient({
-    periods,
+    periods: initialPeriods,
     isOwner
 }: {
     periods: PayrollPeriod[]
     isOwner: boolean
 }) {
-    const router = useRouter()
+    const [periods, setPeriods] = useState<PayrollPeriod[]>(initialPeriods)
     const [showGenerateForm, setShowGenerateForm] = useState(false)
     const [loading, setLoading] = useState(false)
     const [selectedYear, setSelectedYear] = useState<string>('all')
@@ -64,7 +63,9 @@ export default function PayrollListClient({
 
         if (result.success) {
             toast.success('Payroll bulan ini berhasil di-generate!')
-            router.refresh()
+            if (result.period) {
+                setPeriods((current) => [result.period!, ...current])
+            }
         } else {
             toast.error(result.error || 'Gagal generate payroll')
         }
@@ -84,7 +85,9 @@ export default function PayrollListClient({
         if (result.success) {
             toast.success('Payroll berhasil di-generate!')
             setShowGenerateForm(false)
-            router.refresh()
+            if (result.period) {
+                setPeriods((current) => [result.period!, ...current])
+            }
         } else {
             toast.error(result.error || 'Gagal generate payroll')
         }
@@ -99,7 +102,9 @@ export default function PayrollListClient({
 
         if (result.success) {
             toast.success('Payroll telah disubmit untuk approval!')
-            router.refresh()
+            setPeriods((current) =>
+                current.map((p) => (p.id === periodId ? { ...p, status: 'pending_approval' } : p))
+            )
         } else {
             toast.error(result.error || 'Gagal submit payroll')
         }
@@ -112,7 +117,13 @@ export default function PayrollListClient({
 
         if (result.success) {
             toast.success('Payroll telah diapprove!')
-            router.refresh()
+            setPeriods((current) =>
+                current.map((p) =>
+                    p.id === periodId
+                        ? { ...p, status: 'approved', approved_at: new Date().toISOString() }
+                        : p
+                )
+            )
         } else {
             toast.error(result.error || 'Gagal approve payroll')
         }

@@ -184,6 +184,14 @@ export async function createInvoice(
     // Prioritize brand_id from invoiceData (manual selection), then fallback to order's brand
     const finalBrandId = invoiceData.brand_id || orderBrandId
 
+    const { data: brand } = finalBrandId
+        ? await supabase
+            .from('brands')
+            .select('default_invoice_template_id')
+            .eq('id', finalBrandId)
+            .single()
+        : { data: null }
+
     // Generate invoice number
     const noInvoice = await generateUniqueInvoiceNumber(
         invoiceData.customerName,
@@ -205,6 +213,7 @@ export async function createInvoice(
             customer_id: invoiceData.customer_id,
             order_id: invoiceData.order_id,
             brand_id: finalBrandId,  // Use prioritized brand_id
+            template_id: brand?.default_invoice_template_id || 'invoice_01',
             perkiraan_produksi: invoiceData.perkiraan_produksi,
             deadline: invoiceData.deadline,
             termin_pembayaran: invoiceData.termin_pembayaran,
@@ -241,7 +250,7 @@ export async function createInvoice(
         }
     }
 
-    // Auto-create kuitansi for DP Desain if already verified
+    // Auto-create kuitansi for Deposit Desain if already verified
     if (invoice && orderData?.dp_desain_verified && orderData.dp_desain_amount > 0) {
         const { error: kuitansiError } = await supabase
             .from('kuitansi')
@@ -249,14 +258,14 @@ export async function createInvoice(
                 invoice_id: invoice.id,
                 tanggal: new Date().toISOString().split('T')[0],
                 jumlah: orderData.dp_desain_amount,
-                keterangan: `Pembayaran DP Desain - ${noInvoice}`,
+                keterangan: `Pembayaran Deposit Desain - ${noInvoice}`,
                 created_by: user?.id
             })
 
         if (kuitansiError) {
-            console.error('Error creating auto-kuitansi for DP Desain:', kuitansiError)
+            console.error('Error creating auto-kuitansi for Deposit Desain:', kuitansiError)
         } else {
-            console.log('Auto-kuitansi DP Desain created for invoice:', noInvoice)
+            console.log('Auto-kuitansi Deposit Desain created for invoice:', noInvoice)
         }
     }
 

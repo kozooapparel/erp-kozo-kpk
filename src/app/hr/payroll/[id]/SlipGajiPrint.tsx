@@ -32,7 +32,7 @@ interface SlipGajiPrintProps {
     companyName?: string
 }
 
-export function SlipGajiPrint({ entry, period, companyName = 'Kozo KPK' }: SlipGajiPrintProps) {
+export function SlipGajiPrint({ entry, period, companyName = 'ERP Konveksi' }: SlipGajiPrintProps) {
     const printRef = useRef<HTMLDivElement>(null)
 
     const formatCurrency = (amount: number) => {
@@ -302,7 +302,7 @@ export function SlipGajiPrint({ entry, period, companyName = 'Kozo KPK' }: SlipG
 export function PrintAllSlips({
     entries,
     period,
-    companyName = 'Kozo KPK'
+    companyName = 'ERP Konveksi'
 }: {
     entries: PayrollEntry[]
     period: SlipGajiPrintProps['period']

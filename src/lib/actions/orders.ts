@@ -1,7 +1,11 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
+import { abortMultipartUpload, deleteObject, isObjectNotFound } from '@/lib/storage/r2'
+import { requireTenantContext } from '@/lib/storage/tenant'
 
 /**
  * Verify DP payment and auto-create kuitansi if invoice exists
@@ -47,7 +51,7 @@ export async function verifyDPPayment(
         // Check if invoice exists for this order to create kuitansi
         const { data: invoices } = await supabase
             .from('invoices')
-            .select('id, no_invoice, sisa_tagihan')
+            .select('id, no_invoice, sisa_tagihan, brand_id')
             .eq('order_id', orderId)
             .order('created_at', { ascending: false })
             .limit(1)
@@ -64,10 +68,18 @@ export async function verifyDPPayment(
                 const { data: { user } } = await supabase.auth.getUser()
 
                 const keterangan = type === 'dp_desain'
-                    ? 'Pembayaran DP Desain'
+                    ? 'Pembayaran Deposit Desain'
                     : type === 'dp_produksi'
                         ? 'Pembayaran DP Produksi'
                         : 'Pembayaran Pelunasan'
+
+                const { data: brand } = invoice.brand_id
+                    ? await supabase
+                        .from('brands')
+                        .select('default_kuitansi_template_id')
+                        .eq('id', invoice.brand_id)
+                        .single()
+                    : { data: null }
 
                 const { error: kuitansiError } = await supabase
                     .from('kuitansi')
@@ -75,6 +87,7 @@ export async function verifyDPPayment(
                         invoice_id: invoice.id,
                         tanggal: new Date().toISOString().split('T')[0],
                         jumlah: paymentAmount,
+                        template_id: brand?.default_kuitansi_template_id || 'receipt_01',
                         keterangan: `${keterangan} - ${invoice.no_invoice}`,
                         created_by: user?.id
                     })
@@ -157,7 +170,7 @@ export async function correctDPPayment(
         if (invoice) {
             // Match kuitansi by invoice_id and keterangan pattern
             const keteranganPattern = type === 'dp_desain'
-                ? '%Pembayaran DP Desain%'
+                ? '%Pembayaran%Desain%'
                 : type === 'dp_produksi'
                     ? '%Pembayaran DP Produksi%'
                     : '%Pembayaran Pelunasan%'
@@ -192,8 +205,8 @@ export async function correctDPPayment(
         return {
             success: true,
             message: kuitansiUpdated
-                ? `Nominal ${type === 'dp_desain' ? 'DP Desain' : type === 'dp_produksi' ? 'DP Produksi' : 'Pelunasan'} berhasil dikoreksi (kuitansi ikut diupdate)`
-                : `Nominal ${type === 'dp_desain' ? 'DP Desain' : type === 'dp_produksi' ? 'DP Produksi' : 'Pelunasan'} berhasil dikoreksi`
+                ? `Nominal ${type === 'dp_desain' ? 'Deposit Desain' : type === 'dp_produksi' ? 'DP Produksi' : 'Pelunasan'} berhasil dikoreksi (kuitansi ikut diupdate)`
+                : `Nominal ${type === 'dp_desain' ? 'Deposit Desain' : type === 'dp_produksi' ? 'DP Produksi' : 'Pelunasan'} berhasil dikoreksi`
         }
 
     } catch (err) {
@@ -262,7 +275,7 @@ export async function generateSPKNumber(orderId: string): Promise<{ success: boo
         if (updateError) throw updateError
 
         revalidatePath('/')
-        revalidatePath('/spk')
+        revalidatePath('/form-order')
 
         return {
             success: true,
@@ -337,10 +350,17 @@ export async function moveOrderToNextStage(
 
         let spkGenerated = false
 
-        // Auto-generate SPK when entering antrean_produksi
-        if (nextStage === 'antrean_produksi' && !order.spk_number) {
+        // Auto-generate SPK when entering OR leaving antrean_produksi without one
+        // (covers orders that were dragged straight into the stage before SPK existed)
+        const needsSPK =
+            !order.spk_number &&
+            (nextStage === 'antrean_produksi' || currentStage === 'antrean_produksi')
+        if (needsSPK) {
             const result = await generateSPKNumber(orderId)
-            spkGenerated = result.success
+            if (!result.success) {
+                return { success: false, message: result.message }
+            }
+            spkGenerated = true
         }
 
         revalidatePath('/')
@@ -363,58 +383,76 @@ export async function moveOrderToNextStage(
 }
 
 /**
- * Delete an order and its related data (invoices, kuitansi)
+ * Permanently delete an order and records that belong exclusively to it.
+ *
+ * R2 is an external service, so its objects are removed first.  Database work
+ * then runs in the delete_order_permanently() transaction; its metadata is
+ * never deleted if any R2 operation fails.
  */
 export async function deleteOrder(orderId: string): Promise<{ success: boolean; message: string }> {
-    const supabase = await createClient()
-
     try {
-        // First, get all invoices for this order
-        const { data: invoices } = await supabase
-            .from('invoices')
-            .select('id')
+        const { tenantId } = await requireTenantContext()
+        const supabase = await createClient()
+
+        // Confirm the migration is live before deleting an irreversible R2
+        // object. A random non-existent order causes the deployed function to
+        // reject safely, while a schema-cache error means it is not deployed.
+        const { error: functionCheckError } = await supabase.rpc('delete_order_permanently', {
+            p_order_id: randomUUID(),
+        })
+        if (!functionCheckError?.message.includes('Order tidak ditemukan')) {
+            const detail = functionCheckError?.message || 'fungsi database tidak merespons seperti yang diharapkan'
+            throw new Error(`Migration penghapusan permanen belum tersedia. Tidak ada data atau file yang dihapus: ${detail}`)
+        }
+
+        const admin = createAdminClient()
+        const { data: order, error: orderError } = await admin
+            .from('orders')
+            .select('id, tenant_id')
+            .eq('id', orderId)
+            .single()
+
+        if (orderError || !order) throw new Error('Order tidak ditemukan')
+        if (order.tenant_id !== tenantId) throw new Error('Anda tidak memiliki akses untuk menghapus order ini')
+
+        const { data: files, error: filesError } = await admin
+            .from('r2_files')
+            .select('id, storage_key, status, multipart_upload_id')
+            .eq('tenant_id', tenantId)
             .eq('order_id', orderId)
 
-        // Delete kuitansi for each invoice
-        if (invoices && invoices.length > 0) {
-            const invoiceIds = invoices.map(inv => inv.id)
+        if (filesError) throw new Error(`Gagal memeriksa file order: ${filesError.message}`)
 
-            const { error: kuitansiError } = await supabase
-                .from('kuitansi')
-                .delete()
-                .in('invoice_id', invoiceIds)
+        for (const file of files || []) {
+            if (file.status === 'deleted' || file.status === 'missing' || file.status === 'failed') continue
 
-            if (kuitansiError) {
-                console.error('Delete kuitansi error:', kuitansiError)
+            try {
+                if (file.status === 'uploading' && file.multipart_upload_id) {
+                    await abortMultipartUpload(tenantId, file.storage_key, file.multipart_upload_id)
+                } else {
+                    await deleteObject(tenantId, file.storage_key)
+                }
+            } catch (error) {
+                if (!isObjectNotFound(error)) {
+                    throw new Error(`Gagal menghapus file R2 \"${file.storage_key}\". Order tidak dihapus: ${error instanceof Error ? error.message : 'kesalahan tidak diketahui'}`)
+                }
             }
         }
 
-        // Delete invoices for this order
-        const { error: invoiceError } = await supabase
-            .from('invoices')
-            .delete()
-            .eq('order_id', orderId)
-
-        if (invoiceError) {
-            console.error('Delete invoices error:', invoiceError)
+        const { error: deleteError } = await supabase.rpc('delete_order_permanently', { p_order_id: orderId })
+        if (deleteError) {
+            throw new Error(`Penghapusan database dibatalkan: ${deleteError.message}. Object R2 yang sudah dihapus tidak akan dipulihkan otomatis.`)
         }
-
-        // Finally, delete the order
-        const { error: orderError } = await supabase
-            .from('orders')
-            .delete()
-            .eq('id', orderId)
-
-        if (orderError) throw orderError
 
         revalidatePath('/')
         revalidatePath('/dashboard')
         revalidatePath('/invoices')
         revalidatePath('/kuitansi')
+        revalidatePath('/orders/history')
 
         return {
             success: true,
-            message: 'Order berhasil dihapus'
+            message: 'Order dan seluruh data transaksi khususnya berhasil dihapus permanen'
         }
 
     } catch (err) {
@@ -460,8 +498,7 @@ export async function updateDesignNotes(
 }
 
 /**
- * Archive an order (move to history)
- * Only orders at 'pengiriman' stage with tracking_number and shipped_at can be archived
+ * Archive an order without altering its invoices, payments, or files.
  */
 export async function archiveOrder(orderId: string): Promise<{ success: boolean; message: string }> {
     const supabase = await createClient()
@@ -470,28 +507,12 @@ export async function archiveOrder(orderId: string): Promise<{ success: boolean;
         // Get order to validate
         const { data: order, error: orderError } = await supabase
             .from('orders')
-            .select('id, stage, tracking_number, shipped_at, is_archived')
+            .select('id, is_archived')
             .eq('id', orderId)
             .single()
 
         if (orderError || !order) {
             throw new Error('Order tidak ditemukan')
-        }
-
-        // Validate order is at pengiriman stage
-        if (order.stage !== 'pengiriman') {
-            return {
-                success: false,
-                message: 'Order hanya bisa diarsip di tahap Pengiriman'
-            }
-        }
-
-        // Validate tracking number is filled
-        if (!order.tracking_number || !order.shipped_at) {
-            return {
-                success: false,
-                message: 'Isi nomor resi dan tanggal kirim terlebih dahulu'
-            }
         }
 
         // Check if already archived
@@ -519,7 +540,7 @@ export async function archiveOrder(orderId: string): Promise<{ success: boolean;
 
         return {
             success: true,
-            message: 'Order berhasil diarsip ke Riwayat Order'
+            message: 'Order berhasil diarsipkan. Invoice, kuitansi, pembayaran, dan file tetap tersimpan.'
         }
     } catch (err) {
         console.error('Archive order error:', err)
@@ -582,4 +603,3 @@ export async function unarchiveOrder(orderId: string): Promise<{ success: boolea
         }
     }
 }
-

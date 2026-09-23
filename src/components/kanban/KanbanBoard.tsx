@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { DndContext, DragEndEvent, DragStartEvent, DragOverlay, closestCorners, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
-import { Order, Customer, DashboardMetrics, STAGES_ORDER, STAGE_LABELS, OrderStage, GATEKEEPER_STAGES, STAGE_BOTTLENECK_DAYS } from '@/types/database'
+import { Order, Customer, DashboardMetrics, STAGES_ORDER, STAGE_LABELS, OrderStage, GATEKEEPER_STAGES, STAGE_BOTTLENECK_DAYS, OrderWithCustomer } from '@/types/database'
 import DroppableColumn from './DroppableColumn'
 import MetricsBar from './MetricsBar'
 import SearchBar from '../ui/SearchBar'
@@ -11,13 +11,9 @@ import AddOrderModal from '../orders/AddOrderModal'
 import OrderDetailModal from '../orders/OrderDetailModal'
 import AddCustomerModal from '../customers/AddCustomerModal'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
+import { generateSPKNumber } from '@/lib/actions/orders'
+import { getOrderStageReadiness } from '@/lib/order-stage-readiness'
 import { toast } from 'sonner'
-
-interface OrderWithCustomer extends Order {
-    customer: Customer
-    creator: { id: string; full_name: string } | null
-}
 
 interface AdminProfile {
     id: string
@@ -30,18 +26,43 @@ interface BrandItem {
     name: string
 }
 
+const KANBAN_INITIAL_TAB_BY_STAGE: Record<OrderStage, 'payment' | 'stage' | 'form-order'> = {
+    customer_dp_desain: 'payment',
+    proses_desain: 'stage',
+    dp_produksi: 'payment',
+    proses_layout: 'stage',
+    antrean_produksi: 'form-order',
+    print_press: 'stage',
+    cutting_jahit: 'stage',
+    packing: 'stage',
+    pelunasan: 'payment',
+    pengiriman: 'stage',
+}
+
 interface KanbanBoardProps {
     orders: OrderWithCustomer[]
     metrics: DashboardMetrics
     customers: Customer[]
     admins: AdminProfile[]
     brands: BrandItem[]
+    onOrderCreated: (order: OrderWithCustomer) => void
+    onOrderUpdated: (orderId: string, updates: Partial<OrderWithCustomer>) => void
+    onOrderRemoved: (orderId: string) => void
 }
 
-export default function KanbanBoard({ orders, metrics, customers, admins, brands }: KanbanBoardProps) {
+export default function KanbanBoard({
+    orders,
+    metrics,
+    customers,
+    admins,
+    brands,
+    onOrderCreated,
+    onOrderUpdated,
+    onOrderRemoved,
+}: KanbanBoardProps) {
     const [isAddModalOpen, setIsAddModalOpen] = useState(false)
     const [isAddCustomerModalOpen, setIsAddCustomerModalOpen] = useState(false)
-    const [selectedOrder, setSelectedOrder] = useState<OrderWithCustomer | null>(null)
+    const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
     const [searchQuery, setSearchQuery] = useState('')
     const [activeId, setActiveId] = useState<string | null>(null)
     const [orderFilter, setOrderFilter] = useState<OrderFilter>('all')
@@ -54,8 +75,7 @@ export default function KanbanBoard({ orders, metrics, customers, admins, brands
 
     const scrollContainerRef = useRef<HTMLDivElement>(null)
 
-    const router = useRouter()
-    const supabase = createClient()
+    const supabase = useMemo(() => createClient(), [])
 
     // Detect mobile viewport
     useEffect(() => {
@@ -88,32 +108,7 @@ export default function KanbanBoard({ orders, metrics, customers, admins, brands
     )
 
     // Check if order is ready to move to next stage
-    const isOrderReady = (order: Order): boolean => {
-        switch (order.stage) {
-            case 'customer_dp_desain':
-                return order.dp_desain_verified
-            case 'proses_desain':
-                return order.mockup_url !== null
-            case 'proses_layout':
-                return order.layout_completed
-            case 'dp_produksi':
-                return order.dp_produksi_verified
-            case 'antrean_produksi':
-                return order.production_ready
-            case 'print_press':
-                return order.print_completed
-            case 'cutting_jahit':
-                return order.sewing_completed
-            case 'packing':
-                return order.packing_completed
-            case 'pelunasan':
-                return order.pelunasan_verified
-            case 'pengiriman':
-                return order.tracking_number !== null && order.shipped_at !== null
-            default:
-                return false
-        }
-    }
+    const isOrderReady = (order: OrderWithCustomer): boolean => getOrderStageReadiness(order).isReady
 
     // Check if order is bottleneck
     const isOrderBottleneck = (order: Order): boolean => {
@@ -134,7 +129,7 @@ export default function KanbanBoard({ orders, metrics, customers, admins, brands
     }
 
     // Filter orders based on search query, order status, and admin
-    const filteredOrders = orders.filter(order => {
+    const filteredOrders = useMemo(() => orders.filter(order => {
         // Search filter
         if (searchQuery) {
             const query = searchQuery.toLowerCase()
@@ -175,13 +170,13 @@ export default function KanbanBoard({ orders, metrics, customers, admins, brands
         }
 
         return true
-    })
+    }), [adminFilter, brandFilter, orderFilter, orders, searchQuery])
 
     // Group orders by stage
-    const ordersByStage = STAGES_ORDER.reduce((acc, stage) => {
+    const ordersByStage = useMemo(() => STAGES_ORDER.reduce((acc, stage) => {
         acc[stage] = filteredOrders.filter(order => order.stage === stage)
         return acc
-    }, {} as Record<OrderStage, OrderWithCustomer[]>)
+    }, {} as Record<OrderStage, OrderWithCustomer[]>), [filteredOrders])
 
     // Check if order is bottleneck (exceeded stage-specific threshold)
     // Proses Desain: 1 day, Other stages: 2 days
@@ -212,7 +207,7 @@ export default function KanbanBoard({ orders, metrics, customers, admins, brands
             switch (order.stage) {
                 case 'customer_dp_desain':
                     if (!order.dp_desain_verified) {
-                        return { allowed: false, reason: 'Selesaikan DP Desain terlebih dahulu' }
+                        return { allowed: false, reason: 'Selesaikan Deposit Desain terlebih dahulu' }
                     }
                     break
                 case 'proses_desain':
@@ -291,31 +286,49 @@ export default function KanbanBoard({ orders, metrics, customers, admins, brands
             return
         }
 
+        const previousStage = order.stage
+        const nextStageEnteredAt = new Date().toISOString()
+
+        onOrderUpdated(orderId, {
+            stage: targetStage,
+            stage_entered_at: nextStageEnteredAt,
+        })
+
         try {
-            const { error, data } = await supabase
+            const { error } = await supabase
                 .from('orders')
                 .update({
                     stage: targetStage,
-                    stage_entered_at: new Date().toISOString()
+                    stage_entered_at: nextStageEnteredAt
                 })
                 .eq('id', orderId)
-                .select()
 
             if (error) {
                 console.error('Supabase error:', error.message, error.code)
+                onOrderUpdated(orderId, { stage: previousStage, stage_entered_at: order.stage_entered_at })
                 toast.error(`Gagal pindah stage: ${error.message}`)
                 return
             }
 
-            console.log('Stage updated:', data)
-            router.refresh()
+            // Auto-generate SPK when entering antrean_produksi via drag & drop
+            if (targetStage === 'antrean_produksi' && !order.spk_number) {
+                const spk = await generateSPKNumber(orderId)
+                if (spk.success) {
+                    onOrderUpdated(orderId, { spk_number: spk.spkNumber ?? null })
+                    toast.success(`Berhasil pindah stage! SPK ${spk.spkNumber} otomatis di-generate`)
+                } else {
+                    toast.warning('Pindah stage berhasil, tapi SPK gagal dibuat. Buka detail order untuk membuat SPK.')
+                }
+            }
         } catch (err) {
+            onOrderUpdated(orderId, { stage: previousStage, stage_entered_at: order.stage_entered_at })
             console.error('Failed to update stage:', err)
             toast.error('Terjadi kesalahan saat update stage')
         }
     }
 
     const activeOrder = activeId ? orders.find(o => o.id === activeId) : null
+    const selectedOrder = selectedOrderId ? orders.find((order) => order.id === selectedOrderId) ?? null : null
 
     return (
         <div className="flex flex-col h-[calc(100vh-4rem)]">
@@ -532,7 +545,7 @@ export default function KanbanBoard({ orders, metrics, customers, admins, brands
                                 isGatekeeper={isGatekeeperStage(STAGES_ORDER[currentStageIndex])}
                                 isBottleneckStage={hasBottleneckOrders(STAGES_ORDER[currentStageIndex])}
                                 checkBottleneck={isBottleneck}
-                                onOrderClick={(order) => setSelectedOrder(order)}
+                                onOrderClick={(order) => setSelectedOrderId(order.id)}
                                 fullWidth
                             />
                         </div>
@@ -552,7 +565,7 @@ export default function KanbanBoard({ orders, metrics, customers, admins, brands
                                         isGatekeeper={isGatekeeperStage(stage)}
                                         isBottleneckStage={hasBottleneckOrders(stage)}
                                         checkBottleneck={isBottleneck}
-                                        onOrderClick={(order) => setSelectedOrder(order)}
+                                        onOrderClick={(order) => setSelectedOrderId(order.id)}
                                     />
                                 ))}
                             </div>
@@ -574,12 +587,16 @@ export default function KanbanBoard({ orders, metrics, customers, admins, brands
                 isOpen={isAddModalOpen}
                 onClose={() => setIsAddModalOpen(false)}
                 customers={customers}
+                onOrderCreated={onOrderCreated}
             />
 
             <OrderDetailModal
                 order={selectedOrder}
                 isOpen={selectedOrder !== null}
-                onClose={() => setSelectedOrder(null)}
+                initialActiveTab={selectedOrder ? KANBAN_INITIAL_TAB_BY_STAGE[selectedOrder.stage] : undefined}
+                onClose={() => setSelectedOrderId(null)}
+                onOrderUpdated={onOrderCreated}
+                onOrderDeleted={onOrderRemoved}
             />
 
             <AddCustomerModal
@@ -589,4 +606,3 @@ export default function KanbanBoard({ orders, metrics, customers, admins, brands
         </div>
     )
 }
-

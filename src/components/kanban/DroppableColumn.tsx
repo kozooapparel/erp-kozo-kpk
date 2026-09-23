@@ -2,13 +2,8 @@
 
 import { useDroppable } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
-import { Order, Customer, OrderStage } from '@/types/database'
+import { Order, OrderStage, OrderWithCustomer } from '@/types/database'
 import DraggableOrderCard from './DraggableOrderCard'
-
-interface OrderWithCustomer extends Order {
-    customer: Customer
-    creator: { id: string; full_name: string } | null
-}
 
 interface DroppableColumnProps {
     stage: OrderStage

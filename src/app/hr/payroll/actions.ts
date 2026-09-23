@@ -3,8 +3,21 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
+interface PayrollPeriod {
+    id: string
+    period_name: string
+    start_date: string
+    end_date: string
+    payment_date: string
+    status: string
+    generated_at: string
+    approved_by: string | null
+    approved_at: string | null
+    payroll_entries: Array<{ count: number }>
+}
+
 // Generate payroll for a period
-export async function generatePayroll(startDate: string, endDate: string): Promise<{ success: boolean; error?: string; periodId?: string }> {
+export async function generatePayroll(startDate: string, endDate: string): Promise<{ success: boolean; error?: string; periodId?: string; period?: PayrollPeriod }> {
     try {
         const supabase = await createClient()
 
@@ -190,7 +203,22 @@ export async function generatePayroll(startDate: string, endDate: string): Promi
         }
 
         revalidatePath('/hr/payroll')
-        return { success: true, periodId: period.id }
+        return {
+            success: true,
+            periodId: period.id,
+            period: {
+                id: period.id,
+                period_name: period.period_name,
+                start_date: period.start_date,
+                end_date: period.end_date,
+                payment_date: period.payment_date,
+                status: period.status,
+                generated_at: period.generated_at,
+                approved_by: period.approved_by,
+                approved_at: period.approved_at,
+                payroll_entries: [],
+            }
+        }
     } catch (error) {
         console.error('Generate payroll exception:', error)
         return { success: false, error: 'Terjadi kesalahan sistem' }

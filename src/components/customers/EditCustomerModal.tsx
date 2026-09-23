@@ -2,31 +2,33 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Modal, ModalFooter } from '@/components/ui'
 
-interface Customer {
+interface CustomerWithStats {
     id: string
     name: string
     phone: string
     alamat?: string | null
+    created_at: string
+    order_count: number
+    total_quantity: number
+    total_revenue: number
 }
 
 interface EditCustomerModalProps {
-    customer: Customer | null
+    customer: CustomerWithStats | null
     isOpen: boolean
     onClose: () => void
-    onSuccess?: () => void
+    onCustomerUpdated: (customer: CustomerWithStats) => void
 }
 
-export default function EditCustomerModal({ customer, isOpen, onClose, onSuccess }: EditCustomerModalProps) {
+export default function EditCustomerModal({ customer, isOpen, onClose, onCustomerUpdated }: EditCustomerModalProps) {
     const [loading, setLoading] = useState(false)
     const [name, setName] = useState('')
     const [phone, setPhone] = useState('')
     const [alamat, setAlamat] = useState('')
 
-    const router = useRouter()
     const supabase = createClient()
 
     // Populate form when customer changes
@@ -63,7 +65,7 @@ export default function EditCustomerModal({ customer, isOpen, onClose, onSuccess
                 return
             }
 
-            const { error } = await supabase
+            const { data: updated, error } = await supabase
                 .from('customers')
                 .update({
                     name: name.trim(),
@@ -72,6 +74,8 @@ export default function EditCustomerModal({ customer, isOpen, onClose, onSuccess
                     updated_at: new Date().toISOString(),
                 })
                 .eq('id', customer.id)
+                .select('*')
+                .single()
 
             if (error) {
                 console.error('Error:', error)
@@ -79,8 +83,12 @@ export default function EditCustomerModal({ customer, isOpen, onClose, onSuccess
                 return
             }
 
-            router.refresh()
-            onSuccess?.()
+            onCustomerUpdated({
+                ...customer,
+                name: updated.name,
+                phone: updated.phone,
+                alamat: updated.alamat,
+            })
             onClose()
             toast.success('Data customer berhasil diperbarui!')
         } catch (err) {

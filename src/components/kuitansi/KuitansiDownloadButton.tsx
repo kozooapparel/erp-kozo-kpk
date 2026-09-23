@@ -14,14 +14,13 @@ interface KuitansiDownloadButtonProps {
     className?: string
 }
 
-export default function KuitansiDownloadButton({ kuitansiId, kuitansi: propKuitansi, variant = 'button', className }: KuitansiDownloadButtonProps) {
+export default function KuitansiDownloadButton({ kuitansiId, variant = 'button', className }: KuitansiDownloadButtonProps) {
     const [loading, setLoading] = useState(false)
 
     const handleDownload = async () => {
         setLoading(true)
         try {
-            // Fetch full kuitansi data if not provided
-            const kuitansi = propKuitansi || await getKuitansiById(kuitansiId)
+            const kuitansi = await getKuitansiById(kuitansiId)
             if (!kuitansi) {
                 toast.error('Kuitansi tidak ditemukan')
                 return
@@ -37,7 +36,10 @@ export default function KuitansiDownloadButton({ kuitansiId, kuitansi: propKuita
                     companyInfo={brand ? {
                         name: brand.company_name,
                         address: brand.address || '',
-                        phone: brand.phone || ''
+                        phone: brand.phone || '',
+                        primary_color: brand.primary_color,
+                        accent_color: brand.accent_color,
+                        default_kuitansi_template_id: brand.default_kuitansi_template_id
                     } : undefined}
                 />
             ).toBlob()

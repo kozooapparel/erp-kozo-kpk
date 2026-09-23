@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { deleteAdmin } from '@/app/users/actions'
 import { Modal, ModalFooter } from '@/components/ui'
 
@@ -15,10 +14,10 @@ interface DeleteUserModalProps {
     user: AdminUser | null
     isOpen: boolean
     onClose: () => void
+    onUserDeleted?: (userId: string) => void
 }
 
-export default function DeleteUserModal({ user, isOpen, onClose }: DeleteUserModalProps) {
-    const router = useRouter()
+export default function DeleteUserModal({ user, isOpen, onClose, onUserDeleted }: DeleteUserModalProps) {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
 
@@ -31,8 +30,8 @@ export default function DeleteUserModal({ user, isOpen, onClose }: DeleteUserMod
         const result = await deleteAdmin(user.id)
 
         if (result.success) {
+            onUserDeleted?.(user.id)
             onClose()
-            router.refresh()
         } else {
             setError(result.error || 'Gagal menghapus user')
         }

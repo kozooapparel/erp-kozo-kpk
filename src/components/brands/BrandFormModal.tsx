@@ -1,22 +1,29 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Brand, BrandInsert, BrandUpdate } from '@/types/database'
 import { createBrand, updateBrand } from '@/lib/actions/brands'
-import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
+import { resizeImageToSquare } from '@/lib/utils/image'
+import { toast } from 'sonner'
 
 interface BrandFormModalProps {
     isOpen: boolean
     onClose: () => void
     brand?: Brand  // If provided, we're editing
+    onBrandCreated?: (brand: Brand) => void
+    onBrandUpdated?: (brand: Brand) => void
 }
 
-export default function BrandFormModal({ isOpen, onClose, brand }: BrandFormModalProps) {
+export default function BrandFormModal({ isOpen, onClose, brand, onBrandCreated, onBrandUpdated }: BrandFormModalProps) {
     const isEditing = !!brand
-    const router = useRouter()
 
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const [uploading, setUploading] = useState(false)
+    const fileInputRef = useRef<HTMLInputElement>(null)
+
+    const supabase = createClient()
 
     // Form state
     const [formData, setFormData] = useState({
@@ -35,6 +42,8 @@ export default function BrandFormModal({ isOpen, onClose, brand }: BrandFormModa
         spk_prefix: '',
         primary_color: '#1e293b',
         accent_color: '#f97316',
+        default_invoice_template_id: 'invoice_01' as 'invoice_01' | 'invoice_02' | 'invoice_03',
+        default_kuitansi_template_id: 'receipt_01' as 'receipt_01' | 'receipt_02' | 'receipt_03',
     })
 
     // Update form data when brand prop changes
@@ -56,6 +65,8 @@ export default function BrandFormModal({ isOpen, onClose, brand }: BrandFormModa
                 spk_prefix: brand.spk_prefix || '',
                 primary_color: brand.primary_color || '#1e293b',
                 accent_color: brand.accent_color || '#f97316',
+                default_invoice_template_id: (brand.default_invoice_template_id || 'invoice_01') as 'invoice_01' | 'invoice_02' | 'invoice_03',
+                default_kuitansi_template_id: (brand.default_kuitansi_template_id || 'receipt_01') as 'receipt_01' | 'receipt_02' | 'receipt_03',
             })
         } else {
             // Reset form for new brand
@@ -75,14 +86,52 @@ export default function BrandFormModal({ isOpen, onClose, brand }: BrandFormModa
                 spk_prefix: '',
                 primary_color: '#1e293b',
                 accent_color: '#f97316',
+                default_invoice_template_id: 'invoice_01' as const,
+                default_kuitansi_template_id: 'receipt_01' as const,
             })
         }
         setError(null)
     }, [brand])
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value } = e.target
         setFormData(prev => ({ ...prev, [name]: value }))
+    }
+
+    // Upload logo: resize to 180x180 (lightweight), then store in Supabase Storage
+    const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+        if (!file.type.startsWith('image/')) {
+            setError('File harus berupa gambar')
+            return
+        }
+
+        setUploading(true)
+        setError(null)
+        try {
+            // Resize to 180x180 so the stored file stays small
+            const resized = await resizeImageToSquare(file, 180)
+            const fileName = `logo-${Date.now()}.png`
+
+            const { error: uploadError } = await supabase.storage
+                .from('brand-logos')
+                .upload(fileName, resized, { upsert: true })
+
+            if (uploadError) throw uploadError
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('brand-logos')
+                .getPublicUrl(fileName)
+
+            setFormData(prev => ({ ...prev, logo_url: publicUrl }))
+        } catch (err) {
+            setError(err instanceof Error ? `Gagal upload logo: ${err.message}` : 'Gagal upload logo')
+        } finally {
+            setUploading(false)
+            // Allow selecting the same file again
+            if (fileInputRef.current) fileInputRef.current.value = ''
+        }
     }
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -100,13 +149,16 @@ export default function BrandFormModal({ isOpen, onClose, brand }: BrandFormModa
             }
 
             if (isEditing && brand) {
-                await updateBrand(brand.id, data)
+                const updated = await updateBrand(brand.id, data)
+                onBrandUpdated?.(updated)
+                toast.success('Pengaturan brand dan tampilan dokumen berhasil disimpan')
             } else {
-                await createBrand(data as BrandInsert)
+                const created = await createBrand(data as BrandInsert)
+                onBrandCreated?.(created)
+                toast.success('Brand berhasil dibuat')
             }
 
             onClose()
-            router.refresh()
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Terjadi kesalahan')
         } finally {
@@ -183,7 +235,7 @@ export default function BrandFormModal({ isOpen, onClose, brand }: BrandFormModa
                                     value={formData.name}
                                     onChange={handleChange}
                                     required
-                                    placeholder="Kozoo Apparel"
+                                    placeholder="Nama Brand Anda"
                                     className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
                                 />
                             </div>
@@ -191,16 +243,37 @@ export default function BrandFormModal({ isOpen, onClose, brand }: BrandFormModa
 
                         <div>
                             <label className="block text-sm font-medium text-slate-700 mb-1">
-                                URL Logo
+                                Logo
                             </label>
-                            <input
-                                type="url"
-                                name="logo_url"
-                                value={formData.logo_url}
-                                onChange={handleChange}
-                                placeholder="https://example.com/logo.png"
-                                className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                            />
+                            <div className="flex items-center gap-3">
+                                <input
+                                    type="url"
+                                    name="logo_url"
+                                    value={formData.logo_url}
+                                    onChange={handleChange}
+                                    placeholder="https://example.com/logo.png"
+                                    className="flex-1 px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                                />
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleLogoUpload}
+                                    className="hidden"
+                                    disabled={uploading}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    disabled={uploading}
+                                    className="shrink-0 px-4 py-2.5 rounded-xl bg-slate-800 text-white text-sm font-semibold hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {uploading ? 'Mengunggah...' : 'Upload'}
+                                </button>
+                            </div>
+                            <p className="text-xs text-slate-400 mt-1">
+                                Upload otomatis di-resize ke 180×180 px agar ringan
+                            </p>
                             {formData.logo_url && (
                                 <div className="mt-2 p-2 bg-slate-50 rounded-lg inline-block">
                                     <img
@@ -231,7 +304,7 @@ export default function BrandFormModal({ isOpen, onClose, brand }: BrandFormModa
                                 value={formData.company_name}
                                 onChange={handleChange}
                                 required
-                                placeholder="PT. Kozoo Apparel Indonesia"
+                                placeholder="Nama Perusahaan Anda"
                                 className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
                             />
                         </div>
@@ -381,6 +454,43 @@ export default function BrandFormModal({ isOpen, onClose, brand }: BrandFormModa
                                 />
                                 <p className="text-xs text-slate-400 mt-1">Contoh: {formData.spk_prefix || `SPK-${formData.code.toUpperCase()}` || 'SPK-KZO'}-001</p>
                             </div>
+                        </div>
+                    </div>
+
+                    {/* Document Appearance */}
+                    <div className="space-y-4">
+                        <h3 className="font-semibold text-slate-700 flex items-center gap-2">
+                            <span className="w-6 h-6 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-xs">5</span>
+                            Tampilan Dokumen
+                        </h3>
+                        <p className="text-xs text-slate-500">Pilih layout yang akan digunakan saat PDF dibuat untuk brand ini.</p>
+                        <div className="grid grid-cols-2 gap-4">
+                            <label className="block text-sm font-medium text-slate-700">
+                                Layout Invoice
+                                <select name="default_invoice_template_id" value={formData.default_invoice_template_id} onChange={handleChange} className="mt-1 w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/50">
+                                    <option value="invoice_01">Modern — header berwarna</option>
+                                    <option value="invoice_02">Minimal — bersih dan hemat tinta</option>
+                                    <option value="invoice_03">Bold — identitas brand dominan</option>
+                                </select>
+                            </label>
+                            <label className="block text-sm font-medium text-slate-700">
+                                Layout Kuitansi
+                                <select name="default_kuitansi_template_id" value={formData.default_kuitansi_template_id} onChange={handleChange} className="mt-1 w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/50">
+                                    <option value="receipt_01">Formal — pembayaran jelas</option>
+                                    <option value="receipt_02">Minimal — sederhana</option>
+                                    <option value="receipt_03">Compact — hemat ruang</option>
+                                </select>
+                            </label>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <label className="block text-sm font-medium text-slate-700">
+                                Warna Utama
+                                <input type="color" name="primary_color" value={formData.primary_color} onChange={handleChange} className="mt-1 block h-10 w-full rounded-lg border border-slate-300 bg-white p-1" />
+                            </label>
+                            <label className="block text-sm font-medium text-slate-700">
+                                Warna Aksen
+                                <input type="color" name="accent_color" value={formData.accent_color} onChange={handleChange} className="mt-1 block h-10 w-full rounded-lg border border-slate-300 bg-white p-1" />
+                            </label>
                         </div>
                     </div>
 

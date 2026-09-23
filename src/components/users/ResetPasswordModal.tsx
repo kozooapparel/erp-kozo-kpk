@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { resetAdminPassword } from '@/app/users/actions'
 import { Modal, ModalFooter } from '@/components/ui'
 
@@ -18,7 +17,6 @@ interface ResetPasswordModalProps {
 }
 
 export default function ResetPasswordModal({ user, isOpen, onClose }: ResetPasswordModalProps) {
-    const router = useRouter()
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
     const [password, setPassword] = useState('')
@@ -47,7 +45,6 @@ export default function ResetPasswordModal({ user, isOpen, onClose }: ResetPassw
             setPassword('')
             setConfirmPassword('')
             onClose()
-            router.refresh()
         } else {
             setError(result.error || 'Gagal reset password')
         }

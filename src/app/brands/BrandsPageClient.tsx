@@ -10,8 +10,38 @@ interface BrandsPageClientProps {
     user: Profile
 }
 
-export default function BrandsPageClient({ brands, user }: BrandsPageClientProps) {
+export default function BrandsPageClient({ brands: initialBrands, user }: BrandsPageClientProps) {
+    const [brands, setBrands] = useState<Brand[]>(initialBrands)
     const [isModalOpen, setIsModalOpen] = useState(false)
+
+    const upsertBrand = (brand: Brand) => {
+        setBrands((current) => {
+            const idx = current.findIndex((b) => b.id === brand.id)
+            if (idx === -1) return [...current, brand]
+            const updated = [...current]
+            updated[idx] = brand
+            return updated
+        })
+    }
+
+    const handleSetDefault = (id: string) => {
+        setBrands((current) =>
+            current.map((b) => ({ ...b, is_default: b.id === id }))
+        )
+    }
+
+    const handleDelete = (id: string) => {
+        setBrands((current) => current.filter((b) => b.id !== id))
+    }
+
+    const handleBrandCreated = (brand: Brand) => {
+        upsertBrand(brand)
+        setIsModalOpen(false)
+    }
+
+    const handleBrandUpdated = (brand: Brand) => {
+        upsertBrand(brand)
+    }
 
     return (
         <DashboardLayout user={user}>
@@ -83,12 +113,18 @@ export default function BrandsPageClient({ brands, user }: BrandsPageClientProps
                 </div>
 
                 {/* Brand List */}
-                <BrandList brands={brands} />
+                <BrandList
+                    brands={brands}
+                    onBrandUpdated={handleBrandUpdated}
+                    onSetDefault={handleSetDefault}
+                    onDelete={handleDelete}
+                />
 
                 {/* Modal */}
                 <BrandFormModal
                     isOpen={isModalOpen}
                     onClose={() => setIsModalOpen(false)}
+                    onBrandCreated={handleBrandCreated}
                 />
             </div>
         </DashboardLayout>

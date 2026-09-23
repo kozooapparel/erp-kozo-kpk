@@ -5,8 +5,8 @@ import { useState } from 'react'
 import { InvoiceWithCustomer } from '@/types/database'
 import { deleteInvoice } from '@/lib/actions/invoices'
 import { formatCurrency, formatDateShort } from '@/lib/utils/format'
-import { useRouter } from 'next/navigation'
 import InvoiceDownloadButton from './InvoiceDownloadButton'
+import InvoicePreviewButton from './InvoicePreviewButton'
 import { toast } from 'sonner'
 
 interface BrandItem {
@@ -20,8 +20,8 @@ interface InvoiceListProps {
     brands: BrandItem[]
 }
 
-export default function InvoiceList({ invoices, brands }: InvoiceListProps) {
-    const router = useRouter()
+export default function InvoiceList({ invoices: initialInvoices, brands }: InvoiceListProps) {
+    const [invoices, setInvoices] = useState<InvoiceWithCustomer[]>(initialInvoices)
     const [loading, setLoading] = useState<string | null>(null)
     const [filter, setFilter] = useState<'all' | 'BELUM_LUNAS' | 'SUDAH_LUNAS'>('all')
     const [search, setSearch] = useState('')
@@ -64,7 +64,7 @@ export default function InvoiceList({ invoices, brands }: InvoiceListProps) {
         setLoading(id)
         try {
             await deleteInvoice(id)
-            router.refresh()
+            setInvoices((current) => current.filter((inv) => inv.id !== id))
         } catch (error) {
             toast.error(error instanceof Error ? error.message : 'Gagal menghapus invoice')
         } finally {
@@ -235,6 +235,7 @@ export default function InvoiceList({ invoices, brands }: InvoiceListProps) {
                                         </td>
                                         <td className="px-6 py-4 text-center">
                                             <div className="flex items-center justify-center gap-2">
+                                                <InvoicePreviewButton invoiceId={invoice.id} />
                                                 <InvoiceDownloadButton
                                                     invoiceId={invoice.id}
                                                     variant="icon"

@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import BonusModal from './BonusModal'
 import EditEmployeeModal from './EditEmployeeModal'
 import EditAllowanceModal from './EditAllowanceModal'
+import { CurrencyInput } from '@/components/ui'
 
 interface Employee {
     id: string
@@ -361,14 +362,12 @@ export default function EmployeeDetailClient({
                                         <option value="position">Jabatan</option>
                                         <option value="other">Lainnya</option>
                                     </select>
-                                    <input
-                                        type="number"
+                                    <CurrencyInput
                                         name="amount"
                                         required
-                                        min="0"
-                                        step="1000"
+                                        min={0}
                                         placeholder="Nominal (Rp)"
-                                        className="px-3 py-2 rounded-lg border border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"
+                                        className="!px-3 !py-2 !rounded-lg !bg-white !border-slate-300 focus:!border-blue-500 focus:!ring-2 focus:!ring-blue-200"
                                     />
                                     <select
                                         name="calculation_method"
@@ -444,26 +443,22 @@ export default function EmployeeDetailClient({
                                 <div className="grid grid-cols-2 gap-3">
                                     <div>
                                         <label className="block text-sm font-medium text-slate-700 mb-1">Total Kasbon</label>
-                                        <input
-                                            type="number"
+                                        <CurrencyInput
                                             name="total_amount"
                                             required
-                                            min="0"
-                                            step="10000"
+                                            min={0}
                                             placeholder="Rp 1.000.000"
-                                            className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 outline-none"
+                                            className="!w-full !px-3 !py-2 !rounded-lg !bg-white !border-slate-300 focus:!border-amber-500 focus:!ring-2 focus:!ring-amber-200"
                                         />
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-slate-700 mb-1">Cicilan per Bulan</label>
-                                        <input
-                                            type="number"
+                                        <CurrencyInput
                                             name="installment_per_period"
                                             required
-                                            min="0"
-                                            step="10000"
+                                            min={0}
                                             placeholder="Rp 200.000"
-                                            className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 outline-none"
+                                            className="!w-full !px-3 !py-2 !rounded-lg !bg-white !border-slate-300 focus:!border-amber-500 focus:!ring-2 focus:!ring-amber-200"
                                         />
                                     </div>
                                 </div>
