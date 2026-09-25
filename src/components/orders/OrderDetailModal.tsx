@@ -125,9 +125,9 @@ export default function OrderDetailModal({
         wasOpenRef.current = isOpen
     }, [initialActiveTab, isOpen])
 
-    // Kalkulator DP Produksi: minimal DP = 50% dari total invoice
+    // Kalkulator DP Produksi: rekomendasi DP = 50% dari total invoice (tidak wajib)
     const totalInvoice = orderInvoice?.total ?? 0
-    const dpProduksiMinimal = Math.round(totalInvoice * 0.5)
+    const dpProduksiRekomendasi = Math.round(totalInvoice * 0.5)
     const dpProduksiInputValue = parseInt(dpProduksiAmount) || 0
     const sisaSetelahDP = Math.max(totalInvoice - (order?.dp_desain_amount || 0) - dpProduksiInputValue, 0)
 
@@ -1193,15 +1193,15 @@ export default function OrderDetailModal({
                                         )
                                     ) : (
                                         <>
-                                            {/* Kalkulator DP Produksi - bantu hitung minimal DP 50% */}
+                                            {/* Kalkulator DP Produksi - bantu hitung rekomendasi DP */}
                                             <div className="p-3 rounded-lg bg-white border border-amber-200 space-y-2">
                                                 <div className="flex justify-between text-sm">
                                                     <span className="text-slate-600">Total Invoice</span>
                                                     <span className="font-semibold text-slate-900">{formatCurrency(totalInvoice)}</span>
                                                 </div>
                                                 <div className="flex justify-between text-sm">
-                                                    <span className="text-slate-600">Minimal DP (50%)</span>
-                                                    <span className="font-bold text-amber-600">{formatCurrency(dpProduksiMinimal)}</span>
+                                                    <span className="text-slate-600">Rekomendasi DP (50%)</span>
+                                                    <span className="font-bold text-amber-600">{formatCurrency(dpProduksiRekomendasi)}</span>
                                                 </div>
                                                 <div className="flex justify-between text-sm pt-2 border-t border-amber-200">
                                                     <span className="text-slate-600">Sisa setelah DP</span>
@@ -1212,11 +1212,11 @@ export default function OrderDetailModal({
                                                 <div className="flex gap-2 pt-1">
                                                     <button
                                                         type="button"
-                                                        onClick={() => setDpProduksiAmount(String(dpProduksiMinimal))}
+                                                        onClick={() => setDpProduksiAmount(String(dpProduksiRekomendasi))}
                                                         disabled={loading}
                                                         className="flex-1 px-2 py-1.5 rounded-lg bg-amber-100 text-amber-700 text-xs font-medium hover:bg-amber-200 disabled:opacity-50 transition-colors"
                                                     >
-                                                        Isi 50% (Minimal)
+                                                        Isi 50%
                                                     </button>
                                                     <button
                                                         type="button"
@@ -1243,10 +1243,6 @@ export default function OrderDetailModal({
                                                         const amount = parseInt(dpProduksiAmount) || 0
                                                         if (amount <= 0) {
                                                             toast.warning('Masukkan nominal DP Produksi')
-                                                            return
-                                                        }
-                                                        if (totalInvoice > 0 && amount < dpProduksiMinimal) {
-                                                            toast.warning(`DP Produksi minimal ${formatCurrency(dpProduksiMinimal)} (50% dari total invoice)`)
                                                             return
                                                         }
                                                         await handleVerifyPayment('dp_produksi', amount)
