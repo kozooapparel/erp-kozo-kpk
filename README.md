@@ -33,7 +33,17 @@ Di fork-mu: **Settings > Secrets and variables > Actions > New repository secret
 
 Tanpa secret ini workflow tetap jalan, tapi migrasi database di-skip.
 
-### 4. Jalankan workflow
+### 4. Aktifkan Actions di fork
+
+GitHub mematikan workflow di repo hasil fork, jadi jadwal hariannya tidak akan
+pernah jalan sampai kamu mengaktifkannya sekali. Buka tab **Actions**, lalu klik
+**"I understand my workflows, go ahead and enable them"**. Lewat CLI:
+
+```bash
+gh workflow enable fork-sync.yml
+```
+
+### 5. Jalankan workflow
 
 Buka **Actions > "Sync upstream & migrasi DB" > Run workflow**. Setelah ini
 workflow berjalan otomatis setiap hari pukul 09:17 WIB.
@@ -50,6 +60,12 @@ Workflow harian mengerjakan dua hal:
 Berkas `.github/workflows/fork-sync.yml` sengaja dibuat setipis mungkin dan
 **dibekukan**; seluruh logikanya ada di `scripts/fork-sync.sh`. Jangan mengubah
 berkas workflow itu tanpa alasan kuat — lihat bagian Pemulihan di bawah.
+
+### Kalau auto-sync berhenti sendiri
+
+GitHub menonaktifkan workflow terjadwal di repo publik yang tidak menerima
+commit selama 60 hari. Kalau itu terjadi, buka tab **Actions** dan klik
+**Enable workflow** untuk menyalakannya kembali.
 
 ### Kalau database-mu sudah ada sebelum memakai repo ini
 
