@@ -2,6 +2,12 @@
 # https://supabase.com/docs/guides/local-development/cli/config
 # A string used to distinguish different Supabase projects on the same host. Defaults to the
 # working directory name when running `supabase init`.
+#
+# PENTING: nilai di bawah ini adalah project ref milik OWNER (raidwear).
+# Bagi user yang memakai fork: JANGAN jalankan `supabase db push` tanpa flag
+# `--project-ref <ref-milikmu>`. Workflow `.github/workflows/fork-sync.yml`
+# sudah selalu memakai `--project-ref` dari secret SUPABASE_PROJECT_REF,
+# jadi migrasi otomatis tidak pernah menyentuh database owner.
 project_id = "qzsmtikhimbjowpvtjst"
 
 [api]

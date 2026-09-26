@@ -39,9 +39,10 @@ yarn-error.log*
 # supabase temp
 supabase/.temp/
 
+# AI tools (internal)
+.trae/
+agent-skills/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-
-.vercel
-.env*

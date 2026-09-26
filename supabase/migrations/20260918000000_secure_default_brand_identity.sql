@@ -27,7 +27,9 @@ $$;
 -- Enforce a single default brand at the database level. The preflight above
 -- guarantees this can be created without modifying existing brand data.
 DROP INDEX IF EXISTS public.idx_brands_default;
-CREATE UNIQUE INDEX idx_brands_single_default
+-- IF NOT EXISTS wajib: baseline_schema sudah membuat index bernama sama,
+-- sehingga deployment baru gagal di sini bila index dibuat tanpa syarat.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_brands_single_default
     ON public.brands ((is_default))
     WHERE is_default;
 
