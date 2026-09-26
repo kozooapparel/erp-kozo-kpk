@@ -1,36 +1,98 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# RAIDWEAR
 
-## Getting Started
+ERP penjualan & produksi apparel: order, invoice, kuitansi, HR, dan stok barang.
 
-First, run the development server:
+Repo ini adalah **upstream publik**. Setiap pemakai menjalankan instance-nya
+sendiri dengan cara **fork**: kode auto-sync dari repo ini, dan database
+Supabase-nya dimigrasikan otomatis setiap hari.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Onboarding
+
+### 1. Fork repo ini
+
+Klik **Fork** di kanan atas, fork ke akun/org milikmu.
+
+### 2. Siapkan project Supabase
+
+Buat project Supabase, lalu catat:
+
+- **Project ref** — terlihat di URL dashboard Supabase: `https://supabase.com/dashboard/project/<project-ref>`
+- **Database password** — password yang kamu isi saat membuat project
+
+Buat juga **Personal Access Token** di halaman Account > Access Tokens Supabase.
+
+### 3. Isi 3 secret di fork
+
+Di fork-mu: **Settings > Secrets and variables > Actions > New repository secret**.
+
+| Nama secret | Isinya |
+| --- | --- |
+| `SUPABASE_ACCESS_TOKEN` | Personal Access Token Supabase dari langkah 2 |
+| `SUPABASE_PROJECT_REF` | project ref Supabase-mu |
+| `SUPABASE_DB_PASSWORD` | database password Supabase-mu |
+
+Tanpa secret ini workflow tetap jalan, tapi migrasi database di-skip.
+
+### 4. Jalankan workflow
+
+Buka **Actions > "Sync upstream & migrasi DB" > Run workflow**. Setelah ini
+workflow berjalan otomatis setiap hari pukul 09:17 WIB.
+
+## Cara kerja auto-sync
+
+Workflow harian mengerjakan dua hal:
+
+1. **Sync kode** — fast-forward fork ke commit terbaru repo ini, lalu push ke
+   fork. Kalau kamu deploy dari fork (mis. Vercel), deployment ikut ter-update.
+2. **Migrasi database** — `supabase db push`. Hanya migrasi yang belum tercatat
+   di database yang dijalankan, jadi aman diulang berkali-kali.
+
+Berkas `.github/workflows/fork-sync.yml` sengaja dibuat setipis mungkin dan
+**dibekukan**; seluruh logikanya ada di `scripts/fork-sync.sh`. Jangan mengubah
+berkas workflow itu tanpa alasan kuat — lihat bagian Pemulihan di bawah.
+
+### Kalau database-mu sudah ada sebelum memakai repo ini
+
+Skemanya dibuat manual, sehingga `db push` akan mencoba membuat ulang tabel yang
+sudah ada dan gagal. Jalankan workflow sekali dengan opsi
+**`mark_all_as_applied` dicentang**: semua migrasi yang ada di repo ditandai
+"sudah diterapkan" tanpa dijalankan.
+
+**Jangan dicentang** untuk database baru atau kosong — versi yang ditandai
+"sudah diterapkan" tidak akan pernah dijalankan lagi.
+
+### Kalau kamu mengganti password database Supabase
+
+Perbarui secret `SUPABASE_DB_PASSWORD` supaya migrasi tetap bisa berjalan.
+
+## Pemulihan: push auto-sync ditolak
+
+GitHub melarang token bawaan Actions (`GITHUB_TOKEN`) membuat atau mengubah
+berkas di `.github/workflows/`. Kalau repo ini suatu saat mengubah berkas
+workflow, langkah push di fork-mu akan ditolak dengan pesan:
+
+```
+refusing to allow a GitHub App to create or update workflow ... without workflows permission
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Migrasi database tetap dijalankan, jadi datamu tidak terpengaruh. Perbaikannya
+sekali saja: buka fork-mu di GitHub, klik **Sync fork > Update branch**, lalu
+jalankan ulang workflow.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Auto-sync memakai `--ff-only`, jadi kalau kamu menambah commit sendiri di fork,
+sync akan berhenti dan melaporkan error alih-alih menimpa perubahanmu.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Development lokal
 
-## Learn More
+```bash
+npm install
+npm run dev
+```
 
-To learn more about Next.js, take a look at the following resources:
+Buka http://localhost:3000.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Deploy
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Repo ini siap dideploy ke Vercel. Hubungkan repo fork-mu di Vercel, isi
+environment variable yang dibutuhkan, lalu setiap push dari auto-sync akan
+memicu deployment baru.
