@@ -17,17 +17,20 @@ DECLARE
     v_tenant_id   uuid;
     v_brand_count integer;
 BEGIN
+    SELECT COUNT(*) INTO v_brand_count FROM public.brands;
+    IF v_brand_count > 0 THEN
+        RETURN;
+    END IF;
+
     -- Tenant yang sama dengan yang dipakai 20260918020000_tenant_r2_storage.
+    -- Sengaja dibuat hanya ketika tabel brand benar-benar kosong: deployment
+    -- lama yang sudah punya brand tidak boleh mendapat tenant legacy-default
+    -- palsu hanya karena versi migrasi ini ikut diputar ulang.
     INSERT INTO public.tenants (slug, name)
     VALUES ('legacy-default', 'RAIDWEAR')
     ON CONFLICT (slug) DO NOTHING;
 
     SELECT id INTO v_tenant_id FROM public.tenants WHERE slug = 'legacy-default';
-
-    SELECT COUNT(*) INTO v_brand_count FROM public.brands;
-    IF v_brand_count > 0 THEN
-        RETURN;
-    END IF;
 
     -- tenant_id wajib diisi eksplisit: trigger assign_brand_tenant_scope
     -- hanya menurunkannya dari current_tenant_id(), yang bergantung pada

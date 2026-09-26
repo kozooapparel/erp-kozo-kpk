@@ -100,3 +100,15 @@ ALTER TABLE public.brands
 
 COMMENT ON COLUMN public.brands.invoice_template IS 'PDF invoice layout: modern, minimal, or bold';
 COMMENT ON COLUMN public.brands.kuitansi_template IS 'PDF kuitansi layout: formal, minimal, or compact';
+
+-- 9. Samakan teks fungsi has_tenant_access. DB lama menyimpannya dalam bentuk
+--    multi-baris sehingga hasil pg_get_functiondef berbeda dari baseline,
+--    walaupun logikanya sama. CREATE OR REPLACE mempertahankan OID yang sama,
+--    jadi policy RLS yang memakainya tetap valid.
+CREATE OR REPLACE FUNCTION public.has_tenant_access(p_tenant_id uuid)
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$ SELECT EXISTS (SELECT 1 FROM public.tenant_memberships WHERE tenant_id = p_tenant_id AND user_id = auth.uid()); $function$;
+
