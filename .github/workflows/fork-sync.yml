@@ -135,7 +135,7 @@ jobs:
           echo 'Versi yang ditandai applied:'
           echo "$VERSIONS"
           # shellcheck disable=SC2086
-          supabase migration repair --project-ref "$SUPABASE_PROJECT_REF" --status applied $VERSIONS
+          supabase migration repair --project-ref "$SUPABASE_PROJECT_REF" --status applied --yes $VERSIONS
 
       - name: Cek migrasi yang akan diterapkan
         if: steps.plan.outputs.should_migrate == 'true' && env.SUPABASE_PROJECT_REF != ''
