@@ -74,7 +74,8 @@ create table if not exists public."attendance_logs" (
   "method" text default 'fingerprint'::text not null,
   "notes" text,
   "created_at" timestamp with time zone default now(),
-  "updated_at" timestamp with time zone default now()
+  "updated_at" timestamp with time zone default now(),
+  "device_sn" text
 );
 create table if not exists public."barang" (
   "id" uuid default gen_random_uuid() not null,
@@ -259,10 +260,15 @@ create table if not exists public."orders" (
   "packing_completed_at" timestamp with time zone,
   "brand_id" uuid,
   "is_archived" boolean default false not null,
-  "production_specs" jsonb,
+  "production_specs" jsonb default '{}'::jsonb,
   "nama_po" text,
   "spk_number" text,
-  "tenant_id" uuid not null
+  "tenant_id" uuid not null,
+  "layout_url" text,
+  "size_breakdown" jsonb default '{}'::jsonb,
+  "production_notes" text,
+  "spk_sections" jsonb default '[]'::jsonb,
+  "design_notes" text
 );
 create table if not exists public."payroll_entries" (
   "id" uuid default gen_random_uuid() not null,
@@ -378,11 +384,6 @@ do $do$ begin
   end if;
 end $do$;
 do $do$ begin
-  if not exists (select 1 from pg_constraint where conname = 'allowances_employee_id_fkey' and conrelid = 'public.allowances'::regclass) then
-    alter table only public."allowances" add constraint "allowances_employee_id_fkey" FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE;
-  end if;
-end $do$;
-do $do$ begin
   if not exists (select 1 from pg_constraint where conname = 'allowances_pkey' and conrelid = 'public.allowances'::regclass) then
     alter table only public."allowances" add constraint "allowances_pkey" PRIMARY KEY (id);
   end if;
@@ -408,11 +409,6 @@ do $do$ begin
   end if;
 end $do$;
 do $do$ begin
-  if not exists (select 1 from pg_constraint where conname = 'attendance_deficit_reports_employee_id_fkey' and conrelid = 'public.attendance_deficit_reports'::regclass) then
-    alter table only public."attendance_deficit_reports" add constraint "attendance_deficit_reports_employee_id_fkey" FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE;
-  end if;
-end $do$;
-do $do$ begin
   if not exists (select 1 from pg_constraint where conname = 'attendance_deficit_reports_pkey' and conrelid = 'public.attendance_deficit_reports'::regclass) then
     alter table only public."attendance_deficit_reports" add constraint "attendance_deficit_reports_pkey" PRIMARY KEY (id);
   end if;
@@ -433,11 +429,6 @@ do $do$ begin
   end if;
 end $do$;
 do $do$ begin
-  if not exists (select 1 from pg_constraint where conname = 'attendance_logs_employee_id_fkey' and conrelid = 'public.attendance_logs'::regclass) then
-    alter table only public."attendance_logs" add constraint "attendance_logs_employee_id_fkey" FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE;
-  end if;
-end $do$;
-do $do$ begin
   if not exists (select 1 from pg_constraint where conname = 'attendance_logs_pkey' and conrelid = 'public.attendance_logs'::regclass) then
     alter table only public."attendance_logs" add constraint "attendance_logs_pkey" PRIMARY KEY (id);
   end if;
@@ -448,18 +439,8 @@ do $do$ begin
   end if;
 end $do$;
 do $do$ begin
-  if not exists (select 1 from pg_constraint where conname = 'barang_brand_id_fkey' and conrelid = 'public.barang'::regclass) then
-    alter table only public."barang" add constraint "barang_brand_id_fkey" FOREIGN KEY (brand_id) REFERENCES brands(id);
-  end if;
-end $do$;
-do $do$ begin
   if not exists (select 1 from pg_constraint where conname = 'barang_pkey' and conrelid = 'public.barang'::regclass) then
     alter table only public."barang" add constraint "barang_pkey" PRIMARY KEY (id);
-  end if;
-end $do$;
-do $do$ begin
-  if not exists (select 1 from pg_constraint where conname = 'barang_harga_tier_barang_id_fkey' and conrelid = 'public.barang_harga_tier'::regclass) then
-    alter table only public."barang_harga_tier" add constraint "barang_harga_tier_barang_id_fkey" FOREIGN KEY (barang_id) REFERENCES barang(id) ON DELETE CASCADE;
   end if;
 end $do$;
 do $do$ begin
@@ -488,23 +469,8 @@ do $do$ begin
   end if;
 end $do$;
 do $do$ begin
-  if not exists (select 1 from pg_constraint where conname = 'bonuses_approved_by_fkey' and conrelid = 'public.bonuses'::regclass) then
-    alter table only public."bonuses" add constraint "bonuses_approved_by_fkey" FOREIGN KEY (approved_by) REFERENCES profiles(id);
-  end if;
-end $do$;
-do $do$ begin
-  if not exists (select 1 from pg_constraint where conname = 'bonuses_employee_id_fkey' and conrelid = 'public.bonuses'::regclass) then
-    alter table only public."bonuses" add constraint "bonuses_employee_id_fkey" FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE;
-  end if;
-end $do$;
-do $do$ begin
   if not exists (select 1 from pg_constraint where conname = 'bonuses_pkey' and conrelid = 'public.bonuses'::regclass) then
     alter table only public."bonuses" add constraint "bonuses_pkey" PRIMARY KEY (id);
-  end if;
-end $do$;
-do $do$ begin
-  if not exists (select 1 from pg_constraint where conname = 'brands_tenant_id_fkey' and conrelid = 'public.brands'::regclass) then
-    alter table only public."brands" add constraint "brands_tenant_id_fkey" FOREIGN KEY (tenant_id) REFERENCES tenants(id);
   end if;
 end $do$;
 do $do$ begin
@@ -553,16 +519,6 @@ do $do$ begin
   end if;
 end $do$;
 do $do$ begin
-  if not exists (select 1 from pg_constraint where conname = 'deductions_created_by_fkey' and conrelid = 'public.deductions'::regclass) then
-    alter table only public."deductions" add constraint "deductions_created_by_fkey" FOREIGN KEY (created_by) REFERENCES profiles(id);
-  end if;
-end $do$;
-do $do$ begin
-  if not exists (select 1 from pg_constraint where conname = 'deductions_employee_id_fkey' and conrelid = 'public.deductions'::regclass) then
-    alter table only public."deductions" add constraint "deductions_employee_id_fkey" FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE;
-  end if;
-end $do$;
-do $do$ begin
   if not exists (select 1 from pg_constraint where conname = 'deductions_pkey' and conrelid = 'public.deductions'::regclass) then
     alter table only public."deductions" add constraint "deductions_pkey" PRIMARY KEY (id);
   end if;
@@ -593,16 +549,6 @@ do $do$ begin
   end if;
 end $do$;
 do $do$ begin
-  if not exists (select 1 from pg_constraint where conname = 'invoice_items_barang_id_fkey' and conrelid = 'public.invoice_items'::regclass) then
-    alter table only public."invoice_items" add constraint "invoice_items_barang_id_fkey" FOREIGN KEY (barang_id) REFERENCES barang(id) ON DELETE SET NULL;
-  end if;
-end $do$;
-do $do$ begin
-  if not exists (select 1 from pg_constraint where conname = 'invoice_items_invoice_id_fkey' and conrelid = 'public.invoice_items'::regclass) then
-    alter table only public."invoice_items" add constraint "invoice_items_invoice_id_fkey" FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE;
-  end if;
-end $do$;
-do $do$ begin
   if not exists (select 1 from pg_constraint where conname = 'invoice_items_pkey' and conrelid = 'public.invoice_items'::regclass) then
     alter table only public."invoice_items" add constraint "invoice_items_pkey" PRIMARY KEY (id);
   end if;
@@ -610,6 +556,186 @@ end $do$;
 do $do$ begin
   if not exists (select 1 from pg_constraint where conname = 'invoices_status_pembayaran_check' and conrelid = 'public.invoices'::regclass) then
     alter table only public."invoices" add constraint "invoices_status_pembayaran_check" CHECK ((status_pembayaran = ANY (ARRAY['BELUM_LUNAS'::text, 'SUDAH_LUNAS'::text])));
+  end if;
+end $do$;
+do $do$ begin
+  if not exists (select 1 from pg_constraint where conname = 'invoices_pkey' and conrelid = 'public.invoices'::regclass) then
+    alter table only public."invoices" add constraint "invoices_pkey" PRIMARY KEY (id);
+  end if;
+end $do$;
+do $do$ begin
+  if not exists (select 1 from pg_constraint where conname = 'invoices_no_invoice_key' and conrelid = 'public.invoices'::regclass) then
+    alter table only public."invoices" add constraint "invoices_no_invoice_key" UNIQUE (no_invoice);
+  end if;
+end $do$;
+do $do$ begin
+  if not exists (select 1 from pg_constraint where conname = 'kuitansi_pkey' and conrelid = 'public.kuitansi'::regclass) then
+    alter table only public."kuitansi" add constraint "kuitansi_pkey" PRIMARY KEY (id);
+  end if;
+end $do$;
+do $do$ begin
+  if not exists (select 1 from pg_constraint where conname = 'orders_stage_check' and conrelid = 'public.orders'::regclass) then
+    alter table only public."orders" add constraint "orders_stage_check" CHECK ((stage = ANY (ARRAY['customer_dp_desain'::text, 'proses_desain'::text, 'dp_produksi'::text, 'proses_layout'::text, 'antrean_produksi'::text, 'print_press'::text, 'cutting_jahit'::text, 'packing'::text, 'pelunasan'::text, 'pengiriman'::text])));
+  end if;
+end $do$;
+do $do$ begin
+  if not exists (select 1 from pg_constraint where conname = 'orders_total_quantity_check' and conrelid = 'public.orders'::regclass) then
+    alter table only public."orders" add constraint "orders_total_quantity_check" CHECK ((total_quantity >= 0));
+  end if;
+end $do$;
+do $do$ begin
+  if not exists (select 1 from pg_constraint where conname = 'orders_pkey' and conrelid = 'public.orders'::regclass) then
+    alter table only public."orders" add constraint "orders_pkey" PRIMARY KEY (id);
+  end if;
+end $do$;
+do $do$ begin
+  if not exists (select 1 from pg_constraint where conname = 'payroll_entries_pkey' and conrelid = 'public.payroll_entries'::regclass) then
+    alter table only public."payroll_entries" add constraint "payroll_entries_pkey" PRIMARY KEY (id);
+  end if;
+end $do$;
+do $do$ begin
+  if not exists (select 1 from pg_constraint where conname = 'payroll_entries_period_id_employee_id_key' and conrelid = 'public.payroll_entries'::regclass) then
+    alter table only public."payroll_entries" add constraint "payroll_entries_period_id_employee_id_key" UNIQUE (period_id, employee_id);
+  end if;
+end $do$;
+do $do$ begin
+  if not exists (select 1 from pg_constraint where conname = 'payroll_periods_status_check' and conrelid = 'public.payroll_periods'::regclass) then
+    alter table only public."payroll_periods" add constraint "payroll_periods_status_check" CHECK ((status = ANY (ARRAY['draft'::text, 'pending_approval'::text, 'approved'::text, 'paid'::text])));
+  end if;
+end $do$;
+do $do$ begin
+  if not exists (select 1 from pg_constraint where conname = 'payroll_periods_pkey' and conrelid = 'public.payroll_periods'::regclass) then
+    alter table only public."payroll_periods" add constraint "payroll_periods_pkey" PRIMARY KEY (id);
+  end if;
+end $do$;
+do $do$ begin
+  if not exists (select 1 from pg_constraint where conname = 'payroll_periods_period_name_key' and conrelid = 'public.payroll_periods'::regclass) then
+    alter table only public."payroll_periods" add constraint "payroll_periods_period_name_key" UNIQUE (period_name);
+  end if;
+end $do$;
+do $do$ begin
+  if not exists (select 1 from pg_constraint where conname = 'profiles_role_check' and conrelid = 'public.profiles'::regclass) then
+    alter table only public."profiles" add constraint "profiles_role_check" CHECK ((role = ANY (ARRAY['owner'::text, 'admin'::text])));
+  end if;
+end $do$;
+do $do$ begin
+  if not exists (select 1 from pg_constraint where conname = 'profiles_pkey' and conrelid = 'public.profiles'::regclass) then
+    alter table only public."profiles" add constraint "profiles_pkey" PRIMARY KEY (id);
+  end if;
+end $do$;
+do $do$ begin
+  if not exists (select 1 from pg_constraint where conname = 'r2_files_cleanup_status_check' and conrelid = 'public.r2_files'::regclass) then
+    alter table only public."r2_files" add constraint "r2_files_cleanup_status_check" CHECK ((cleanup_status = ANY (ARRAY['none'::text, 'eligible'::text, 'processing'::text, 'deleted'::text, 'failed'::text])));
+  end if;
+end $do$;
+do $do$ begin
+  if not exists (select 1 from pg_constraint where conname = 'r2_files_size_bytes_check' and conrelid = 'public.r2_files'::regclass) then
+    alter table only public."r2_files" add constraint "r2_files_size_bytes_check" CHECK ((size_bytes >= 0));
+  end if;
+end $do$;
+do $do$ begin
+  if not exists (select 1 from pg_constraint where conname = 'r2_files_status_check' and conrelid = 'public.r2_files'::regclass) then
+    alter table only public."r2_files" add constraint "r2_files_status_check" CHECK ((status = ANY (ARRAY['uploading'::text, 'ready'::text, 'missing'::text, 'deleted'::text, 'failed'::text])));
+  end if;
+end $do$;
+do $do$ begin
+  if not exists (select 1 from pg_constraint where conname = 'r2_files_pkey' and conrelid = 'public.r2_files'::regclass) then
+    alter table only public."r2_files" add constraint "r2_files_pkey" PRIMARY KEY (id);
+  end if;
+end $do$;
+do $do$ begin
+  if not exists (select 1 from pg_constraint where conname = 'r2_files_storage_key_key' and conrelid = 'public.r2_files'::regclass) then
+    alter table only public."r2_files" add constraint "r2_files_storage_key_key" UNIQUE (storage_key);
+  end if;
+end $do$;
+do $do$ begin
+  if not exists (select 1 from pg_constraint where conname = 'tenant_memberships_pkey' and conrelid = 'public.tenant_memberships'::regclass) then
+    alter table only public."tenant_memberships" add constraint "tenant_memberships_pkey" PRIMARY KEY (tenant_id, user_id);
+  end if;
+end $do$;
+do $do$ begin
+  if not exists (select 1 from pg_constraint where conname = 'tenant_r2_connections_storage_limit_bytes_check' and conrelid = 'public.tenant_r2_connections'::regclass) then
+    alter table only public."tenant_r2_connections" add constraint "tenant_r2_connections_storage_limit_bytes_check" CHECK (((storage_limit_bytes IS NULL) OR (storage_limit_bytes > 0)));
+  end if;
+end $do$;
+do $do$ begin
+  if not exists (select 1 from pg_constraint where conname = 'tenant_r2_connections_pkey' and conrelid = 'public.tenant_r2_connections'::regclass) then
+    alter table only public."tenant_r2_connections" add constraint "tenant_r2_connections_pkey" PRIMARY KEY (id);
+  end if;
+end $do$;
+do $do$ begin
+  if not exists (select 1 from pg_constraint where conname = 'tenant_r2_connections_tenant_id_key' and conrelid = 'public.tenant_r2_connections'::regclass) then
+    alter table only public."tenant_r2_connections" add constraint "tenant_r2_connections_tenant_id_key" UNIQUE (tenant_id);
+  end if;
+end $do$;
+do $do$ begin
+  if not exists (select 1 from pg_constraint where conname = 'tenants_pkey' and conrelid = 'public.tenants'::regclass) then
+    alter table only public."tenants" add constraint "tenants_pkey" PRIMARY KEY (id);
+  end if;
+end $do$;
+do $do$ begin
+  if not exists (select 1 from pg_constraint where conname = 'tenants_slug_key' and conrelid = 'public.tenants'::regclass) then
+    alter table only public."tenants" add constraint "tenants_slug_key" UNIQUE (slug);
+  end if;
+end $do$;
+do $do$ begin
+  if not exists (select 1 from pg_constraint where conname = 'allowances_employee_id_fkey' and conrelid = 'public.allowances'::regclass) then
+    alter table only public."allowances" add constraint "allowances_employee_id_fkey" FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE;
+  end if;
+end $do$;
+do $do$ begin
+  if not exists (select 1 from pg_constraint where conname = 'attendance_deficit_reports_employee_id_fkey' and conrelid = 'public.attendance_deficit_reports'::regclass) then
+    alter table only public."attendance_deficit_reports" add constraint "attendance_deficit_reports_employee_id_fkey" FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE;
+  end if;
+end $do$;
+do $do$ begin
+  if not exists (select 1 from pg_constraint where conname = 'attendance_logs_employee_id_fkey' and conrelid = 'public.attendance_logs'::regclass) then
+    alter table only public."attendance_logs" add constraint "attendance_logs_employee_id_fkey" FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE;
+  end if;
+end $do$;
+do $do$ begin
+  if not exists (select 1 from pg_constraint where conname = 'barang_brand_id_fkey' and conrelid = 'public.barang'::regclass) then
+    alter table only public."barang" add constraint "barang_brand_id_fkey" FOREIGN KEY (brand_id) REFERENCES brands(id);
+  end if;
+end $do$;
+do $do$ begin
+  if not exists (select 1 from pg_constraint where conname = 'barang_harga_tier_barang_id_fkey' and conrelid = 'public.barang_harga_tier'::regclass) then
+    alter table only public."barang_harga_tier" add constraint "barang_harga_tier_barang_id_fkey" FOREIGN KEY (barang_id) REFERENCES barang(id) ON DELETE CASCADE;
+  end if;
+end $do$;
+do $do$ begin
+  if not exists (select 1 from pg_constraint where conname = 'bonuses_approved_by_fkey' and conrelid = 'public.bonuses'::regclass) then
+    alter table only public."bonuses" add constraint "bonuses_approved_by_fkey" FOREIGN KEY (approved_by) REFERENCES profiles(id);
+  end if;
+end $do$;
+do $do$ begin
+  if not exists (select 1 from pg_constraint where conname = 'bonuses_employee_id_fkey' and conrelid = 'public.bonuses'::regclass) then
+    alter table only public."bonuses" add constraint "bonuses_employee_id_fkey" FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE;
+  end if;
+end $do$;
+do $do$ begin
+  if not exists (select 1 from pg_constraint where conname = 'brands_tenant_id_fkey' and conrelid = 'public.brands'::regclass) then
+    alter table only public."brands" add constraint "brands_tenant_id_fkey" FOREIGN KEY (tenant_id) REFERENCES tenants(id);
+  end if;
+end $do$;
+do $do$ begin
+  if not exists (select 1 from pg_constraint where conname = 'deductions_created_by_fkey' and conrelid = 'public.deductions'::regclass) then
+    alter table only public."deductions" add constraint "deductions_created_by_fkey" FOREIGN KEY (created_by) REFERENCES profiles(id);
+  end if;
+end $do$;
+do $do$ begin
+  if not exists (select 1 from pg_constraint where conname = 'deductions_employee_id_fkey' and conrelid = 'public.deductions'::regclass) then
+    alter table only public."deductions" add constraint "deductions_employee_id_fkey" FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE;
+  end if;
+end $do$;
+do $do$ begin
+  if not exists (select 1 from pg_constraint where conname = 'invoice_items_barang_id_fkey' and conrelid = 'public.invoice_items'::regclass) then
+    alter table only public."invoice_items" add constraint "invoice_items_barang_id_fkey" FOREIGN KEY (barang_id) REFERENCES barang(id) ON DELETE SET NULL;
+  end if;
+end $do$;
+do $do$ begin
+  if not exists (select 1 from pg_constraint where conname = 'invoice_items_invoice_id_fkey' and conrelid = 'public.invoice_items'::regclass) then
+    alter table only public."invoice_items" add constraint "invoice_items_invoice_id_fkey" FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE;
   end if;
 end $do$;
 do $do$ begin
@@ -633,16 +759,6 @@ do $do$ begin
   end if;
 end $do$;
 do $do$ begin
-  if not exists (select 1 from pg_constraint where conname = 'invoices_pkey' and conrelid = 'public.invoices'::regclass) then
-    alter table only public."invoices" add constraint "invoices_pkey" PRIMARY KEY (id);
-  end if;
-end $do$;
-do $do$ begin
-  if not exists (select 1 from pg_constraint where conname = 'invoices_no_invoice_key' and conrelid = 'public.invoices'::regclass) then
-    alter table only public."invoices" add constraint "invoices_no_invoice_key" UNIQUE (no_invoice);
-  end if;
-end $do$;
-do $do$ begin
   if not exists (select 1 from pg_constraint where conname = 'kuitansi_created_by_fkey' and conrelid = 'public.kuitansi'::regclass) then
     alter table only public."kuitansi" add constraint "kuitansi_created_by_fkey" FOREIGN KEY (created_by) REFERENCES profiles(id);
   end if;
@@ -650,21 +766,6 @@ end $do$;
 do $do$ begin
   if not exists (select 1 from pg_constraint where conname = 'kuitansi_invoice_id_fkey' and conrelid = 'public.kuitansi'::regclass) then
     alter table only public."kuitansi" add constraint "kuitansi_invoice_id_fkey" FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE RESTRICT;
-  end if;
-end $do$;
-do $do$ begin
-  if not exists (select 1 from pg_constraint where conname = 'kuitansi_pkey' and conrelid = 'public.kuitansi'::regclass) then
-    alter table only public."kuitansi" add constraint "kuitansi_pkey" PRIMARY KEY (id);
-  end if;
-end $do$;
-do $do$ begin
-  if not exists (select 1 from pg_constraint where conname = 'orders_stage_check' and conrelid = 'public.orders'::regclass) then
-    alter table only public."orders" add constraint "orders_stage_check" CHECK ((stage = ANY (ARRAY['customer_dp_desain'::text, 'proses_desain'::text, 'dp_produksi'::text, 'proses_layout'::text, 'antrean_produksi'::text, 'print_press'::text, 'cutting_jahit'::text, 'packing'::text, 'pelunasan'::text, 'pengiriman'::text])));
-  end if;
-end $do$;
-do $do$ begin
-  if not exists (select 1 from pg_constraint where conname = 'orders_total_quantity_check' and conrelid = 'public.orders'::regclass) then
-    alter table only public."orders" add constraint "orders_total_quantity_check" CHECK ((total_quantity >= 0));
   end if;
 end $do$;
 do $do$ begin
@@ -703,11 +804,6 @@ do $do$ begin
   end if;
 end $do$;
 do $do$ begin
-  if not exists (select 1 from pg_constraint where conname = 'orders_pkey' and conrelid = 'public.orders'::regclass) then
-    alter table only public."orders" add constraint "orders_pkey" PRIMARY KEY (id);
-  end if;
-end $do$;
-do $do$ begin
   if not exists (select 1 from pg_constraint where conname = 'payroll_entries_employee_id_fkey' and conrelid = 'public.payroll_entries'::regclass) then
     alter table only public."payroll_entries" add constraint "payroll_entries_employee_id_fkey" FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE;
   end if;
@@ -718,63 +814,13 @@ do $do$ begin
   end if;
 end $do$;
 do $do$ begin
-  if not exists (select 1 from pg_constraint where conname = 'payroll_entries_pkey' and conrelid = 'public.payroll_entries'::regclass) then
-    alter table only public."payroll_entries" add constraint "payroll_entries_pkey" PRIMARY KEY (id);
-  end if;
-end $do$;
-do $do$ begin
-  if not exists (select 1 from pg_constraint where conname = 'payroll_entries_period_id_employee_id_key' and conrelid = 'public.payroll_entries'::regclass) then
-    alter table only public."payroll_entries" add constraint "payroll_entries_period_id_employee_id_key" UNIQUE (period_id, employee_id);
-  end if;
-end $do$;
-do $do$ begin
-  if not exists (select 1 from pg_constraint where conname = 'payroll_periods_status_check' and conrelid = 'public.payroll_periods'::regclass) then
-    alter table only public."payroll_periods" add constraint "payroll_periods_status_check" CHECK ((status = ANY (ARRAY['draft'::text, 'pending_approval'::text, 'approved'::text, 'paid'::text])));
-  end if;
-end $do$;
-do $do$ begin
   if not exists (select 1 from pg_constraint where conname = 'payroll_periods_approved_by_fkey' and conrelid = 'public.payroll_periods'::regclass) then
     alter table only public."payroll_periods" add constraint "payroll_periods_approved_by_fkey" FOREIGN KEY (approved_by) REFERENCES profiles(id);
   end if;
 end $do$;
 do $do$ begin
-  if not exists (select 1 from pg_constraint where conname = 'payroll_periods_pkey' and conrelid = 'public.payroll_periods'::regclass) then
-    alter table only public."payroll_periods" add constraint "payroll_periods_pkey" PRIMARY KEY (id);
-  end if;
-end $do$;
-do $do$ begin
-  if not exists (select 1 from pg_constraint where conname = 'payroll_periods_period_name_key' and conrelid = 'public.payroll_periods'::regclass) then
-    alter table only public."payroll_periods" add constraint "payroll_periods_period_name_key" UNIQUE (period_name);
-  end if;
-end $do$;
-do $do$ begin
-  if not exists (select 1 from pg_constraint where conname = 'profiles_role_check' and conrelid = 'public.profiles'::regclass) then
-    alter table only public."profiles" add constraint "profiles_role_check" CHECK ((role = ANY (ARRAY['owner'::text, 'admin'::text])));
-  end if;
-end $do$;
-do $do$ begin
   if not exists (select 1 from pg_constraint where conname = 'profiles_id_fkey' and conrelid = 'public.profiles'::regclass) then
     alter table only public."profiles" add constraint "profiles_id_fkey" FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE;
-  end if;
-end $do$;
-do $do$ begin
-  if not exists (select 1 from pg_constraint where conname = 'profiles_pkey' and conrelid = 'public.profiles'::regclass) then
-    alter table only public."profiles" add constraint "profiles_pkey" PRIMARY KEY (id);
-  end if;
-end $do$;
-do $do$ begin
-  if not exists (select 1 from pg_constraint where conname = 'r2_files_cleanup_status_check' and conrelid = 'public.r2_files'::regclass) then
-    alter table only public."r2_files" add constraint "r2_files_cleanup_status_check" CHECK ((cleanup_status = ANY (ARRAY['none'::text, 'eligible'::text, 'processing'::text, 'deleted'::text, 'failed'::text])));
-  end if;
-end $do$;
-do $do$ begin
-  if not exists (select 1 from pg_constraint where conname = 'r2_files_size_bytes_check' and conrelid = 'public.r2_files'::regclass) then
-    alter table only public."r2_files" add constraint "r2_files_size_bytes_check" CHECK ((size_bytes >= 0));
-  end if;
-end $do$;
-do $do$ begin
-  if not exists (select 1 from pg_constraint where conname = 'r2_files_status_check' and conrelid = 'public.r2_files'::regclass) then
-    alter table only public."r2_files" add constraint "r2_files_status_check" CHECK ((status = ANY (ARRAY['uploading'::text, 'ready'::text, 'missing'::text, 'deleted'::text, 'failed'::text])));
   end if;
 end $do$;
 do $do$ begin
@@ -798,16 +844,6 @@ do $do$ begin
   end if;
 end $do$;
 do $do$ begin
-  if not exists (select 1 from pg_constraint where conname = 'r2_files_pkey' and conrelid = 'public.r2_files'::regclass) then
-    alter table only public."r2_files" add constraint "r2_files_pkey" PRIMARY KEY (id);
-  end if;
-end $do$;
-do $do$ begin
-  if not exists (select 1 from pg_constraint where conname = 'r2_files_storage_key_key' and conrelid = 'public.r2_files'::regclass) then
-    alter table only public."r2_files" add constraint "r2_files_storage_key_key" UNIQUE (storage_key);
-  end if;
-end $do$;
-do $do$ begin
   if not exists (select 1 from pg_constraint where conname = 'tenant_memberships_tenant_id_fkey' and conrelid = 'public.tenant_memberships'::regclass) then
     alter table only public."tenant_memberships" add constraint "tenant_memberships_tenant_id_fkey" FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE;
   end if;
@@ -818,38 +854,8 @@ do $do$ begin
   end if;
 end $do$;
 do $do$ begin
-  if not exists (select 1 from pg_constraint where conname = 'tenant_memberships_pkey' and conrelid = 'public.tenant_memberships'::regclass) then
-    alter table only public."tenant_memberships" add constraint "tenant_memberships_pkey" PRIMARY KEY (tenant_id, user_id);
-  end if;
-end $do$;
-do $do$ begin
-  if not exists (select 1 from pg_constraint where conname = 'tenant_r2_connections_storage_limit_bytes_check' and conrelid = 'public.tenant_r2_connections'::regclass) then
-    alter table only public."tenant_r2_connections" add constraint "tenant_r2_connections_storage_limit_bytes_check" CHECK (((storage_limit_bytes IS NULL) OR (storage_limit_bytes > 0)));
-  end if;
-end $do$;
-do $do$ begin
   if not exists (select 1 from pg_constraint where conname = 'tenant_r2_connections_tenant_id_fkey' and conrelid = 'public.tenant_r2_connections'::regclass) then
     alter table only public."tenant_r2_connections" add constraint "tenant_r2_connections_tenant_id_fkey" FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE;
-  end if;
-end $do$;
-do $do$ begin
-  if not exists (select 1 from pg_constraint where conname = 'tenant_r2_connections_pkey' and conrelid = 'public.tenant_r2_connections'::regclass) then
-    alter table only public."tenant_r2_connections" add constraint "tenant_r2_connections_pkey" PRIMARY KEY (id);
-  end if;
-end $do$;
-do $do$ begin
-  if not exists (select 1 from pg_constraint where conname = 'tenant_r2_connections_tenant_id_key' and conrelid = 'public.tenant_r2_connections'::regclass) then
-    alter table only public."tenant_r2_connections" add constraint "tenant_r2_connections_tenant_id_key" UNIQUE (tenant_id);
-  end if;
-end $do$;
-do $do$ begin
-  if not exists (select 1 from pg_constraint where conname = 'tenants_pkey' and conrelid = 'public.tenants'::regclass) then
-    alter table only public."tenants" add constraint "tenants_pkey" PRIMARY KEY (id);
-  end if;
-end $do$;
-do $do$ begin
-  if not exists (select 1 from pg_constraint where conname = 'tenants_slug_key' and conrelid = 'public.tenants'::regclass) then
-    alter table only public."tenants" add constraint "tenants_slug_key" UNIQUE (slug);
   end if;
 end $do$;
 
@@ -918,7 +924,7 @@ CREATE OR REPLACE FUNCTION public.assign_and_validate_tenant_scope()
  LANGUAGE plpgsql
  SECURITY DEFINER
  SET search_path TO 'public'
-AS $function$ DECLARE v_brand_tenant UUID; BEGIN IF NEW.tenant_id IS NULL THEN NEW.tenant_id := public.current_tenant_id(); END IF; IF NEW.tenant_id IS NULL THEN RAISE EXCEPTION 'A default tenant membership is required'; END IF; IF TG_TABLE_NAME = 'orders' AND NEW.brand_id IS NOT NULL THEN SELECT tenant_id INTO v_brand_tenant FROM public.brands WHERE id = NEW.brand_id; IF v_brand_tenant IS NULL OR v_brand_tenant <> NEW.tenant_id THEN RAISE EXCEPTION 'Order brand must belong to the same tenant'; END IF; END IF; RETURN NEW; END; $function$;
+AS $function$ DECLARE v_brand_tenant UUID; BEGIN IF NEW.tenant_id IS NULL THEN NEW.tenant_id := public.current_tenant_id(); END IF; IF NEW.tenant_id IS NULL THEN RAISE EXCEPTION 'A default tenant membership is required'; END IF; IF TG_TABLE_NAME = 'orders' THEN IF NEW.brand_id IS NOT NULL THEN SELECT tenant_id INTO v_brand_tenant FROM public.brands WHERE id = NEW.brand_id; IF v_brand_tenant IS NULL OR v_brand_tenant <> NEW.tenant_id THEN RAISE EXCEPTION 'Order brand must belong to the same tenant'; END IF; END IF; END IF; RETURN NEW; END; $function$;
 
 CREATE OR REPLACE FUNCTION public.assign_new_profile_to_default_tenant()
  RETURNS trigger
