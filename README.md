@@ -8,6 +8,10 @@ Supabase-nya dimigrasikan otomatis setiap hari.
 
 ## Onboarding
 
+Panduan versi lengkap (termasuk pembuatan akun owner, deploy Vercel, dan
+penyimpanan R2) ada di [docs/panduan-fork-client.md](docs/panduan-fork-client.md).
+Ringkasannya di bawah ini.
+
 ### 1. Fork repo ini
 
 Klik **Fork** di kanan atas, fork ke akun/org milikmu.
