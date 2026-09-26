@@ -109,7 +109,14 @@ fi
 
 # db push hanya menerapkan versi yang belum tercatat di riwayat database, jadi
 # aman dijalankan setiap hari: tidak melakukan apa-apa bila sudah up to date.
-supabase db push --project-ref "$SUPABASE_PROJECT_REF" --dry-run
-supabase db push --project-ref "$SUPABASE_PROJECT_REF"
+#
+# --include-all wajib: tanpa flag itu Supabase CLI menolak menerapkan migrasi
+# yang versinya lebih lama daripada migrasi terakhir di riwayat database, dengan
+# pesan "Found local migration files to be inserted before the last migration on
+# remote database". Kondisi itu wajar terjadi pada database yang sudah berjalan
+# sebelum repo ini dipakai (riwayatnya tidak lengkap). Semua migrasi di repo ini
+# idempotent, jadi menerapkannya ulang aman.
+supabase db push --project-ref "$SUPABASE_PROJECT_REF" --include-all --dry-run
+supabase db push --project-ref "$SUPABASE_PROJECT_REF" --include-all
 
 say 'Selesai.'
