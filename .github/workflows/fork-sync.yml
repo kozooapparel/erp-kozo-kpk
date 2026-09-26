@@ -1,20 +1,20 @@
-# Sinkronisasi otomatis fork dari repo upstream (raidwear/raidwear),
-# lalu terapkan migrasi Supabase ke database milik fork itu sendiri.
+# PENTING: file ini sengaja dibuat setipis mungkin dan DIBEKUKAN.
 #
-# Workflow ini HANYA berjalan di fork. Di repo upstream job-nya di-skip
-# lewat kondisi `if` di bawah, jadi tidak pernah menyentuh database siapa pun.
+# Token bawaan GitHub Actions (GITHUB_TOKEN) tidak diizinkan GitHub untuk
+# membuat/mengubah file di .github/workflows/*. Izin `workflows` tidak pernah
+# diberikan ke token Actions dan tidak bisa dilonggarkan lewat `permissions:`.
+# Karena auto-sync fork melakukan `git push` memakai token itu, setiap
+# perubahan pada file ini di upstream akan membuat push ke SEMUA fork ditolak:
+#   refusing to allow a GitHub App to create or update workflow ... without
+#   workflows permission
 #
-# Catatan penting: sync dan migrasi sengaja digabung dalam SATU workflow.
-# Push yang dilakukan GITHUB_TOKEN tidak memicu workflow lain (proteksi
-# anti-recursion dari GitHub), jadi kalau migrasi dipisah ke workflow
-# ber-trigger `push`, migrasi itu tidak akan pernah jalan setelah auto-sync.
+# Karena itu seluruh logika dipindahkan ke scripts/fork-sync.sh — file biasa,
+# jadi bebas berubah lewat auto-sync tanpa memicu penolakan di atas.
 #
-# Migrasi TIDAK digantungkan pada "ada file migrasi baru atau tidak".
-# Alasannya: begitu fork sudah sama dengan upstream, tidak akan pernah ada
-# diff lagi, sehingga database yang baru dibuat tidak akan pernah terbangun.
-# Sebagai gantinya, `db push` selalu dijalankan saat secret Supabase ada.
-# `db push` hanya menerapkan versi yang belum tercatat di riwayat database,
-# jadi otomatis tidak melakukan apa-apa bila memang sudah up to date.
+# Kalau file ini memang harus diubah (mis. menaikkan versi Supabase CLI di
+# bawah), setiap fork perlu sekali klik "Sync fork" di halaman GitHub fork-nya
+# (atau `gh repo sync <user>/raidwear --source raidwear/raidwear`), lalu
+# jalankan ulang workflow ini.
 
 name: Sync upstream & migrasi DB
 
@@ -59,46 +59,6 @@ jobs:
           ref: master
           fetch-depth: 0
 
-      - name: Konfigurasi git
-        run: |
-          git config user.name  'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-
-      - name: Ambil upstream
-        run: |
-          git remote add upstream https://github.com/raidwear/raidwear.git
-          git fetch --no-tags upstream master
-
-      - name: Hitung perubahan
-        id: plan
-        run: |
-          LOCAL=$(git rev-parse HEAD)
-          REMOTE=$(git rev-parse upstream/master)
-
-          echo "remote=$REMOTE" >> "$GITHUB_OUTPUT"
-          echo "mark_all=${{ github.event.inputs.mark_all_as_applied }}" >> "$GITHUB_OUTPUT"
-
-          if [ "$LOCAL" = "$REMOTE" ]; then
-            echo "code_changed=false" >> "$GITHUB_OUTPUT"
-            echo 'Kode fork sudah sama dengan upstream.'
-          else
-            echo "code_changed=true" >> "$GITHUB_OUTPUT"
-            echo 'Ada update dari upstream:'
-            git log --oneline "$LOCAL..$REMOTE"
-          fi
-
-      - name: Fast-forward fork ke upstream
-        if: steps.plan.outputs.code_changed == 'true'
-        run: |
-          if ! git merge --ff-only upstream/master; then
-            echo '::error::Fork ini sudah diverge dari upstream karena ada commit lokal.'
-            echo '::error::Auto-sync menolak menimpa perubahanmu. Selesaikan dulu commit lokal,'
-            echo '::error::atau reset fork ke upstream/master, lalu jalankan ulang workflow ini.'
-            exit 1
-          fi
-          git push origin master
-          echo 'Fork berhasil disinkronkan. Vercel akan auto-deploy dari push ini.'
-
       - name: Setup Supabase CLI
         if: env.SUPABASE_PROJECT_REF != ''
         uses: supabase/setup-cli@v1
@@ -106,37 +66,9 @@ jobs:
           # Dipatok sama dengan versi lokal supaya hasil migrasi konsisten.
           version: 2.117.0
 
-      # Dipakai SEKALI untuk database lama yang skemanya dibuat manual lewat SQL editor.
-      # Tanpa ini, `db push` akan mencoba membuat ulang tabel yang sudah ada.
-      # Jangan dicentang untuk database baru/kosong, karena versi yang ditandai
-      # "applied" tidak akan pernah dijalankan lagi.
-      - name: Tandai semua migrasi sebagai sudah diterapkan
-        if: steps.plan.outputs.mark_all == 'true' && env.SUPABASE_PROJECT_REF != ''
-        run: |
-          VERSIONS=$(ls supabase/migrations | sed -E 's/^([0-9]{14}).*/\1/' | sort)
-          echo 'Versi yang ditandai applied:'
-          echo "$VERSIONS"
-          # shellcheck disable=SC2086
-          supabase migration repair --project-ref "$SUPABASE_PROJECT_REF" --status applied --yes $VERSIONS
-
-      - name: Cek migrasi yang akan diterapkan
-        if: env.SUPABASE_PROJECT_REF != ''
-        run: supabase db push --project-ref "$SUPABASE_PROJECT_REF" --dry-run
-
-      - name: Terapkan migrasi ke database fork
-        if: env.SUPABASE_PROJECT_REF != ''
-        run: supabase db push --project-ref "$SUPABASE_PROJECT_REF"
-
-      - name: Peringatan jika secret Supabase belum diisi
-        if: env.SUPABASE_PROJECT_REF == ''
-        run: |
-          echo '::warning::SUPABASE_PROJECT_REF belum diisi di fork ini, jadi migrasi database di-skip.'
-          echo '::warning::Isi secret SUPABASE_ACCESS_TOKEN, SUPABASE_PROJECT_REF, dan SUPABASE_DB_PASSWORD'
-          echo '::warning::di Settings > Secrets and variables > Actions, lalu jalankan ulang workflow ini.'
-
-      - name: Ringkasan
-        if: always()
-        run: |
-          echo "code_changed = ${{ steps.plan.outputs.code_changed }}"
-          echo "mark_all     = ${{ steps.plan.outputs.mark_all }}"
-          echo "project_ref  = ${{ env.SUPABASE_PROJECT_REF != '' && 'terisi' || 'KOSONG' }}"
+      - name: Sync upstream & terapkan migrasi
+        env:
+          UPSTREAM_REPO: raidwear/raidwear
+          DEFAULT_BRANCH: master
+          MARK_ALL_AS_APPLIED: ${{ github.event.inputs.mark_all_as_applied }}
+        run: bash scripts/fork-sync.sh
