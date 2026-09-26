@@ -52,10 +52,14 @@ workflow berjalan otomatis setiap hari pukul 09:17 WIB.
 
 Workflow harian mengerjakan dua hal:
 
-1. **Sync kode** — fast-forward fork ke commit terbaru repo ini, lalu push ke
-   fork. Kalau kamu deploy dari fork (mis. Vercel), deployment ikut ter-update.
+1. **Sync kode** — menggabungkan commit terbaru repo ini ke fork-mu, lalu push ke
+   fork. Kalau fork-mu belum punya commit sendiri, ini sekadar fast-forward.
+   Kalau kamu pernah menambah commit sendiri, auto-sync melakukan merge sehingga
+   perubahanmu tetap utuh. Kalau kamu deploy dari fork (mis. Vercel), deployment
+   ikut ter-update.
 2. **Migrasi database** — `supabase db push`. Hanya migrasi yang belum tercatat
-   di database yang dijalankan, jadi aman diulang berkali-kali.
+   di database yang dijalankan, jadi aman diulang berkali-kali dan tidak
+   menghapus data yang sudah ada.
 
 Berkas `.github/workflows/fork-sync.yml` sengaja dibuat setipis mungkin dan
 **dibekukan**; seluruh logikanya ada di `scripts/fork-sync.sh`. Jangan mengubah
@@ -95,8 +99,10 @@ Migrasi database tetap dijalankan, jadi datamu tidak terpengaruh. Perbaikannya
 sekali saja: buka fork-mu di GitHub, klik **Sync fork > Update branch**, lalu
 jalankan ulang workflow.
 
-Auto-sync memakai `--ff-only`, jadi kalau kamu menambah commit sendiri di fork,
-sync akan berhenti dan melaporkan error alih-alih menimpa perubahanmu.
+Auto-sync tidak pernah menimpa perubahanmu: fork murni di-fast-forward,
+sedangkan fork yang punya commit lokal di-merge. Kalau merge-nya berbenturan,
+workflow berhenti dengan error dan meninggalkan fork dalam keadaan semula —
+selesaikan konfliknya secara manual, lalu jalankan ulang workflow.
 
 ## Development lokal
 

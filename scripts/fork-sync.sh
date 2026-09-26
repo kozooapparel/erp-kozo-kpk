@@ -16,6 +16,7 @@
 # Env yang dipakai:
 #   UPSTREAM_REPO            default raidwear/raidwear
 #   DEFAULT_BRANCH           default master
+#   FORK_BRANCH              branch di fork (default: branch yang sedang di-checkout)
 #   MARK_ALL_AS_APPLIED      'true' untuk menandai semua migrasi sebagai applied
 #   SUPABASE_PROJECT_REF     ref project Supabase (kosong = migrasi di-skip)
 #   SUPABASE_ACCESS_TOKEN    dibaca langsung oleh Supabase CLI
@@ -35,6 +36,9 @@ fi
 
 UPSTREAM_REPO="${UPSTREAM_REPO:-raidwear/raidwear}"
 DEFAULT_BRANCH="${DEFAULT_BRANCH:-master}"
+# Branch di fork sendiri. Default-nya branch yang sedang di-checkout, supaya fork
+# yang default branch-nya bukan `master` (mis. `main`) tetap ikut tersinkron.
+FORK_BRANCH="${FORK_BRANCH:-$(git rev-parse --abbrev-ref HEAD)}"
 MARK_ALL_AS_APPLIED="${MARK_ALL_AS_APPLIED:-false}"
 
 say() { printf '%s\n' "$*"; }
@@ -61,14 +65,23 @@ else
   say 'Ada update dari upstream:'
   git log --oneline "${LOCAL}..${REMOTE}"
 
-  if ! git merge --ff-only "upstream/${DEFAULT_BRANCH}"; then
-    fail 'Fork ini sudah diverge dari upstream karena ada commit lokal.'
-    fail 'Auto-sync menolak menimpa perubahanmu. Selesaikan dulu commit lokal,'
-    fail "atau reset fork ke upstream/${DEFAULT_BRANCH}, lalu jalankan ulang workflow ini."
+  # Coba fast-forward dulu (kasus fork murni). Kalau fork punya commit lokal,
+  # fast-forward mustahil, jadi lanjut ke merge biasa: commit lokal tetap utuh
+  # dan perubahan upstream digabung di atasnya.
+  if git merge --ff-only "upstream/${DEFAULT_BRANCH}" 2>/dev/null; then
+    say 'Fork di-fast-forward ke upstream.'
+  elif ! git merge --no-edit "upstream/${DEFAULT_BRANCH}"; then
+    # Merge berbenturan: batalkan supaya repo tidak tertinggal dalam keadaan
+    # setengah merge, lalu gagalkan run agar pemilik fork diberi tahu.
+    git merge --abort || true
+    fail 'Merge dengan upstream berbenturan, jadi auto-sync dihentikan.'
+    fail 'Tidak ada perubahan yang dipaksakan; kode di fork-mu tetap seperti semula.'
+    fail 'Selesaikan konflik secara manual, lalu jalankan ulang workflow ini:'
+    fail "  git fetch upstream && git merge upstream/${DEFAULT_BRANCH}"
     exit 1
   fi
 
-  if git push origin "$DEFAULT_BRANCH"; then
+  if git push origin "HEAD:${FORK_BRANCH}"; then
     say 'Fork berhasil disinkronkan. Vercel akan auto-deploy dari push ini.'
   else
     # Umumnya terjadi bila upstream mengubah file di .github/workflows/*.
