@@ -1245,10 +1245,6 @@ export default function OrderDetailModal({
                                                             toast.warning('Masukkan nominal DP Produksi')
                                                             return
                                                         }
-                                                        if (totalInvoice > 0 && amount < dpProduksiMinimal) {
-                                                            toast.warning(`DP Produksi minimal ${formatCurrency(dpProduksiMinimal)} (50% dari total invoice)`)
-                                                            return
-                                                        }
                                                         await handleVerifyPayment('dp_produksi', amount)
                                                     }}
                                                     disabled={loading}
