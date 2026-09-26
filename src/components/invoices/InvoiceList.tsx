@@ -5,6 +5,8 @@ import { useState } from 'react'
 import { InvoiceWithCustomer } from '@/types/database'
 import { deleteInvoice } from '@/lib/actions/invoices'
 import { formatCurrency, formatDateShort } from '@/lib/utils/format'
+import { DEFAULT_DATE_RANGE, DateRangeValue, isDateInRange } from '@/lib/utils/date-range'
+import { DateRangeFilter } from '@/components/ui'
 import InvoiceDownloadButton from './InvoiceDownloadButton'
 import InvoicePreviewButton from './InvoicePreviewButton'
 import { toast } from 'sonner'
@@ -26,6 +28,7 @@ export default function InvoiceList({ invoices: initialInvoices, brands }: Invoi
     const [filter, setFilter] = useState<'all' | 'BELUM_LUNAS' | 'SUDAH_LUNAS'>('all')
     const [search, setSearch] = useState('')
     const [brandFilter, setBrandFilter] = useState<string>('all')
+    const [dateRange, setDateRange] = useState<DateRangeValue>(DEFAULT_DATE_RANGE)
     const [currentPage, setCurrentPage] = useState(1)
     const ITEMS_PER_PAGE = 20
 
@@ -35,7 +38,8 @@ export default function InvoiceList({ invoices: initialInvoices, brands }: Invoi
             inv.no_invoice.toLowerCase().includes(search.toLowerCase()) ||
             inv.customer?.name.toLowerCase().includes(search.toLowerCase())
         const matchBrand = brandFilter === 'all' || (inv as any).brand?.id === brandFilter
-        return matchStatus && matchSearch && matchBrand
+        const matchDate = isDateInRange(inv.tanggal, dateRange)
+        return matchStatus && matchSearch && matchBrand && matchDate
     })
 
     const totalPages = Math.ceil(filteredInvoices.length / ITEMS_PER_PAGE)
@@ -55,6 +59,10 @@ export default function InvoiceList({ invoices: initialInvoices, brands }: Invoi
     }
     const handleBrandChange = (value: string) => {
         setBrandFilter(value)
+        setCurrentPage(1)
+    }
+    const handleDateRangeChange = (range: DateRangeValue) => {
+        setDateRange(range)
         setCurrentPage(1)
     }
 
@@ -170,6 +178,15 @@ export default function InvoiceList({ invoices: initialInvoices, brands }: Invoi
                         </svg>
                     </div>
                 </div>
+
+                {/* Date Range Filter */}
+                <DateRangeFilter
+                    value={dateRange}
+                    onChange={handleDateRangeChange}
+                    accent="orange"
+                    align="right"
+                    className="shrink-0"
+                />
             </div>
 
             {/* Table */}

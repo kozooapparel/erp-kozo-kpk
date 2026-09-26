@@ -4,6 +4,8 @@ import { useState } from 'react'
 import { KuitansiWithInvoice } from '@/types/database'
 import { deleteKuitansi } from '@/lib/actions/kuitansi'
 import { formatCurrency, formatDateShort } from '@/lib/utils/format'
+import { DEFAULT_DATE_RANGE, DateRangeValue, isDateInRange } from '@/lib/utils/date-range'
+import { DateRangeFilter } from '@/components/ui'
 import KuitansiDownloadButton from './KuitansiDownloadButton'
 import KuitansiPreviewButton from './KuitansiPreviewButton'
 import { toast } from 'sonner'
@@ -25,6 +27,7 @@ export default function KuitansiList({ kuitansiList: initialKuitansi, brands }: 
     const [search, setSearch] = useState('')
     const [brandFilter, setBrandFilter] = useState<string>('all')
     const [statusFilter, setStatusFilter] = useState<'all' | 'BELUM_LUNAS' | 'SUDAH_LUNAS'>('all')
+    const [dateRange, setDateRange] = useState<DateRangeValue>(DEFAULT_DATE_RANGE)
     const [currentPage, setCurrentPage] = useState(1)
     const ITEMS_PER_PAGE = 20
 
@@ -34,7 +37,8 @@ export default function KuitansiList({ kuitansiList: initialKuitansi, brands }: 
             k.invoice?.customer?.name.toLowerCase().includes(search.toLowerCase())
         const matchBrand = brandFilter === 'all' || (k.invoice as any)?.brand?.id === brandFilter
         const matchStatus = statusFilter === 'all' || k.invoice?.status_pembayaran === statusFilter
-        return matchSearch && matchBrand && matchStatus
+        const matchDate = isDateInRange(k.tanggal, dateRange)
+        return matchSearch && matchBrand && matchStatus && matchDate
     })
 
     const totalPages = Math.ceil(filteredList.length / ITEMS_PER_PAGE)
@@ -144,6 +148,15 @@ export default function KuitansiList({ kuitansiList: initialKuitansi, brands }: 
                         </svg>
                     </div>
                 </div>
+
+                {/* Date Range Filter */}
+                <DateRangeFilter
+                    value={dateRange}
+                    onChange={(range) => { setDateRange(range); setCurrentPage(1) }}
+                    accent="emerald"
+                    align="right"
+                    className="shrink-0"
+                />
             </div>
 
             {/* Table */}

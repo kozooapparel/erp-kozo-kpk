@@ -6,6 +6,8 @@ import { unarchiveOrder } from '@/lib/actions/orders'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import { PageHeader, EmptyState, DefaultEmptyIcon, StatCard } from '@/components/ui/ds'
+import { DateRangeFilter } from '@/components/ui'
+import { DEFAULT_DATE_RANGE, DateRangeValue, formatRangeLabel, isDateInRange } from '@/lib/utils/date-range'
 
 interface ArchivedOrder extends Order {
     customer: Customer
@@ -25,21 +27,6 @@ interface OrderHistoryClientProps {
 }
 
 type SortOption = 'date_desc' | 'date_asc' | 'customer_asc' | 'customer_desc'
-
-const MONTHS = [
-    { value: 0, label: 'Januari' },
-    { value: 1, label: 'Februari' },
-    { value: 2, label: 'Maret' },
-    { value: 3, label: 'April' },
-    { value: 4, label: 'Mei' },
-    { value: 5, label: 'Juni' },
-    { value: 6, label: 'Juli' },
-    { value: 7, label: 'Agustus' },
-    { value: 8, label: 'September' },
-    { value: 9, label: 'Oktober' },
-    { value: 10, label: 'November' },
-    { value: 11, label: 'Desember' },
-]
 
 // Icons (Heroicons v2, strokeWidth 1.7)
 const Icon = {
@@ -90,29 +77,15 @@ export default function OrderHistoryClient({ orders, brands }: OrderHistoryClien
     const [selectedDetail, setSelectedDetail] = useState<string | null>(null)
 
     // Filter states
-    const currentDate = new Date()
-    const [selectedMonth, setSelectedMonth] = useState<number | 'all'>('all')
-    const [selectedYear, setSelectedYear] = useState<number | 'all'>('all')
+    const [dateRange, setDateRange] = useState<DateRangeValue>(DEFAULT_DATE_RANGE)
     const [brandFilter, setBrandFilter] = useState<string>('all')
     const [sortBy, setSortBy] = useState<SortOption>('date_desc')
     const [currentPage, setCurrentPage] = useState(1)
     const ITEMS_PER_PAGE = 20
 
-    // Get unique years from orders
-    const availableYears = useMemo(() => {
-        const years = new Set<number>()
-        orders.forEach(order => {
-            if (order.shipped_at) {
-                years.add(new Date(order.shipped_at).getFullYear())
-            }
-        })
-        years.add(currentDate.getFullYear())
-        return Array.from(years).sort((a, b) => b - a)
-    }, [orders, currentDate])
-
     // Filter and sort orders
     const filteredOrders = useMemo(() => {
-        let result = orders.filter(order => {
+        const result = orders.filter(order => {
             // Search filter
             const query = searchQuery.toLowerCase()
             const matchesSearch =
@@ -126,18 +99,8 @@ export default function OrderHistoryClient({ orders, brands }: OrderHistoryClien
             // Brand filter
             if (brandFilter !== 'all' && order.brand_id !== brandFilter) return false
 
-            // Month/Year filter
-            if (selectedMonth !== 'all' || selectedYear !== 'all') {
-                if (!order.shipped_at) return false
-                const shippedDate = new Date(order.shipped_at)
-
-                if (selectedMonth !== 'all' && shippedDate.getMonth() !== selectedMonth) {
-                    return false
-                }
-                if (selectedYear !== 'all' && shippedDate.getFullYear() !== selectedYear) {
-                    return false
-                }
-            }
+            // Date range filter (berdasarkan tanggal kirim)
+            if (!isDateInRange(order.shipped_at, dateRange)) return false
 
             return true
         })
@@ -159,7 +122,7 @@ export default function OrderHistoryClient({ orders, brands }: OrderHistoryClien
         })
 
         return result
-    }, [orders, searchQuery, selectedMonth, selectedYear, brandFilter, sortBy])
+    }, [orders, searchQuery, dateRange, brandFilter, sortBy])
 
     // Pagination
     const totalPages = Math.ceil(filteredOrders.length / ITEMS_PER_PAGE)
@@ -173,6 +136,29 @@ export default function OrderHistoryClient({ orders, brands }: OrderHistoryClien
     const totalRevenue = filteredOrders.reduce((sum, o) =>
         sum + (o.dp_desain_amount || 0) + (o.dp_produksi_amount || 0) + (o.pelunasan_amount || 0)
         , 0)
+
+    // Rekap per brand (reactive to filters)
+    const brandRecap = useMemo(() => {
+        const map = new Map<string, { id: string; name: string; code: string | null; orders: number; qty: number; revenue: number }>()
+
+        filteredOrders.forEach(order => {
+            const key = order.brand_id || 'none'
+            const entry = map.get(key) ?? {
+                id: key,
+                name: order.brand?.name || 'Tanpa Brand',
+                code: order.brand?.code || null,
+                orders: 0,
+                qty: 0,
+                revenue: 0,
+            }
+            entry.orders += 1
+            entry.qty += order.total_quantity || 0
+            entry.revenue += (order.dp_desain_amount || 0) + (order.dp_produksi_amount || 0) + (order.pelunasan_amount || 0)
+            map.set(key, entry)
+        })
+
+        return Array.from(map.values()).sort((a, b) => b.revenue - a.revenue)
+    }, [filteredOrders])
 
     const handleRestore = async (orderId: string) => {
         if (restoring) return
@@ -208,15 +194,14 @@ export default function OrderHistoryClient({ orders, brands }: OrderHistoryClien
     }
 
     const clearFilters = () => {
-        setSelectedMonth('all')
-        setSelectedYear('all')
+        setDateRange(DEFAULT_DATE_RANGE)
         setBrandFilter('all')
         setSearchQuery('')
         setSortBy('date_desc')
         setCurrentPage(1)
     }
 
-    const hasActiveFilters = selectedMonth !== 'all' || selectedYear !== 'all' || searchQuery !== '' || brandFilter !== 'all'
+    const hasActiveFilters = dateRange.preset !== 'allTime' || searchQuery !== '' || brandFilter !== 'all'
 
     return (
         <div className="space-y-6">
@@ -264,39 +249,16 @@ export default function OrderHistoryClient({ orders, brands }: OrderHistoryClien
             </div>
 
             {/* Filters Row — compact with small labels */}
-            <div className="surface p-4 grid grid-cols-2 lg:grid-cols-5 gap-3 items-end">
-                {/* Bulan */}
+            <div className="surface p-4 grid grid-cols-2 lg:grid-cols-4 gap-3 items-end">
+                {/* Tanggal */}
                 <div>
-                    <label htmlFor="filter-bulan" className="label text-[11px] mb-1 block text-slate-500">Bulan</label>
-                    <select
-                        id="filter-bulan"
-                        value={selectedMonth === 'all' ? 'all' : selectedMonth}
-                        onChange={(e) => { setSelectedMonth(e.target.value === 'all' ? 'all' : parseInt(e.target.value)); setCurrentPage(1) }}
-                        className="input w-full"
-                        aria-label="Filter bulan"
-                    >
-                        <option value="all">Semua</option>
-                        {MONTHS.map(month => (
-                            <option key={month.value} value={month.value}>{month.label}</option>
-                        ))}
-                    </select>
-                </div>
-
-                {/* Tahun */}
-                <div>
-                    <label htmlFor="filter-tahun" className="label text-[11px] mb-1 block text-slate-500">Tahun</label>
-                    <select
-                        id="filter-tahun"
-                        value={selectedYear === 'all' ? 'all' : selectedYear}
-                        onChange={(e) => { setSelectedYear(e.target.value === 'all' ? 'all' : parseInt(e.target.value)); setCurrentPage(1) }}
-                        className="input w-full"
-                        aria-label="Filter tahun"
-                    >
-                        <option value="all">Semua</option>
-                        {availableYears.map(year => (
-                            <option key={year} value={year}>{year}</option>
-                        ))}
-                    </select>
+                    <span className="label text-[11px] mb-1 block text-slate-500">Tanggal Kirim</span>
+                    <DateRangeFilter
+                        value={dateRange}
+                        onChange={(range) => { setDateRange(range); setCurrentPage(1) }}
+                        align="left"
+                        fullWidth
+                    />
                 </div>
 
                 {/* Brand */}
@@ -364,6 +326,36 @@ export default function OrderHistoryClient({ orders, brands }: OrderHistoryClien
                     )}
                 </div>
             </div>
+
+            {/* Rekap per Brand */}
+            {brandRecap.length > 0 && (
+                <div className="space-y-3">
+                    <div className="flex items-baseline justify-between gap-2">
+                        <h2 className="text-sm font-semibold text-slate-900">Rekap per Brand</h2>
+                        <p className="text-[11px] text-slate-400">Periode: {formatRangeLabel(dateRange)}</p>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                        {brandRecap.map(brand => (
+                            <div key={brand.id} className="surface p-3">
+                                <div className="flex items-center justify-between gap-2">
+                                    <span className="text-xs font-semibold text-slate-700 truncate">{brand.name}</span>
+                                    {brand.code && (
+                                        <span className="px-1.5 py-0.5 text-[10px] font-medium bg-slate-100 text-slate-600 rounded shrink-0">
+                                            {brand.code}
+                                        </span>
+                                    )}
+                                </div>
+                                <p className="mt-1.5 text-base font-bold text-slate-900 text-mono">
+                                    {formatCurrency(brand.revenue)}
+                                </p>
+                                <p className="text-[11px] text-slate-500">
+                                    {brand.orders} order · {brand.qty.toLocaleString('id-ID')} pcs
+                                </p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {/* Orders List */}
             {filteredOrders.length === 0 ? (
