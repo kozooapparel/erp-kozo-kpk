@@ -56,7 +56,8 @@ jobs:
       - name: Checkout fork
         uses: actions/checkout@v4
         with:
-          ref: master
+          # Repo ini default branch-nya `main`, bukan `master`.
+          ref: main
           fetch-depth: 0
 
       - name: Setup Supabase CLI
