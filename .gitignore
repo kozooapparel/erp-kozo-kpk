@@ -40,7 +40,10 @@ yarn-error.log*
 supabase/.temp/
 
 # AI tools (internal)
-.trae/
+# .trae/rules/ sengaja TIDAK diabaikan: berkas aturan proyek untuk AI editor
+# harus terbawa ke setiap fork supaya konvensi repo ini dipatuhi otomatis.
+.trae/*
+!.trae/rules/
 agent-skills/
 
 # typescript

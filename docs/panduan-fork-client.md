@@ -286,7 +286,115 @@ lagi, sehingga tabelnya tidak akan terbentuk.
 
 ---
 
-## 14. Aturan penting (jangan dilanggar)
+## 14. Vibe coding di repo fork (Trae atau AI editor lain)
+
+### Aturan proyek sudah ikut di repo
+
+Repo ini membawa berkas aturan untuk AI editor di
+[`.trae/rules/project_rules.md`](../.trae/rules/project_rules.md) dengan mode
+**Always Apply**. Begitu folder fork dibuka di Trae, aturan itu dibaca otomatis:
+AI sudah tahu larangan dan konvensi proyek ini tanpa kamu jelaskan ulang.
+Berkasnya ikut tersinkron dari upstream, jadi aturannya selalu versi terbaru.
+
+Kalau kamu memakai editor lain, salin isi berkas itu ke berkas aturan editor
+tersebut (mis. `AGENTS.md` di root repo, atau `.cursor/rules/`).
+
+### Langkah client baru
+
+1. **Selesaikan setup dulu** — bagian 2 sampai 8 (fork, Supabase, 3 secret,
+   Actions aktif, akun owner, Vercel). Jangan mulai coding sebelum run
+   auto-sync pertama hijau.
+2. **Clone repo fork-mu sendiri**, bukan upstream:
+
+   ```bash
+   git clone https://github.com/<akunmu>/raidwear.git
+   cd raidwear
+   ```
+
+3. **Buka folder itu di Trae.**
+4. **Pastikan aturannya aktif** — **Settings → Rules** harus menampilkan
+   `project_rules.md` sebagai project rule dengan mode **Always Apply**. Kalau
+   belum muncul, buat rule baru bernama `project_rules` lalu tempel isi berkas
+   di atas ke dalamnya.
+5. **Pasang dependensi dan jalankan di lokal**:
+
+   ```bash
+   npm install
+   npm run dev
+   ```
+
+   Isi `.env.local` dengan kredensial Supabase **milikmu** (daftar variabelnya di
+   bagian 8). Jangan memakai kredensial milik orang lain.
+6. **Mulai sesi vibe coding** dengan prompt di bawah.
+
+### Prompt sesi vibe coding
+
+Karena aturan proyek sudah aktif otomatis, prompt-nya cukup singkat:
+
+```text
+Baca .trae/rules/project_rules.md dan patuhi seluruh isinya.
+
+Fitur yang saya mau: <jelaskan fitur, untuk siapa, dan hasil akhirnya>
+
+Kerjakan bertahap: jelaskan rencanamu dulu sebelum menulis kode. Kalau butuh
+perubahan skema database, tambahkan file migrasi baru yang idempotent. Sebelum
+menyatakan selesai, jalankan npm run lint dan npm run build. Jangan push sebelum
+saya setujui.
+```
+
+Kalau aturan proyek belum aktif di editor-mu, tempel prompt berikut sebagai
+gantinya (isinya sama dengan berkas aturan di atas):
+
+```text
+Kamu membantu saya mengerjakan aplikasi RAIDWEAR, repo fork dari
+raidwear/raidwear. Auto-sync harian menggabungkan commit upstream ke branch
+master repo saya, jadi setiap perubahan harus aman dari konflik.
+
+ATURAN KERAS:
+1. Jangan pernah meminta, menampilkan, atau menulis rahasia apa pun (Personal
+   Access Token Supabase, database password, service_role key, kredensial R2) ke
+   dalam chat, file, atau commit. Kalau butuh, minta saya memasukkannya sendiri.
+2. Jangan mengubah .github/workflows/fork-sync.yml. Logika auto-sync ada di
+   scripts/fork-sync.sh.
+3. Jangan menghapus atau mengganti nama file di supabase/migrations/. Perubahan
+   skema = file BARU ber-timestamp dan idempotent.
+4. Jangan mengganti nama default branch (master).
+5. Jangan menaruh rahasia di variabel NEXT_PUBLIC_*.
+6. Setiap perintah supabase yang menyentuh database wajib memakai
+   --project-ref <ref milik saya>.
+
+CARA KERJA:
+Utamakan menambah file/komponen baru daripada mengubah file inti bersama
+(src/app/**, src/components/**, src/lib/**). Sebelum menyatakan selesai,
+jalankan npm run lint dan npm run build, lalu minta persetujuan saya sebelum
+git push.
+
+Fitur yang saya mau: <jelaskan di sini>
+```
+
+### Bisa dikerjakan AI vs harus kamu sendiri
+
+| Bisa dikerjakan AI lewat terminal | Harus kamu sendiri |
+| --- | --- |
+| edit kode, tambah komponen, tambah file migrasi baru | buat project Supabase (bagian 3) |
+| `npm install`, `npm run dev`, `npm run lint`, `npm run build` | ambil 6 kredensial (bagian 3) |
+| membuat commit dan branch lokal | isi 3 secret Actions (bagian 4) |
+| `gh workflow run` dan cek status run | buat akun owner (bagian 7) |
+|  | deploy Vercel + 4 environment variable (bagian 8) |
+|  | Cloudflare R2 dan kustomisasi brand (bagian 9–10) |
+
+### Supaya perubahanmu tidak bentrok
+
+- Taruh fitur baru di berkas **baru** sedapat mungkin; sentuh berkas bersama
+  seminimal mungkin.
+- Jangan memformat ulang berkas yang tidak kamu ubah.
+- Setelah push, jalankan workflow (bagian 12) supaya fork-mu ikut versi upstream
+  terbaru. Kalau ada konflik, workflow berhenti dan fork-mu tidak diubah —
+  selesaikan manual seperti di bagian 13.
+
+---
+
+## 15. Aturan penting (jangan dilanggar)
 
 1. **Jangan menghapus atau mengganti nama file migrasi** yang sudah pernah
    diterapkan di database. Repo selalu menambah file baru, tidak mengubah yang lama.
@@ -305,7 +413,7 @@ lagi, sehingga tabelnya tidak akan terbentuk.
 
 ---
 
-## 15. Checklist ringkas
+## 16. Checklist ringkas
 
 | # | Langkah | Perintah / lokasi |
 | --- | --- | --- |
