@@ -1,21 +1,32 @@
 import 'server-only'
 
-import { createCipheriv, createDecipheriv, randomBytes } from 'crypto'
+import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'crypto'
 
 const ALGORITHM = 'aes-256-gcm'
 const VERSION = 'v1'
+const UNDECRYPTABLE_MESSAGE =
+    'Kredensial penyimpanan R2 tidak dapat dibaca karena kunci enkripsi (R2_CREDENTIAL_ENCRYPTION_KEY) berbeda dari saat kredensial disimpan. Buka Settings → Penyimpanan File, lalu simpan ulang koneksi R2.'
 
 function encryptionKey(): Buffer {
     const encoded = process.env.R2_CREDENTIAL_ENCRYPTION_KEY
-    if (!encoded) {
-        throw new Error('R2_CREDENTIAL_ENCRYPTION_KEY is not configured')
+    if (encoded) {
+        const key = Buffer.from(encoded, 'base64')
+        if (key.length !== 32) {
+            throw new Error('R2_CREDENTIAL_ENCRYPTION_KEY must be a base64-encoded 32-byte key')
+        }
+        return key
     }
 
-    const key = Buffer.from(encoded, 'base64')
-    if (key.length !== 32) {
-        throw new Error('R2_CREDENTIAL_ENCRYPTION_KEY must be a base64-encoded 32-byte key')
+    // Tanpa R2_CREDENTIAL_ENCRYPTION_KEY, kunci diturunkan secara deterministik dari
+    // SUPABASE_SERVICE_ROLE_KEY agar pengguna cukup mengisi form koneksi R2 di UI
+    // tanpa perlu menyiapkan env tambahan.
+    const seed = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (!seed) {
+        throw new Error(
+            'Kunci enkripsi kredensial R2 tidak tersedia: set R2_CREDENTIAL_ENCRYPTION_KEY atau SUPABASE_SERVICE_ROLE_KEY'
+        )
     }
-    return key
+    return createHash('sha256').update(seed).digest()
 }
 
 export function encryptCredential(value: string): string {
@@ -29,7 +40,7 @@ export function encryptCredential(value: string): string {
 export function decryptCredential(payload: string): string {
     const [version, ivEncoded, tagEncoded, ciphertextEncoded] = payload.split(':')
     if (version !== VERSION || !ivEncoded || !tagEncoded || !ciphertextEncoded) {
-        throw new Error('Stored R2 credential cannot be decrypted')
+        throw new Error(UNDECRYPTABLE_MESSAGE)
     }
 
     try {
@@ -40,6 +51,6 @@ export function decryptCredential(payload: string): string {
             decipher.final(),
         ]).toString('utf8')
     } catch {
-        throw new Error('Stored R2 credential cannot be decrypted')
+        throw new Error(UNDECRYPTABLE_MESSAGE)
     }
 }

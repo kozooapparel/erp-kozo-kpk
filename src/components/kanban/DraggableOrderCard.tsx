@@ -145,15 +145,16 @@ export default function DraggableOrderCard({ order, isBottleneck, onClick }: Dra
                     {/* Card Content */}
                     <div className="p-2.5">
                         {/* Thumbnail Logic */}
-                        {/* 1. Proses Desain: Show Mockup */}
-                        {order.stage === 'proses_desain' && (
+                        {/* Tampilkan desain (mockup) di semua stage bila sudah ada.
+                            Placeholder "No Mockup" hanya muncul saat stage proses_desain. */}
+                        {(order.mockup_url || order.stage === 'proses_desain') && (
                             <div className="relative mb-2">
                                 {order.mockup_url ? (
-                                    <div className="relative w-full h-16 rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-800">
-                                        <Image src={order.mockup_url} alt="Mockup" fill className="object-cover pointer-events-none" />
+                                    <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-800">
+                                        <Image src={order.mockup_url} alt="Desain" fill sizes="(max-width: 768px) 100vw, 256px" className="object-cover pointer-events-none" />
                                     </div>
                                 ) : (
-                                    <div className="w-full h-16 rounded-lg bg-slate-50 dark:bg-slate-800 flex items-center justify-center border border-dashed border-slate-200">
+                                    <div className="w-full aspect-video rounded-lg bg-slate-50 dark:bg-slate-800 flex items-center justify-center border border-dashed border-slate-200">
                                         <span className="text-[10px] text-slate-400">No Mockup</span>
                                     </div>
                                 )}

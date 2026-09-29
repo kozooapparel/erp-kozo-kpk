@@ -97,11 +97,13 @@ const styles = StyleSheet.create({
         padding: 4,
         color: '#1e293b',
     },
-    // Kerah & Mockup dicetak pada skala 20% dari lebar halaman
+    // Kerah & Mockup dicetak penuh mengikuti lebar kolom
     smallImage: {
-        width: '20%',
+        width: '100%',
         objectFit: 'contain',
-        margin: 5,
+    },
+    imagePadding: {
+        padding: 5,
     },
     listImage: {
         width: '100%',
@@ -226,21 +228,25 @@ export default function FormOrderPDF({ order, brand }: FormOrderPDFProps) {
                     <View style={styles.bottomCol}>
                         <View style={styles.imageBox}>
                             <Text style={styles.imageLabel}>Kerah</Text>
-                            {specs.kerah_image_url ? (
-                                <Image src={specs.kerah_image_url} style={styles.smallImage} />
-                            ) : (
-                                <Text style={{ fontSize: 8, color: '#94a3b8', padding: 5 }}>Belum ada gambar</Text>
-                            )}
+                            <View style={styles.imagePadding}>
+                                {specs.kerah_image_url ? (
+                                    <Image src={specs.kerah_image_url} style={styles.smallImage} />
+                                ) : (
+                                    <Text style={{ fontSize: 8, color: '#94a3b8', padding: 5 }}>Belum ada gambar</Text>
+                                )}
+                            </View>
                         </View>
                     </View>
                     <View style={styles.bottomCol}>
                         <View style={styles.imageBox}>
                             <Text style={styles.imageLabel}>Mockup</Text>
-                            {specs.mockup_image_url ? (
-                                <Image src={specs.mockup_image_url} style={styles.smallImage} />
-                            ) : (
-                                <Text style={{ fontSize: 8, color: '#94a3b8', padding: 5 }}>Belum ada gambar</Text>
-                            )}
+                            <View style={styles.imagePadding}>
+                                {specs.mockup_image_url ? (
+                                    <Image src={specs.mockup_image_url} style={styles.smallImage} />
+                                ) : (
+                                    <Text style={{ fontSize: 8, color: '#94a3b8', padding: 5 }}>Belum ada gambar</Text>
+                                )}
+                            </View>
                         </View>
                     </View>
                 </View>
