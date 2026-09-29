@@ -76,7 +76,7 @@ function uploadPart(url: string, chunk: Blob, onProgress: (loaded: number) => vo
             }
             resolve(eTag)
         }
-        request.onerror = () => reject(new Error('Gagal menghubungi R2 saat mengupload bagian file'))
+        request.onerror = () => reject(new Error('Gagal menghubungi R2 saat mengupload bagian file. Periksa kebijakan CORS bucket R2 (izinkan PUT dan expose header ETag).'))
         request.onabort = () => reject(new Error('Upload bagian file dibatalkan'))
         request.send(chunk)
     })
