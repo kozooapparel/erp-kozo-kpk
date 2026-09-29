@@ -172,17 +172,10 @@ Menu **Settings** (Kelola User, Brand, Penyimpanan File) hanya muncul untuk role
 | `NEXT_PUBLIC_SUPABASE_URL` | Project URL (nilai 1) | Production, Preview, Development |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | anon public key (nilai 2) | Production, Preview, Development |
 | `SUPABASE_SERVICE_ROLE_KEY` | service_role key (nilai 3) | Production, Preview, Development |
-| `R2_CREDENTIAL_ENCRYPTION_KEY` | kunci enkripsi kredensial R2 (lihat di bawah) | Production, Preview, Development |
 
-Buat `R2_CREDENTIAL_ENCRYPTION_KEY` sekali dengan:
-
-```bash
-node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
-```
-
-Simpan nilainya di tempat aman. Kalau kunci ini diganti setelah client menyimpan
-kredensial penyimpanan, kredensial lama tidak bisa dibaca lagi dan harus
-disimpan ulang lewat menu Penyimpanan.
+Cukup tiga variabel itu. Penyimpanan R2 tidak butuh variabel tambahan: kunci
+enkripsi kredensial diturunkan otomatis dari `SUPABASE_SERVICE_ROLE_KEY`, dan tiap
+client menyambungkan akun R2-nya sendiri lewat **Settings → Penyimpanan File**.
 
 4. Klik **Deploy**, lalu buka domain yang diberikan (mis. `<project>.vercel.app`).
 
@@ -256,9 +249,9 @@ gh workflow run fork-sync.yml
 **Mengganti password database Supabase**: perbarui secret `SUPABASE_DB_PASSWORD`,
 kalau tidak migrasi berikutnya akan gagal.
 
-**Mengganti kunci enkripsi R2**: perbarui variabel Vercel
-`R2_CREDENTIAL_ENCRYPTION_KEY` **dan** simpan ulang kredensial penyimpanan tiap
-tenant.
+**Mengganti `SUPABASE_SERVICE_ROLE_KEY`**: kunci enkripsi kredensial R2
+diturunkan dari nilai ini. Kalau diganti, kredensial penyimpanan R2 tiap tenant
+tidak bisa dibaca lagi dan harus disimpan ulang lewat menu Penyimpanan.
 
 **Mengubah kode sendiri**: boleh. Tambahkan commit di fork-mu seperti biasa.
 Auto-sync akan **merge**, bukan menimpa — perubahanmu tetap utuh. Kalau merge
