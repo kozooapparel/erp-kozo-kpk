@@ -10,6 +10,8 @@ import { formatCurrency, formatDateInput } from '@/lib/utils/format'
 import { terbilang } from '@/lib/utils/terbilang'
 import { toast } from 'sonner'
 import BrandSelector from './BrandSelector'
+import ItemPicker from './ItemPicker'
+import QuickCreateBarangModal from './QuickCreateBarangModal'
 import { CurrencyInput, NumberInput } from '@/components/ui'
 
 interface InvoiceFormProps {
@@ -81,11 +83,16 @@ export default function InvoiceForm({
     const [companyInfo, setCompanyInfo] = useState<CompanyInfo | null>(null)
     const [brandInfo, setBrandInfo] = useState<{ name: string; address: string | null; logo_url: string | null } | null>(null)
 
+    // Quick create barang (tanpa keluar dari halaman invoice)
+    const [quickCreateIndex, setQuickCreateIndex] = useState<number | null>(null)
+    const [quickCreateName, setQuickCreateName] = useState('')
+
+    // Brand aktif menentukan daftar barang yang bisa dipilih
+    const activeBrandId = selectedBrandId || prefilledBrandId
+
     // Load lookup data
     useEffect(() => {
         async function loadData() {
-            const activeBrandId = selectedBrandId || prefilledBrandId
-
             const [barang, bank, company] = await Promise.all([
                 activeBrandId ? getBarangList(activeBrandId) : Promise.resolve([]),
                 getBankInfo(),
@@ -122,7 +129,7 @@ export default function InvoiceForm({
             }
         }
         loadData()
-    }, [prefilledBrandId, selectedBrandId])
+    }, [prefilledBrandId, selectedBrandId, activeBrandId])
 
     // Calculate totals
     const subTotal = items.reduce((sum, item) => sum + item.sub_total, 0)
@@ -208,6 +215,43 @@ export default function InvoiceForm({
 
         newItems[index] = item
         setItems(newItems)
+    }
+
+    // Buka form barang baru untuk baris tertentu
+    const openQuickCreate = (index: number, initialName: string) => {
+        setQuickCreateIndex(index)
+        setQuickCreateName(initialName.trim())
+    }
+
+    // Barang baru dibuat: daftarkan ke picker lalu pakai otomatis di baris saat ini
+    const handleBarangCreated = (barang: Barang) => {
+        const index = quickCreateIndex
+
+        // Tambahkan ke daftar barang agar bisa dipilih juga di baris lain
+        setBarangList(prev => {
+            if (prev.some(b => b.id === barang.id)) return prev
+            return [...prev, barang].sort((a, b) => a.nama_barang.localeCompare(b.nama_barang))
+        })
+
+        // Pakai barang baru di baris invoice yang sedang aktif
+        if (index !== null) {
+            setItems(prev => {
+                const newItems = [...prev]
+                const item = newItems[index]
+                if (!item) return prev
+                newItems[index] = {
+                    ...item,
+                    barang_id: barang.id,
+                    deskripsi: barang.nama_barang,
+                    satuan: barang.satuan,
+                    harga_satuan: barang.harga_satuan,
+                    sub_total: item.jumlah * barang.harga_satuan,
+                }
+                return newItems
+            })
+        }
+
+        setQuickCreateIndex(null)
     }
 
     // Handle submit
@@ -315,9 +359,9 @@ export default function InvoiceForm({
             )}
 
             {/* Invoice Card */}
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
                 {/* Invoice Header with Brand */}
-                <div className="p-6 bg-gradient-to-r from-slate-50 to-slate-100 border-b border-slate-200">
+                <div className="p-6 bg-gradient-to-r from-slate-50 to-slate-100 border-b border-slate-200 rounded-t-xl">
                     <div className="flex items-start justify-between">
                         {/* Left: Invoice Info */}
                         <div className="space-y-3">
@@ -438,92 +482,93 @@ export default function InvoiceForm({
 
                 {/* Items Table */}
                 <div className="p-6">
-                    <div className="mb-4">
-                        <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Detail Item</h3>
+                    <div className="mb-4 flex items-center justify-between">
+                        <h3 className="text-caption">Detail Item</h3>
+                        <span className="text-xs font-medium text-slate-400">{items.length} baris</span>
                     </div>
                     <table className="w-full">
                         <thead>
-                            <tr className="bg-slate-50 border-y border-slate-200">
-                                <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide py-3 px-2 w-10">#</th>
-                                <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide py-3 px-2">Deskripsi</th>
-                                <th className="text-center text-xs font-semibold text-slate-500 uppercase tracking-wide py-3 px-2 w-20">Qty</th>
-                                <th className="text-center text-xs font-semibold text-slate-500 uppercase tracking-wide py-3 px-2 w-20">Satuan</th>
-                                <th className="text-right text-xs font-semibold text-slate-500 uppercase tracking-wide py-3 px-2 w-32">Harga</th>
-                                <th className="text-right text-xs font-semibold text-slate-500 uppercase tracking-wide py-3 px-2 w-32">Subtotal</th>
+                            <tr className="border-b border-slate-200 bg-slate-50/80">
+                                <th className="w-10 px-2 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">#</th>
+                                <th className="px-2 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Deskripsi</th>
+                                <th className="w-20 px-2 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-500">Qty</th>
+                                <th className="w-20 px-2 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-500">Satuan</th>
+                                <th className="w-32 px-2 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">Harga</th>
+                                <th className="w-32 px-2 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">Subtotal</th>
                                 <th className="w-10"></th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody className="divide-y divide-slate-100">
                             {items.map((item, index) => (
-                                <tr key={item.id} className="border-b border-slate-100">
-                                    <td className="py-2 text-sm text-slate-500">{index + 1}</td>
-                                    <td className="py-2">
-                                        <div className="flex flex-col gap-1">
-                                            <select
-                                                value={item.barang_id || ''}
-                                                onChange={(e) => updateItem(index, 'barang_id', e.target.value || null)}
-                                                disabled={!selectedBrandId && !prefilledBrandId}
-                                                className="w-full px-2 py-1 border border-slate-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/50 disabled:bg-slate-100 disabled:cursor-not-allowed"
+                                <tr key={item.id} className="transition-colors hover:bg-slate-50/60">
+                                    <td className="px-2 py-2 text-sm font-medium text-slate-400">{index + 1}</td>
+                                    <td className="px-2 py-2">
+                                        <div className="flex items-center gap-2">
+                                            <div className="min-w-0 flex-1">
+                                                <ItemPicker
+                                                    value={item.deskripsi}
+                                                    barangId={item.barang_id}
+                                                    items={barangList}
+                                                    hasBrand={!!activeBrandId}
+                                                    onSelectItem={(barang) => updateItem(index, 'barang_id', barang.id)}
+                                                    onChangeText={(text) => updateItem(index, 'deskripsi', text)}
+                                                    onCreateNew={(typed) => openQuickCreate(index, typed)}
+                                                />
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => openQuickCreate(index, item.deskripsi)}
+                                                disabled={!activeBrandId}
+                                                title={activeBrandId ? 'Tambah barang baru' : 'Pilih brand dulu'}
+                                                className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-2.5 py-2 text-xs font-semibold text-brand-700 transition-colors hover:border-brand-300 hover:bg-brand-100 disabled:cursor-not-allowed disabled:opacity-50"
                                             >
-                                                <option value="">
-                                                    {(selectedBrandId || prefilledBrandId)
-                                                        ? '-- Pilih Barang atau Ketik Manual --'
-                                                        : '-- Pilih Brand dulu --'}
-                                                </option>
-                                                {barangList.map(barang => (
-                                                    <option key={barang.id} value={barang.id}>
-                                                        {barang.nama_barang}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                            <input
-                                                type="text"
-                                                value={item.deskripsi}
-                                                onChange={(e) => updateItem(index, 'deskripsi', e.target.value)}
-                                                className="w-full px-2 py-1 border border-slate-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/50"
-                                                placeholder="Deskripsi item..."
-                                            />
+                                                <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                                                    <path d="M12 5v14M5 12h14" />
+                                                </svg>
+                                                Barang Baru
+                                            </button>
                                         </div>
                                     </td>
-                                    <td className="py-2">
+                                    <td className="px-2 py-2">
                                         <NumberInput
                                             value={item.jumlah || ''}
                                             onChange={(v) => updateItem(index, 'jumlah', v > 0 ? String(v) : '')}
-                                            className="!w-full !px-2 !py-1 !rounded !text-sm !text-center !bg-white !border-slate-200 focus:!ring-orange-500/50"
+                                            className="!w-full !px-2 !py-2 !rounded-lg !text-sm !text-center !bg-white !border-slate-200 focus:!border-brand-500 focus:!ring-brand-500/15"
                                             placeholder="0"
                                             min={0}
                                             allowEmpty
                                         />
                                     </td>
-                                    <td className="py-2">
+                                    <td className="px-2 py-2">
                                         <input
                                             type="text"
                                             value={item.satuan}
                                             onChange={(e) => updateItem(index, 'satuan', e.target.value)}
-                                            className="w-full px-2 py-1 border border-slate-200 rounded text-sm text-center focus:outline-none focus:ring-2 focus:ring-orange-500/50"
+                                            className="w-full rounded-lg border border-slate-200 bg-white px-2 py-2 text-center text-sm text-slate-900 transition-colors focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/15"
                                         />
                                     </td>
-                                    <td className="py-2">
+                                    <td className="px-2 py-2">
                                         <CurrencyInput
                                             value={item.harga_satuan || ''}
                                             onChange={(v) => updateItem(index, 'harga_satuan', v > 0 ? String(v) : '')}
                                             showPrefix={false}
-                                            className="!w-full !px-2 !py-1 !rounded !text-sm !text-right !bg-white !border-slate-200 focus:!ring-orange-500/50"
+                                            className="!w-full !px-2 !py-2 !rounded-lg !text-sm !text-right !bg-white !border-slate-200 focus:!border-brand-500 focus:!ring-brand-500/15"
                                             placeholder="0"
                                             min={0}
                                         />
                                     </td>
-                                    <td className="py-2 text-right text-sm font-medium text-slate-900">
+                                    <td className="px-2 py-2 text-right text-sm font-semibold tabular-nums text-slate-900">
                                         {formatCurrency(item.sub_total)}
                                     </td>
-                                    <td className="py-2">
+                                    <td className="px-2 py-2 text-center">
                                         <button
                                             type="button"
                                             onClick={() => removeRow(index)}
-                                            className="p-1 text-red-500 hover:bg-red-50 rounded transition-colors"
+                                            className="rounded-md p-1.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-30"
                                             disabled={items.length === 1}
+                                            title="Hapus baris ini"
                                         >
-                                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                             </svg>
                                         </button>
@@ -534,27 +579,33 @@ export default function InvoiceForm({
                     </table>
 
                     {/* Add/Remove Row Buttons */}
-                    <div className="flex gap-2 mt-4">
+                    <div className="mt-4 flex items-center gap-2">
                         <button
                             type="button"
                             onClick={addRow}
-                            className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm font-medium transition-colors"
+                            className="inline-flex items-center gap-1.5 rounded-lg bg-brand-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-700"
                         >
-                            + BARIS
+                            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M12 5v14M5 12h14" />
+                            </svg>
+                            Tambah Baris
                         </button>
                         <button
                             type="button"
                             onClick={() => removeRow(items.length - 1)}
                             disabled={items.length === 1}
-                            className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium disabled:opacity-50 transition-colors"
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 transition-colors hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                            - BARIS
+                            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M5 12h14" />
+                            </svg>
+                            Hapus Baris
                         </button>
                     </div>
                 </div>
 
                 {/* Totals Section */}
-                <div className="p-6 bg-gradient-to-r from-slate-50 to-slate-100 border-t border-slate-200">
+                <div className={`p-6 bg-gradient-to-r from-slate-50 to-slate-100 border-t border-slate-200 ${bankInfo ? '' : 'rounded-b-xl'}`}>
                     <div className="flex justify-end">
                         <div className="w-80 bg-white rounded-lg border border-slate-200 p-4 shadow-sm">
                             <div className="space-y-3">
@@ -609,7 +660,7 @@ export default function InvoiceForm({
 
                 {/* Bank Info */}
                 {bankInfo && (
-                    <div className="p-6 border-t border-slate-200 bg-white">
+                    <div className="p-6 border-t border-slate-200 bg-white rounded-b-xl">
                         <div className="flex items-start justify-between">
                             <div>
                                 <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Pembayaran</h4>
@@ -633,6 +684,15 @@ export default function InvoiceForm({
                     </div>
                 )}
             </div>
+
+            {/* Form barang baru tanpa keluar dari invoice */}
+            <QuickCreateBarangModal
+                isOpen={quickCreateIndex !== null}
+                onClose={() => setQuickCreateIndex(null)}
+                brandId={activeBrandId || ''}
+                initialName={quickCreateName}
+                onCreated={handleBarangCreated}
+            />
         </form>
     )
 }
